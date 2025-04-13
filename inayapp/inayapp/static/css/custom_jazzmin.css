@@ -1,0 +1,114 @@
+/* =============================================
+   Custom Jazzmin Admin - Style Amélioré
+   ============================================= */
+
+/* Fond général */
+body {
+    background-color: #f8f9fa !important; /* Fond doux */
+}
+
+/* En-tête et Navbar */
+.navbar, .main-header {
+    background-color: #7a6ad8 !important; /* Mauve dominante */
+    border: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Liens et titres dans l'en-tête */
+.navbar a, .navbar .nav-link {
+    color: #ffffff !important;
+    font-weight: 500;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.navbar a:hover, .navbar .nav-link:hover {
+    background-color: #5a4ac9 !important;
+    color: #e0e0ff !important;
+}
+
+/* Sidebar (menu latéral) */
+.main-sidebar {
+    background-color: #7a6ad8 !important;
+    border-right: 1px solid #5f3ebc;
+}
+
+.main-sidebar .nav-sidebar > .nav-item > .nav-link {
+    color: #ffffff !important;
+    font-size: 13px;
+    padding: 12px 15px;
+    transition: background-color 0.3s ease, color 0.3s ease, font-size 0.3s ease;
+}
+
+.main-sidebar .nav-sidebar > .nav-item > .nav-link.active {
+    background-color: #fdfdff !important;
+    color: #25145a !important;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.main-sidebar .nav-sidebar > .nav-item > .nav-link:hover {
+    background-color: rgba(37, 20, 90, 0.6) !important;
+    color: #f6faf8 !important;
+    font-size: 15px;
+}
+
+/* Cards et panneaux */
+.card {
+    border: 1px solid #e1e1e1;
+    border-radius: 8px;
+    transition: transform 0.3s, box-shadow 0.3s;
+    background-color: #ffffff;
+}
+
+.card:hover {
+    transform: scale(1.008);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+/* Titres de card (panneaux) */
+.card-header {
+    background-color: #7a6ad8 !important;
+    color: #ffffff !important;
+    text-align: center;
+    text-transform: capitalize;
+    font-weight: 600;
+    padding: 10px;
+}
+
+/* Tables */
+.table thead {
+    background-color: #f2efff !important;
+    color: #ffffff !important;
+    font-weight: 600;
+}
+
+.table tbody tr:nth-child(odd) {
+    background-color: #f4f4f4;
+}
+
+/* Boutons primaires */
+.btn-primary {
+    background-color: #7a6ad8 !important;
+    border-color: #7a6ad8 !important;
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.btn-primary:hover {
+    background-color: #290beb !important; /* Teinte plus vive pour le survol */
+    border-color: #290beb !important;
+}
+
+/* Dropdown : fond blanc et texte sombre */
+.dropdown-menu {
+    background-color: #ffffff !important;
+}
+
+.dropdown-menu a {
+    color: #25145a !important;
+}
+
+/* Pour l'état survolé, vous pouvez ajuster si nécessaire */
+.dropdown-menu a:hover {
+    background-color: #f4f4f4 !important;
+    color: #25145a !important;
+}

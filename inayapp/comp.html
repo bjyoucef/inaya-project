@@ -1,0 +1,40 @@
+    // Initialisation du Date Range Picker avec redirection sur changement
+    const startDateTemplate = "{{ selected.start_date|default:'2025-01-01' }}";
+    const endDateTemplate = "{{ selected.end_date|default:'2025-01-01' }}";
+    let start = moment(startDateTemplate, "YYYY-MM-DD");
+    let end = moment(endDateTemplate, "YYYY-MM-DD");
+    const updateInput = (start, end) => {
+    $("#daterangepicker").val(start.format("YYYY-MM-DD") + " - " + end.format("YYYY-MM-DD"));
+    };
+    $("#daterangepicker").daterangepicker({
+    startDate: start,
+    endDate: end,
+    autoUpdateInput: true,
+    locale: {
+    format: "YYYY-MM-DD",
+    separator: " - ",
+    applyLabel: "Appliquer",
+    cancelLabel: "Annuler",
+    fromLabel: "De",
+    toLabel: "À",
+    customRangeLabel: "Personnalisée",
+    weekLabel: "S",
+    daysOfWeek: ["Di", "Lu", "Ma", "Me", "Je", "Ve", "Sa"],
+    monthNames: ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre",
+    "Novembre", "Décembre"],
+    firstDay: 1
+    },
+    ranges: {
+    "Aujourd'hui": [moment(), moment()],
+    "Hier": [moment().subtract(1, "days"), moment().subtract(1, "days")],
+    "7 derniers jours": [moment().subtract(6, "days"), moment()],
+    "30 derniers jours": [moment().subtract(29, "days"), moment()],
+    "Ce mois-ci": [moment().startOf("month"), moment().endOf("month")],
+    "Le mois dernier": [moment().subtract(1, "month").startOf("month"), moment().subtract(1, "month").endOf("month")]
+    }
+    }, updateInput);
+    updateInput(start, end);
+    $("#daterangepicker").on('apply.daterangepicker', function (ev, picker) {
+    window.location.href = "{% url 'planning' %}?start_date=" + picker.startDate.format("YYYY-MM-DD") +
+    "&end_date=" + picker.endDate.format("YYYY-MM-DD");
+    });

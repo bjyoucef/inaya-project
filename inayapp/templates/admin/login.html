@@ -1,0 +1,76 @@
+{% extends "layout.html" %}
+{% load i18n static widget_tweaks %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <!-- Inclusion de Bootstrap en local -->
+  <link rel="stylesheet" href="{% static 'admin/css/login.css' %}">
+  {{ form.media }}
+{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="row justify-content-center">
+    <div class="col-md-6">
+      <h2 class="text-center my-4">{% trans "Administration Login" %}</h2>
+
+      {% if form.errors %}
+        <div class="alert alert-danger">
+          {% if not form.non_field_errors %}
+            {% blocktranslate count counter=form.errors.items|length %}
+              Please correct the error below.
+            {% plural %}
+              Please correct the errors below.
+            {% endblocktranslate %}
+          {% endif %}
+        </div>
+      {% endif %}
+
+      {% if form.non_field_errors %}
+        {% for error in form.non_field_errors %}
+          <div class="alert alert-danger">{{ error }}</div>
+        {% endfor %}
+      {% endif %}
+
+      {% if user.is_authenticated %}
+        <div class="alert alert-warning">
+          {% blocktranslate trimmed %}
+            You are authenticated as {{ username }}, but are not authorized to access this page.
+            Would you like to login to a different account?
+          {% endblocktranslate %}
+        </div>
+      {% endif %}
+
+      <div class="card">
+        <div class="card-body">
+          <form action="{{ app_path }}" method="post" id="login-form">
+            {% csrf_token %}
+            <div class="form-group">
+              <label class="form-label" for="{{ form.username.id_for_label }}">{{ form.username.label }}</label>
+              {% render_field form.username class="form-control" %}
+              {% if form.username.errors %}
+                <div class="invalid-feedback d-block">
+                  {{ form.username.errors }}
+                </div>
+              {% endif %}
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="{{ form.password.id_for_label }}">{{ form.password.label }}</label>
+              {% render_field form.password class="form-control" %}
+              {% if form.password.errors %}
+                <div class="invalid-feedback d-block">
+                  {{ form.password.errors }}
+                </div>
+              {% endif %}
+              <input type="hidden" name="next" value="{{ next }}">
+            </div>
+            <div class="form-group text-center">
+              <button type="submit" class="btn btn-primary">{% translate "Log in" %}</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,160 @@
+{% extends "layout.html" %}
+{% load static %}
+
+{% block content %}
+
+<div class="services" id="services">
+  <div class="container">
+    <div class="row">
+      {% for service in services_list %}
+      <div class="col-lg-4 col-md-6">
+        <div class="service-item">
+          <div class="icon">
+            <img src="{% static service.icon %}" alt="{{ service.title }}">
+          </div>
+          <div class="main-content">
+            <h4>{{ service.title }}</h4>
+            <p>{{ service.description }}</p>
+            <div class="main-button">
+              <a href="#" class="btn btn-primary w-100" data-bs-toggle="modal" data-bs-target="#{{ service.modal }}">
+                {{ service.title }}
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- Modal Assistance Informatique -->
+<div class="modal fade" id="assistanceInformatiqueModal" tabindex="-1" aria-labelledby="assistanceInformatiqueModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="assistanceInformatiqueModalLabel">Demande d'Assistance Informatique</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form method="post" enctype="multipart/form-data" action="{% url 'envoyer_demandeIt' %}">
+          {% csrf_token %}
+          <div class="mb-3">
+            {% if user.is_authenticated %}
+              <input type="hidden" name="name" value="{{ user.username }}">
+            {% else %}
+              <input id="nameN" class="form-control" type="text" name="name" placeholder="Nom">
+            {% endif %}
+          </div>
+          <div class="mb-3">
+            <textarea id="demande_details" class="form-control" name="demande_details" placeholder="Décrivez les détails de la demande..." rows="7"></textarea>
+          </div>
+          <div class="mb-3">
+            <input type="file" class="form-control shadow-sm" id="fileIt" name="file_upload" multiple onchange="validateFileCount(this)">
+            <small class="text-muted">Vous pouvez télécharger jusqu'à 10 fichiers.</small>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Enregistrement vocal</label>
+            <button type="button" class="btn btn-secondary shadow-sm" id="recordAudio1">🎤 Enregistrer</button>
+            <audio controls id="audioPlayback1" style="display:none;" class="mt-2 w-100"></audio>
+            <input type="hidden" id="audioData1" name="audioData">
+          </div>
+          <div>
+            <button class="btn btn-primary d-block w-100" type="submit">📨 Soumettre</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Assistance Technique -->
+<div class="modal fade" id="assistanceTechniqueModal" tabindex="-1" aria-labelledby="assistanceTechniqueModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="assistanceTechniqueModalLabel">Demande d'Assistance Technique</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form method="post" enctype="multipart/form-data" action="{% url 'envoyer_demandeTech' %}">
+          {% csrf_token %}
+          <div class="mb-3">
+            {% if user.is_authenticated %}
+              <input type="hidden" name="name" value="{{ user.username }}">
+            {% else %}
+              <input id="nameN" class="form-control" type="text" name="name" placeholder="Nom">
+            {% endif %}
+          </div>
+          <div class="mb-3">
+            <textarea id="demande_details" class="form-control" name="demande_details" placeholder="Décrivez les détails de la demande..." rows="7"></textarea>
+          </div>
+          <div class="mb-3">
+            <input type="file" class="form-control shadow-sm" id="fileTech" name="file_upload" multiple onchange="validateFileCount(this)">
+            <small class="text-muted">Vous pouvez télécharger jusqu'à 10 fichiers.</small>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Enregistrement vocal</label>
+            <button type="button" class="btn btn-secondary shadow-sm" id="recordAudio2">🎤 Enregistrer</button>
+            <audio controls id="audioPlayback2" style="display:none;" class="mt-2 w-100"></audio>
+            <input type="hidden" id="audioData2" name="audioData">
+          </div>
+          <div>
+            <button class="btn btn-primary d-block w-100" type="submit">📨 Soumettre</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Demande d'Approvisionnement -->
+<div class="modal fade" id="demandeApprovisionnementModal" tabindex="-1" aria-labelledby="demandeApprovisionnementModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="demandeApprovisionnementModalLabel">Demande d'Approvisionnement</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form method="post" enctype="multipart/form-data" action="{% url 'envoyer_demandeAppro' %}">
+          {% csrf_token %}
+          <div class="mb-3">
+            {% if user.is_authenticated %}
+              <input type="hidden" name="name" value="{{ user.username }}">
+            {% else %}
+              <input id="nameN" class="form-control" type="text" name="name" placeholder="Nom">
+            {% endif %}
+          </div>
+          <div class="mb-3">
+            <textarea id="demande_details" class="form-control" name="demande_details" placeholder="Décrivez les détails de la demande..." rows="7"></textarea>
+          </div>
+          <div class="mb-3">
+            <input type="file" class="form-control shadow-sm" id="fileAppro" name="file_upload" multiple onchange="validateFileCount(this)">
+            <small class="text-muted">Vous pouvez télécharger jusqu'à 10 fichiers.</small>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Enregistrement vocal</label>
+            <button type="button" class="btn btn-secondary shadow-sm" id="recordAudio3">🎤 Enregistrer</button>
+            <audio controls id="audioPlayback3" style="display:none;" class="mt-2 w-100"></audio>
+            <input type="hidden" id="audioData3" name="audioData">
+          </div>
+          <div>
+            <button class="btn btn-primary d-block w-100" type="submit">📨 Soumettre</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Fonction de validation du nombre de fichiers
+  function validateFileCount(input) {
+    if (input.files.length > 10) {
+      alert("Vous pouvez télécharger jusqu'à 10 fichiers maximum.");
+      input.value = "";
+    }
+  }
+</script>
+{% endblock content %}

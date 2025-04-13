@@ -1,0 +1,612 @@
+{# planning.html #}
+{% extends "layout.html" %}
+{% load static %}
+{% load permissions_tags %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/fullcalendar.css' %}">
+<link rel="stylesheet" href="{% static 'css/choices.min.css' %}">
+<link rel="stylesheet" href="{% static 'css/daterangepicker.css' %}">
+<style>
+
+  .fc-toolbar-title { 
+    font-size: 1.25rem; 
+    font-weight: 600;
+}
+
+  .fc-event { 
+    font-size: 0.85em; 
+    padding: 2px 5px; 
+    border-radius: 3px; 
+    margin: 1px; 
+}
+
+  .choices__inner { 
+    min-height: 38px; 
+    padding: 4px 8px; 
+    border: 1px solid #dee2e6 !important; 
+    border-radius: 0.375rem; 
+    background-color: white; }
+
+  .choices__list--dropdown { 
+    border: 1px solid #dee2e6; 
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15); 
+    z-index: 1060 !important; }
+
+  .form-control-sm, .form-select-sm { 
+    height: 38px; 
+    padding: 0.25rem 0.5rem; 
+    font-size: 0.875rem; }
+
+  .week-end-style {
+    background-color:#dbcffb;
+    /* Jaune clair */
+    color: #000;
+    /* Texte noir */
+}
+        
+    @media (max-width: 768px) {
+        .week-end-style {
+            background-color: #dbcffb !important; /* Jaune clair */
+            color: #000 !important; /* Texte noir */
+        }
+    }
+
+:root {
+    --fc-small-font-size: .85em;
+    --fc-page-bg-color: #fff;
+    --fc-neutral-bg-color: rgba(208, 208, 208, 0.3);
+    --fc-neutral-text-color: #808080;
+    --fc-border-color: #ddd;
+  
+    --fc-button-text-color: #fff;
+    --fc-button-bg-color:#7a6ad8;
+    --fc-button-border-color: #3b0087;
+    --fc-button-hover-bg-color:#3b0087;
+    --fc-button-hover-border-color: #3b0087;
+    --fc-button-active-bg-color:#3b0087;
+    --fc-button-active-border-color: #3b0087;
+  
+    --fc-event-bg-color: #3788d8;
+    --fc-event-border-color: #3788d8;
+    --fc-event-text-color: #fff;
+    --fc-event-selected-overlay-color: rgba(0, 0, 0, 0.25);
+  
+    --fc-more-link-bg-color: #d0d0d0;
+    --fc-more-link-text-color: inherit;
+  
+    --fc-event-resizer-thickness: 7px;
+    --fc-event-resizer-dot-total-width: 8px;
+    --fc-event-resizer-dot-border-width: 1px;
+  
+    --fc-non-business-color: rgba(215, 215, 215, 0.3);
+    --fc-bg-event-color: rgb(143, 223, 130);
+    --fc-bg-event-opacity: 0.3;
+    --fc-highlight-color: rgba(188, 232, 241, 0.3);
+    --fc-today-bg-color:#8d6eff;
+    --fc-now-indicator-color: red;
+  }
+
+
+/* Conteneur principal */
+.daterangepicker {
+    font-family: Arial, sans-serif;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    border-radius: 0.375rem;
+  }
+  
+  /* Zones des calendriers */
+  .daterangepicker .drp-calendar {
+    border: none;
+    padding: 10px;
+  }
+  
+  /* En-têtes des calendriers */
+  .daterangepicker .drp-calendar thead th {
+    font-weight: 600;
+    color: #495057;
+    padding: 5px;
+    background-color: #e9ecef;
+    border: none;
+  }
+  
+  /* Tableau du calendrier */
+  .daterangepicker .calendar-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .daterangepicker .calendar-table td {
+    text-align: center;
+    padding: 8px;
+    border: 1px solid #dee2e6;
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+  
+  /* Date active sélectionnée */
+  .daterangepicker .calendar-table td.active,
+  .daterangepicker .calendar-table td.active:hover {
+    background-color: #7a6ad8;
+    color: #fff;
+    border-color: #007bff;
+  }
+  
+  /* Section des plages prédéfinies */
+  .daterangepicker .ranges {
+    background-color:rgb(247, 249, 255);
+    border-right: 1px solid #7a6ad8;
+    padding: 10px;
+    font-size: 0.875rem;
+  }
+  
+  /* Boutons d'action */
+  .daterangepicker .applyBtn,
+  .daterangepicker .cancelBtn {
+    background-color: #7a6ad8;
+    color: #fff;
+    border: none;
+    padding: 5px 15px;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    font-size: 0.875rem;
+  }
+  .daterangepicker .applyBtn:hover,
+  .daterangepicker .cancelBtn:hover {
+    background-color: #0056b3;
+  }
+  
+</style>
+
+<div class="container-fluid px-4">
+    <form method="get" action="{% url 'planning' %}" id="filterForm" class="row g-2 mb-2 align-items-center justify-content-between">
+    <div class="col-sm-3">
+      <select name="service" id="serviceFilter" class="form-select form-select-sm" onchange="this.form.submit()">
+        <option value="all">Tous les services</option>
+        {% for service in services %}
+          <option value="{{ service.service_name }}" {% if selected.service == service.service_name %}selected{% endif %}>
+            {{ service.service_name }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-sm-3">
+      <select name="employee" id="employeeFilter" class="form-select form-select-sm" onchange="this.form.submit()">
+        <option value="all">Tous les employés</option>
+        {% for employee in employees %}
+          <option value="{{ employee.nom_prenom }}"
+            {% if selected.employee == employee.nom_prenom %}selected{% endif %}>
+            {{ employee.nom_prenom }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-sm-2">
+      <select name="shift" id="shiftFilter" class="form-select form-select-sm" onchange="this.form.submit()">
+        <option value="all">Tous les shifts</option>
+        <option value="day" {% if selected.shift == 'day' %}selected{% endif %}>Jour</option>
+        <option value="night" {% if selected.shift == 'night' %}selected{% endif %}>Nuit</option>
+        <option value="24H" {% if selected.shift == '24H' %}selected{% endif %}>24H</option>
+      </select>
+    </div>
+    <div class="col-sm-3">
+      <input type="text" name="daterangepicker" id="daterangepicker" class="form-control form-control-sm" data-bs-toggle="tooltip" title="Sélectionner une plage de dates">
+    </div>
+    <div class="col-sm-1 d-flex align-items-center">
+        <label class="me-2" for="toggleDayMax">Afficher</label>
+        <input type="checkbox" id="toggleDayMax" checked>
+      </div>
+      <div class="col-sm-1 d-flex align-items-center">
+        <label class="me-2" for="togglePointage">Pointage</label>
+        <input type="checkbox" id="togglePointage">
+      </div>
+
+  </form>
+
+  {% if perms.rh.creer_planning %}
+  <!-- Modal Ajout planning -->
+  <div class="modal fade" id="addShiftModal" tabindex="-1" aria-labelledby="addShiftModalLabel">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <form method="post" action="{% url 'save_planning' %}">
+          {% csrf_token %}
+          <div class="modal-header">
+            <h5 class="modal-title">Ajouter un shift</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <input type="date" name="date" id="date" class="form-control" required>
+            <input type="hidden" name="service" value="{{ selected.service }}">
+            <input type="hidden" name="employee" value="{{ selected.employee }}">
+            <input type="hidden" name="shift" value="{{ selected.shift }}">
+            <input type="hidden" name="event_id" value="{{ event_id|default_if_none:'' }}">
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+            <button type="submit" class="btn btn-primary">Enregistrer</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+  
+
+  <!-- Modal Avertissement -->
+  <div class="modal fade" id="warningModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Sélection Incomplète</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p>Veuillez sélectionner un service, un employé et un shift avant de continuer.</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if perms.rh.change_planning %}
+  <!-- Formulaire Mise à Jour (caché) -->
+  <form id="updateEventForm" action="{% url 'update_event' %}" method="post" class="d-none">
+    {% csrf_token %}
+    <input type="hidden" name="event_id" id="eventId">
+    <input type="hidden" name="start" id="eventStart">
+    <input type="hidden" name="service" value="{{ selected.service }}">
+    <input type="hidden" name="employee" value="{{ selected.employee }}">
+    <input type="hidden" name="shift" value="{{ selected.shift }}">
+    <input type="hidden" name="start_date" value="{{ selected.start_date }}">
+    <input type="hidden" name="end_date" value="{{ selected.end_date }}">
+  </form>
+  {% endif %}
+
+  {% if perms.rh.delete_planning %}
+  <!-- Modal Suppression -->
+  <div class="modal fade" id="deleteEventModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Confirmation de suppression</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          Êtes-vous sûr de vouloir supprimer cet événement ?
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Supprimer</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+
+  <!-- Modal Pointage -->
+<div class="modal fade" id="pointageModal" tabindex="-1" aria-labelledby="pointageModalLabel">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="pointageModalLabel">Pointage</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <!-- Contenu spécifique au pointage -->
+        Pointage de l'événement <span id="pointageEventId"></span>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+        <button type="button" class="btn btn-primary">Valider le pointage</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+  <!-- Calendrier FullCalendar -->
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-1">
+      {{ events|json_script:"events-data" }}
+      <div id="calendar" class="mb-3"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Inclusion des bibliothèques JS -->
+<script src="{% static 'js/jquery-3.7.1.min.js' %}"></script>
+<script src="{% static 'js/moment.min.js' %}"></script>
+<script src="{% static 'js/daterangepicker.min.js' %}"></script>
+<script src="{% static 'js/fullcalendar.js' %}"></script>
+<script src="{% static 'js/choices.min.js' %}"></script>
+
+
+<script>
+  let selectedPlanningId = null;
+
+  // Quand on ouvre la modale
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('[data-bs-toggle="modal"][data-id]').forEach(button => {
+      button.addEventListener('click', function () {
+        selectedPlanningId = this.getAttribute('data-id');
+        document.getElementById('pointageEventId').innerText = selectedPlanningId;
+      });
+    });
+
+    // Bouton de validation
+    document.querySelector('#pointageModal .btn-primary').addEventListener('click', function () {
+      if (!selectedPlanningId) return;
+
+      fetch("{% url 'validate_presence' %}", {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': '{{ csrf_token }}',
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: new URLSearchParams({
+          'planning_id': selectedPlanningId
+        })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          alert(data.message);
+          location.reload(); // Recharge la page pour voir la mise à jour
+        } else {
+          alert("Erreur : " + data.message);
+        }
+      })
+      .catch(error => {
+        console.error('Erreur lors de la validation du pointage :', error);
+      });
+    });
+  });
+</script>
+
+
+<script>
+// Fonction debounce pour limiter les appels lors du redimensionnement
+function debounce(func, delay) {
+    let debounceTimer;
+    return function () {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => func.apply(this, arguments), delay);
+    };
+}
+
+// Fonction utilitaire pour récupérer le token CSRF depuis les cookies
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Attendre que le DOM soit entièrement chargé
+document.addEventListener('DOMContentLoaded', function () {
+    // Initialisation des sélecteurs Choices.js
+    new Choices(document.getElementById('serviceFilter'), { searchEnabled: true });
+    new Choices(document.getElementById('employeeFilter'), { searchEnabled: true, placeholder: true });
+    new Choices(document.getElementById('shiftFilter'), { searchEnabled: false });
+
+ 
+
+    // Récupération des données nécessaires
+    const calendarEl = document.getElementById('calendar');
+    if (!calendarEl) return console.error('Élément "calendar" introuvable.');
+    const eventsData = JSON.parse(document.getElementById('events-data').textContent);
+    const selectedService = "{{ selected.service }}";
+    const selectedShift = "{{ selected.shift }}";
+
+    // Initialisation du calendrier FullCalendar
+    const calendar = new FullCalendar.Calendar(calendarEl, {
+        initialDate: "{{ selected.start_date|default:'2025-01-01' }}",
+        dayMaxEventRows: true, // Valeur initiale
+        height: 650,
+        contentHeight: 600,
+        aspectRatio: 2,
+        locale: 'fr',
+        themeSystem: 'bootstrap5',
+        initialView: 'dayGridMonth',
+        headerToolbar: {
+            right: 'prev,next today myCustomButton',
+            center: 'title',
+            left: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
+        },
+        eventDisplay: 'block',
+        editable: true,
+        weekends: true,
+        nowIndicator: true,
+        buttonText: {
+            today: "Aujourd'hui",
+            month: "Mois",
+            week: "Semaine",
+            day: "Jour",
+            list: "Liste"
+        },
+        events: eventsData.map(event => ({
+            ...event,
+            color: event.color || '#007bff',
+            textColor: '#ffffff'
+        })),
+
+      {% if perms.rh.exporter_planning %}
+      customButtons: {
+        myCustomButton: {
+          text: 'Télécharger le Planning',
+          click: function () {
+            const params = new URLSearchParams(window.location.search);
+            window.open(`{% url 'print_planning' %}?${params.toString()}`, '_blank');
+          }
+        }
+      },
+      {% endif %}
+
+      eventClick: function (info) {
+        // Vérifier si la checkbox "Pointage" est cochée
+        if (document.getElementById('togglePointage').checked) {
+            // Ouvrir le modal de pointage
+            openPointageModal(info.event.id);
+        } else {
+            // Sinon, ouvrir le modal de suppression
+            openDeleteModal(info.event.id);
+        }
+    },
+        dateClick: function (info) {
+            if (selectedService === "all" || selectedShift === "all") {
+                openWarningModal();
+            } else {
+                openAddModal(info.dateStr);
+            }
+        },
+        eventDrop: function (info) {
+            const eventId = info.event.id;
+            const newDate = info.event.start?.toISOString().slice(0, 10);
+            if (!eventId || !newDate) return console.error("Données événement invalides.");
+            const updateForm = document.getElementById('updateEventForm');
+            if (updateForm) {
+                updateForm.querySelector('#eventId').value = eventId;
+                updateForm.querySelector('#eventStart').value = newDate;
+                updateForm.submit();
+            }
+        },
+                    // Styling Specific Days
+    dayCellDidMount: function (info) {
+        const day = info.date.getDay();
+        if (day === 5 || day === 6) { // Vendredi, Samedi
+        info.el.classList.add('week-end-style');
+        }
+        },
+        windowResize: debounce(() => {
+            calendar.updateSize();
+        }, 250)
+
+
+    });
+    calendar.render();
+
+    // Gestion du checkbox pour activer/désactiver dayMaxEventRows
+    const toggleDayMax = document.getElementById('toggleDayMax');
+    if (toggleDayMax) {
+        toggleDayMax.addEventListener('change', function (e) {
+            calendar.setOption('dayMaxEventRows', e.target.checked);
+        });
+    }
+
+    // Fonction pour ouvrir le modal de pointage
+function openPointageModal(eventId) {
+  const modalEl = document.getElementById('pointageModal'); // Assurez-vous d'avoir un élément avec cet id
+  if (!modalEl) return console.error("Modal de pointage introuvable.");
+  const modal = new bootstrap.Modal(modalEl);
+  // Vous pouvez également insérer des informations supplémentaires dans le modal en fonction de eventId
+  modal.show();
+}
+    // Fonction de suppression (exemple de structure)
+    function openDeleteModal(eventId) {
+        const modalEl = document.getElementById('deleteEventModal');
+        if (!modalEl) return console.error("Modal de suppression introuvable.");
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
+        document.getElementById('confirmDeleteBtn').onclick = function () {
+            fetch(`/rh/delete-event/${eventId}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({})
+            })
+            .then(response => {
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                return response.text().then(text => text ? JSON.parse(text) : {});
+            })
+            .then(data => {
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert(data.message || "Erreur inconnue");
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert("Erreur technique lors de la suppression");
+            })
+            .finally(() => modal.hide());
+    };
+    }
+
+    {% if perms.rh.creer_planning %}
+    function openAddModal(date) {
+        const dateInput = document.getElementById('date');
+        if (dateInput) dateInput.value = date;
+        const modalEl = document.getElementById('addShiftModal');
+        if (modalEl) {
+            const modal = new bootstrap.Modal(modalEl);
+            modal.show();
+        }
+    }
+    {% endif %}
+
+    function openWarningModal() {
+        const modalEl = document.getElementById('warningModal');
+        if (modalEl) {
+            const modal = new bootstrap.Modal(modalEl);
+            modal.show();
+        }
+    }
+});
+
+// Initialisation du Date Range Picker avec redirection sur changement
+const startDateTemplate = "{{ selected.start_date|default:'2025-01-01' }}";
+const endDateTemplate = "{{ selected.end_date|default:'2025-01-01' }}";
+let start = moment(startDateTemplate, "YYYY-MM-DD");
+let end = moment(endDateTemplate, "YYYY-MM-DD");
+const updateInput = (start, end) => {
+    $("#daterangepicker").val(start.format("YYYY-MM-DD") + " - " + end.format("YYYY-MM-DD"));
+};
+$("#daterangepicker").daterangepicker({
+    startDate: start,
+    endDate: end,
+    autoUpdateInput: true,
+    locale: {
+        format: "YYYY-MM-DD",
+        separator: " - ",
+        applyLabel: "Appliquer",
+        cancelLabel: "Annuler",
+        fromLabel: "De",
+        toLabel: "À",
+        customRangeLabel: "Personnalisée",
+        weekLabel: "S",
+        daysOfWeek: ["Di", "Lu", "Ma", "Me", "Je", "Ve", "Sa"],
+        monthNames: ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"],
+        firstDay: 1
+    },
+    ranges: {
+        "Aujourd'hui": [moment(), moment()],
+        "Hier": [moment().subtract(1, "days"), moment().subtract(1, "days")],
+        "7 derniers jours": [moment().subtract(6, "days"), moment()],
+        "30 derniers jours": [moment().subtract(29, "days"), moment()],
+        "Ce mois-ci": [moment().startOf("month"), moment().endOf("month")],
+        "Le mois dernier": [moment().subtract(1, "month").startOf("month"), moment().subtract(1, "month").endOf("month")]
+    }
+}, updateInput);
+updateInput(start, end);
+$("#daterangepicker").on('apply.daterangepicker', function (ev, picker) {
+    window.location.href = "{% url 'planning' %}?start_date=" + picker.startDate.format("YYYY-MM-DD") +
+        "&end_date=" + picker.endDate.format("YYYY-MM-DD");
+});
+</script>
+{% endblock %}

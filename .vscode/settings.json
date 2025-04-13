@@ -1,0 +1,29 @@
+{
+    "sqltools.connections": [
+        {
+            "mysqlOptions": {
+                "authProtocol": "default",
+                "enableSsl": "Disabled"
+            },
+            "previewLimit": 50,
+            "server": "127.0.0.1",
+            "port": 3306,
+            "driver": "MariaDB",
+            "database": "inayapp",
+            "username": "root",
+            "password": "@Dmin1548@",
+            "name": "maridb local"
+        }
+    ],
+    "docwriter.progress.trackFunctions": true,
+    "docwriter.progress.trackMethods": true,
+    "docwriter.progress.trackTypes": true,
+    "docwriter.progress.trackClasses": true,
+    "docwriter.language": "English"
+}
+
+{
+  "html.validate.styles": false,
+  "html.validate.scripts": false,
+  "prettier.ignoreLanguages": ["django-html"]
+}

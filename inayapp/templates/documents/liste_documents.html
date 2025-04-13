@@ -1,0 +1,62 @@
+{% extends "layout.html" %}
+{% block content %}
+
+
+
+<div class="container mt-1">
+  <h1 class="mb-4">📁 Gestionnaire de Documents</h1>
+
+  <div class="row">
+    {% for document in documents %}
+      <div class="col-sm-6 col-md-4 col-lg-3 mb-4">
+        <div class="card h-100 text-center shadow-sm">
+          <div class="card-body">
+            {% if document.fichier %}
+
+                  <!-- Icône basée sur l'extension (option simple) -->
+                  {% if document.fichier.extension == 'pdf' %}
+                    <i class="fas fa-file-pdf fa-3x text-danger mb-3"></i>
+                  {% elif document.fichier.extension == 'docx' or document.fichier.extension == 'doc' %}
+                    <i class="fas fa-file-word fa-3x text-primary mb-3"></i>
+                  {% elif document.fichier.extension == 'xlsx' or document.fichier.extension == 'xls' %}
+                    <i class="fas fa-file-excel fa-3x text-success mb-3"></i>
+                  {% elif document.fichier.extension == 'pptx' %}
+                    <i class="fas fa-file-powerpoint fa-3x text-warning mb-3"></i>
+                    {% elif document.fichier.extension == 'txt' %}
+                    <i class="fas fa-file-alt fa-3x text-secondary mb-3"></i>
+                    {% elif document.fichier.extension == 'jpg' or document.fichier.extension == 'jpeg' or document.fichier.extension == 'png' or document.fichier.extension == 'gif' %}
+                    <i class="fas fa-file-image fa-3x text-info mb-3"></i>
+                    {% elif document.fichier.extension == 'zip' or document.fichier.extension == 'rar' %}
+                    <i class="fas fa-file-archive fa-3x text-dark mb-3"></i>
+                    {% elif document.fichier.extension == 'mp3' or document.fichier.extension == 'wav' %}
+                    <i class="fas fa-file-audio fa-3x text-muted mb-3"></i>
+                    {% elif document.fichier.extension == 'mp4' or document.fichier.extension == 'avi' %}
+                    <i class="fas fa-file-video fa-3x text-danger mb-3"></i>
+                    {% elif document.fichier.extension == 'html' or document.fichier.extension == 'css' or document.fichier.extension == 'js' %}
+                    <i class="fas fa-file-code fa-3x text-primary mb-3"></i>
+                    {% elif document.fichier.extension == 'json' or document.fichier.extension == 'xml' %}
+                    <i class="fas fa-file-code fa-3x text-success mb-3"></i>
+                    {% elif document.fichier.extension == 'csv' %}
+                    <i class="fas fa-file-csv fa-3x text-info mb-3"></i>
+                  {% else %}
+                    <i class="fas fa-file-alt fa-3x text-secondary mb-3"></i>
+                  {% endif %}
+              <h5 class="card-title">{{ document.nom }}</h5>
+
+              {% if perms.documents.download_document %}
+              <a href="{{ document.fichier.url }}" download class="btn btn-sm btn-outline-primary mt-2">
+                <i class="fas fa-download"></i> Télécharger
+              </a>
+            {% else %}
+              <p class="text-muted">Permission de téléchargement manquante</p>
+            {% endif %}
+          {% else %}
+              <p class="text-muted">Aucun fichier disponible</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
