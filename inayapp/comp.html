@@ -1,40 +1,89 @@
-    // Initialisation du Date Range Picker avec redirection sur changement
-    const startDateTemplate = "{{ selected.start_date|default:'2025-01-01' }}";
-    const endDateTemplate = "{{ selected.end_date|default:'2025-01-01' }}";
-    let start = moment(startDateTemplate, "YYYY-MM-DD");
-    let end = moment(endDateTemplate, "YYYY-MM-DD");
-    const updateInput = (start, end) => {
-    $("#daterangepicker").val(start.format("YYYY-MM-DD") + " - " + end.format("YYYY-MM-DD"));
-    };
-    $("#daterangepicker").daterangepicker({
-    startDate: start,
-    endDate: end,
-    autoUpdateInput: true,
-    locale: {
-    format: "YYYY-MM-DD",
-    separator: " - ",
-    applyLabel: "Appliquer",
-    cancelLabel: "Annuler",
-    fromLabel: "De",
-    toLabel: "À",
-    customRangeLabel: "Personnalisée",
-    weekLabel: "S",
-    daysOfWeek: ["Di", "Lu", "Ma", "Me", "Je", "Ve", "Sa"],
-    monthNames: ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre",
-    "Novembre", "Décembre"],
-    firstDay: 1
-    },
-    ranges: {
-    "Aujourd'hui": [moment(), moment()],
-    "Hier": [moment().subtract(1, "days"), moment().subtract(1, "days")],
-    "7 derniers jours": [moment().subtract(6, "days"), moment()],
-    "30 derniers jours": [moment().subtract(29, "days"), moment()],
-    "Ce mois-ci": [moment().startOf("month"), moment().endOf("month")],
-    "Le mois dernier": [moment().subtract(1, "month").startOf("month"), moment().subtract(1, "month").endOf("month")]
-    }
-    }, updateInput);
-    updateInput(start, end);
-    $("#daterangepicker").on('apply.daterangepicker', function (ev, picker) {
-    window.location.href = "{% url 'planning' %}?start_date=" + picker.startDate.format("YYYY-MM-DD") +
-    "&end_date=" + picker.endDate.format("YYYY-MM-DD");
-    });
+# rh/management/commands/sync_attendances.py
+from django.core.management.base import BaseCommand
+from django.utils.dateparse import parse_datetime
+from django.utils.timezone import make_aware
+from rh.models import Employee, Attendance, AnvizDeviceConfig
+from rh.anviz_service import AnvizAPI
+import logging
+
+logger = logging.getLogger(__name__)
+
+class Command(BaseCommand):
+    help = 'Synchronise les enregistrements d\'attendances Anviz'
+
+    def handle(self, *args, **options):
+        # Récupérer la configuration active de l'appareil (pointeuse)
+        config = AnvizDeviceConfig.objects.get(is_active=True)
+        # Initialiser l'API avec la configuration
+        api = AnvizAPI(config=config)
+        start = 0
+        limit = 15
+        total_synced = 0
+        errors = 0
+
+        while True:
+            try:
+                attendances = api.get_attendances(start=start, limit=limit)
+                if not attendances:
+                    break
+
+                processed = self.process_batch(attendances)
+                total_synced += processed
+                start += limit
+
+                self.stdout.write(f"Batch {start // limit}: {processed} synchronisés, {errors} erreurs")
+
+            except Exception as e:
+                logger.error(f"Erreur batch {start}: {str(e)}")
+                break
+
+        self.stdout.write(self.style.SUCCESS(
+            f"Synchronisation terminée : {total_synced} réussis, {errors} erreurs"
+        ))
+
+    def process_batch(self, attendances):
+        count = 0
+        for record in attendances:
+            try:
+                # Vérification que les clés nécessaires existent
+                if not all(key in record for key in ('id', 'time', 'status')):
+                    raise ValueError("Champs manquants dans l'enregistrement")
+
+                emp_id = int(record['id'])
+                check_time = make_aware(parse_datetime(record['time']))
+                check_type = self.parse_check_type(record['status'])
+
+                employee = self.get_or_create_employee(emp_id, record.get('name'))
+
+                Attendance.objects.update_or_create(
+                    employee=employee,
+                    check_time=check_time,
+                    defaults={'check_type': check_type}
+                )
+                count += 1
+
+            except Exception as e:
+                logger.error(f"Erreur enregistrement {record.get('id')}: {str(e)}")
+                continue  # Continuer même en cas d'erreur
+
+        return count
+
+    def parse_check_type(self, status):
+        status = str(status).upper()
+        if status in ['IN', '1', 'CHECKIN']:
+            return 'IN'
+        elif status in ['OUT', '0', 'CHECKOUT']:
+            return 'OUT'
+        else:
+            return "2"
+
+    def get_or_create_employee(self, emp_id, name):
+        try:
+            return Employee.objects.get(anviz_id=emp_id)
+        except Employee.DoesNotExist:
+            # Création d'un employé temporaire si non trouvé
+            return Employee.objects.create(
+                anviz_id=emp_id,
+                name=name or f"Employé #{emp_id}",
+                card_number=str(emp_id)  # Utilisation temporaire de l'ID comme numéro de carte
+            )

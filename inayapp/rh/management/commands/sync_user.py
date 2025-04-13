@@ -1,3 +1,4 @@
+# rh/management/commands/sync_user.py
 from django.core.management.base import BaseCommand
 from rh.models import Employee
 from rh.anviz_service import AnvizAPI

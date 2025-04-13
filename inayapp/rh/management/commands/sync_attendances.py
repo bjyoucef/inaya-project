@@ -2,7 +2,7 @@
 from django.core.management.base import BaseCommand
 from django.utils.dateparse import parse_datetime
 from django.utils.timezone import make_aware
-from rh.models import Employee, Attendance
+from rh.models import Employee, Attendance, AnvizConfiguration
 from rh.anviz_service import AnvizAPI
 import logging
 
@@ -12,7 +12,8 @@ class Command(BaseCommand):
     help = 'Synchronise les enregistrements d\'attendances Anviz'
 
     def handle(self, *args, **options):
-        api = AnvizAPI()
+        config = AnvizConfiguration.objects.get(is_active=True)
+        api = AnvizAPI(config=config)
         start = 0
         limit = 15
         total_synced = 0
@@ -28,7 +29,7 @@ class Command(BaseCommand):
                 total_synced += processed
                 start += limit
 
-                self.stdout.write(f"Batch {start//limit}: {processed} synchronisés, {errors} erreurs")
+                self.stdout.write(f"Batch {start // limit}: {processed} synchronisés, {errors} erreurs")
 
             except Exception as e:
                 logger.error(f"Erreur batch {start}: {str(e)}")
@@ -42,7 +43,7 @@ class Command(BaseCommand):
         count = 0
         for record in attendances:
             try:
-                # Validation des données avant traitement
+                # Vérification que les clés nécessaires existent
                 if not all(key in record for key in ('id', 'time', 'status')):
                     raise ValueError("Champs manquants dans l'enregistrement")
 
@@ -61,7 +62,7 @@ class Command(BaseCommand):
 
             except Exception as e:
                 logger.error(f"Erreur enregistrement {record.get('id')}: {str(e)}")
-                continue  # Continue malgré l'erreur
+                continue  # Continuer même en cas d'erreur
 
         return count
 

@@ -3,13 +3,32 @@ import requests
 import time
 import re
 import json
-from django.conf import settings
+from django.core.exceptions import ObjectDoesNotExist
+from rh.models import AnvizConfiguration
 
 class AnvizAPI:
     def __init__(self):
-        self.base_url = "http://192.168.10.250/goform"
+        # Récupération de la configuration depuis la base de données
+        try:
+            config = AnvizConfiguration.objects.first()  # On suppose qu'il y a une seule configuration
+        except ObjectDoesNotExist:
+            config = None
+
+        if config:
+            self.ip = config.ip
+            self.username = config.username
+            self.password = config.password
+            self.session_timeout = config.session_timeout
+        else:
+            # Valeurs par défaut au cas où aucune config n'existe
+            self.ip = '192.168.10.250'
+            self.username = 'admin'
+            self.password = '12345'
+            self.session_timeout = 1800
+
+        self.base_url = f"http://{self.ip}/goform"
         self.session = requests.Session()
-        self.session_key = None  # La clé de session sera stockée ici après login
+        self.session_key = None
 
     def _get_timestamp(self):
         return str(int(time.time() * 1000))
@@ -18,13 +37,11 @@ class AnvizAPI:
         """Authentification via l'endpoint chklogin"""
         try:
             login_url = f"{self.base_url}/chklogin"
-            print(f"URL de connexion : {login_url}")
-            print(f"Paramètres de connexion : {settings.ANVIZ_CONFIG['USERNAME']}, {settings.ANVIZ_CONFIG['PASSWORD']}")
             response = self.session.get(
                 login_url,
                 params={
-                    'userid': settings.ANVIZ_CONFIG['USERNAME'],
-                    'password': settings.ANVIZ_CONFIG['PASSWORD']
+                    'userid': self.username,
+                    'password': self.password
                 },
                 timeout=5
             )
@@ -37,10 +54,10 @@ class AnvizAPI:
             print(f"Données de la réponse : {data}")
             if data.get('code') == 'success':
                 self.session_key = data.get('session_key')
-                # Ajouter les cookies attendus par l'appareil
-                self.session.cookies.set("session_id", settings.ANVIZ_CONFIG["USERNAME"], domain="192.168.10.250", path="/")
-                self.session.cookies.set("session_key", self.session_key, domain="192.168.10.250", path="/")
-                self.session.cookies.set("session_power", "1", domain="192.168.10.250", path="/")
+                # Ajout des cookies attendus par la pointeuse
+                self.session.cookies.set("session_id", self.username, domain=self.ip, path="/")
+                self.session.cookies.set("session_key", self.session_key, domain=self.ip, path="/")
+                self.session.cookies.set("session_power", "1", domain=self.ip, path="/")
                 print(f"Connexion réussie, clé de session : {self.session_key}")
                 return True
             else:
@@ -64,7 +81,7 @@ class AnvizAPI:
             params = {
                 'start': start,
                 'limit': limit,
-                'session_id': settings.ANVIZ_CONFIG['USERNAME'],  # par exemple "admin"
+                'session_id': self.username,
                 'session_key': self.session_key,
                 't': self._get_timestamp()
             }
@@ -105,7 +122,7 @@ class AnvizAPI:
             params = {
                 'start': start,
                 'limit': limit,
-                'session_id': settings.ANVIZ_CONFIG['USERNAME'],
+                'session_id': self.username,
                 'session_key': self.session_key,
                 't': self._get_timestamp()
             }

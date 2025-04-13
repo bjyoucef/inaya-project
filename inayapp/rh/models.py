@@ -149,6 +149,25 @@ class HonorairesActe(models.Model):
 #     class Meta:
 #         managed = True
 #         db_table = 'pointages_actes'
+# rh/models.py
+
+
+
+class AnvizConfiguration(models.Model):
+    name = models.CharField("Nom", max_length=100, blank=True, null=True)
+    ip_address = models.GenericIPAddressField("Adresse IP", protocol='IPv4')
+    username = models.CharField("Nom d'utilisateur", max_length=100)
+    password = models.CharField("Mot de passe", max_length=100)
+    session_timeout = models.PositiveIntegerField("Délai de session (secondes)", default=1800)
+    is_active = models.BooleanField("Actif", default=True)
+    last_modified = models.DateTimeField("Dernière modification", auto_now=True)
+
+    class Meta:
+        verbose_name = "Configuration Anviz"
+        verbose_name_plural = "Configurations Anviz"
+
+    def __str__(self):
+        return self.name or f"Config {self.ip_address}"
 
 
 class Employee(models.Model):

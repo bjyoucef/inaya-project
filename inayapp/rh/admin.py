@@ -1,7 +1,6 @@
 from django.contrib import admin
-from .models import Personnel ,Services ,HonorairesActe
+from .models import Personnel ,Services, HonorairesActe, AnvizConfiguration
 from django.contrib import messages
-
 
 admin.site.register(Services)
 admin.site.register(HonorairesActe)
@@ -24,3 +23,10 @@ class PersonnelAdmin(admin.ModelAdmin):
     get_username.short_description = "Nom d'utilisateur"
 
 admin.site.register(Personnel, PersonnelAdmin)
+
+
+
+@admin.register(AnvizConfiguration)
+class AnvizDeviceConfigAdmin(admin.ModelAdmin):
+    list_display = ('name', 'ip_address', 'username', 'is_active', 'last_modified')
+    
