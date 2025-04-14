@@ -152,7 +152,6 @@ class HonorairesActe(models.Model):
 # rh/models.py
 
 
-
 class AnvizConfiguration(models.Model):
     name = models.CharField("Nom", max_length=100, blank=True, null=True)
     ip_address = models.GenericIPAddressField("Adresse IP", protocol='IPv4')
@@ -163,8 +162,8 @@ class AnvizConfiguration(models.Model):
     last_modified = models.DateTimeField("Dernière modification", auto_now=True)
 
     class Meta:
-        verbose_name = "Configuration Anviz"
-        verbose_name_plural = "Configurations Anviz"
+        verbose_name = "Configuration Pointeuse"
+        verbose_name_plural = "Configuration Pointeuse"
 
     def __str__(self):
         return self.name or f"Config {self.ip_address}"

@@ -7,24 +7,33 @@ from django.core.exceptions import ObjectDoesNotExist
 from rh.models import AnvizConfiguration
 
 class AnvizAPI:
-    def __init__(self):
+    def __init__(self, config=None):
         # Récupération de la configuration depuis la base de données
-        try:
-            config = AnvizConfiguration.objects.first()  # On suppose qu'il y a une seule configuration
-        except ObjectDoesNotExist:
-            config = None
+        if config is None:
+            try:
+                configs = AnvizConfiguration.objects.filter(is_active=True)
+                if not configs.exists():
+                    raise CommandError("❌ Aucune configuration Anviz active trouvée.")
+                for config in configs:
+                    self.stdout.write(f"🔄 Synchronisation de la pointeuse à {config.ip_address}")
+                    api = AnvizAPI(config=config)
 
-        if config:
-            self.ip = config.ip
-            self.username = config.username
-            self.password = config.password
-            self.session_timeout = config.session_timeout
-        else:
-            # Valeurs par défaut au cas où aucune config n'existe
-            self.ip = '192.168.10.250'
-            self.username = 'admin'
-            self.password = '12345'
-            self.session_timeout = 1800
+                    if not api.login():
+                        self.stderr.write(
+                            self.style.ERROR(f"❌ Connexion échouée à {config.ip_address}")
+                        )
+                        continue  # Passe à la suivante
+
+            except ObjectDoesNotExist:
+                config = None
+
+        if not config:
+            raise ValueError("Aucune configuration Anviz trouvée dans la base de données.")
+
+        self.ip = config.ip_address
+        self.username = config.username
+        self.password = config.password
+        self.session_timeout = config.session_timeout
 
         self.base_url = f"http://{self.ip}/goform"
         self.session = requests.Session()

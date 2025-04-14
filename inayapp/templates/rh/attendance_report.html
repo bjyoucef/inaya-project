@@ -332,25 +332,25 @@
         <div class="col-12">
             <div class="card-body p-3">
                 <div class="row g-0 text-center">
-                    <div class="col-md-3 p-2">
+                    <div class="col-md-2 p-2">
                         <div class="p-3">
                             <div class="bg-primary rounded-circle mx-auto mb-3" style="width: 60px; height: 60px;">
                                 <i class="bi bi-clock-history text-white fs-4 d-flex align-items-center justify-content-center h-100"></i>
                             </div>
                             <h5 class="text-muted mb-1">Heures totales</h5>
-                            <h2 class="mb-0 fw-bold">{{ emp_report.totals.hours }}</h2>
+                            <h2 class="mb-0 fw-bold">{{ emp_report.totals.hours_formatted  }}</h2>
                         </div>
                     </div>
-                    <div class="col-md-3 p-2">
+                    <div class="col-md-2 p-2">
                         <div class="p-3">
                             <div class="bg-success rounded-circle mx-auto mb-3" style="width: 60px; height: 60px;">
                                 <i class="bi bi-alarm text-white fs-4 d-flex align-items-center justify-content-center h-100"></i>
                             </div>
                             <h5 class="text-muted mb-1">Heures supp.</h5>
-                            <h2 class="mb-0 fw-bold">{{ emp_report.totals.overtime }}</h2>
+                            <h2 class="mb-0 fw-bold">{{ emp_report.totals.overtime_formatted }}</h2>
                         </div>
                     </div>
-                    <div class="col-md-3 p-2">
+                    <div class="col-md-2 p-2">
                         <div class="p-3">
                             <div class="bg-warning rounded-circle mx-auto mb-3" style="width: 60px; height: 60px;">
                                 <i class="bi bi-exclamation-triangle text-white fs-4 d-flex align-items-center justify-content-center h-100"></i>
@@ -359,7 +359,17 @@
                             <h2 class="mb-0 fw-bold">{{ emp_report.totals.late }} min</h2>
                         </div>
                     </div>
-                    <div class="col-md-3 p-2">
+                    <div class="col-md-2 p-2">
+                        <div class="p-3">
+                            <div class="bg-info rounded-circle mx-auto mb-3" style="width: 60px; height: 60px;">
+                                <i class="bi bi-clock text-white fs-4 d-flex align-items-center justify-content-center h-100"></i>
+                            </div>
+                            <h5 class="text-muted mb-1">Départs anticipés</h5>
+                            <h2 class="mb-0 fw-bold">{{ emp_report.totals.early_leave_formatted }}</h2>
+                        </div>
+                    </div>
+
+                    <div class="col-md-2 p-2">
                         <div class="p-3">
                             <div class="bg-danger rounded-circle mx-auto mb-3" style="width: 60px; height: 60px;">
                                 <i class="bi bi-x-circle text-white fs-4 d-flex align-items-center justify-content-center h-100"></i>
@@ -368,6 +378,7 @@
                             <h2 class="mb-0 fw-bold">{{ emp_report.totals.absence }}</h2>
                         </div>
                     </div>
+
                 </div>
             </div>
         </div>
@@ -388,14 +399,14 @@
                             <th class="text-end">Total</th>
                             <th class="text-end">Suppl.</th>
                             <th class="text-end">Retard</th>
+                            <th class="text-end">Départ anticipé</th>
                             <th>Statut</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for day in emp_report.days %}
                         <tr>
-                            <td class="fw-semibold">{{ day.date|date:"d/m/Y" }}</td>
-
+<td class="fw-semibold">{{ day.date|date:"l j F Y" }}</td>
                             <td>
                                 {% for pair in day.pairs %}
     <div class="d-inline-flex flex-column bg-light rounded-pill px-3 py-1 me-2">
@@ -411,32 +422,41 @@
     {% endfor %}
                             </td>
                             <td class="text-end fw-semibold">{{ day.total|default:"-" }}</td>
+
                             <td class="text-end">
                                 <span class="text-success">
-                                    {% if day.overtime %}{{ day.overtime|format_duration }}{% else %}-{% endif %}
+                                    {% if day.overtime %}{{ day.overtime }}{% else %}-{% endif %}
                                 </span>
                             </td>
+
                             <td class="text-end">
-                                {% if day.late %}
-                                <span class="text-danger">{{ day.late_minutes }} min</span>
+                                {% if day.late_minutes %}
+                                <span class="text-danger">{{ day.late_minutes }}</span>
                                 {% else %}-{% endif %}
                             </td>
+<td class="text-end text-info">
+    {{ day.early_leave_minutes }}
+</td>
+
                             <td>
                                 <div class="d-flex gap-2">
-                                    {% if day.late %}
+                                    {% if not day.entries  %}
+                                    <span class="badge bg-danger bg-opacity-25 text-danger badge-pill">
+                                        <i class="bi bi-x-circle me-1"></i>Absence
+
+
+
+                                    {% elif day.late_minutes != "-" %}
                                     <span class="badge bg-warning bg-opacity-25 text-warning badge-pill">
-                                        <i class="bi bi-clock-history me-1"></i>Retard
+                                        <i class="bi bi-clock-history me-1"></i>Retard {{ day.late_minutes }}
+                                    </span>
                                     </span>
                                     {% else %}
                                     <span class="badge bg-success bg-opacity-25 text-success badge-pill">
                                         <i class="bi bi-check-circle me-1"></i>À l'heure
                                     </span>
                                     {% endif %}
-                                    {% if not day.entries %}
-                                    <span class="badge bg-danger bg-opacity-25 text-danger badge-pill">
-                                        <i class="bi bi-x-circle me-1"></i>Absence
-                                    </span>
-                                    {% endif %}
+
                                 </div>
                             </td>
                         </tr>
@@ -516,21 +536,19 @@
     });
 
     
-    // Récupération des dates depuis le contexte (au format 'YYYY-MM-dd')
-    const startDateTemplate = "{{ config.start_date|date:'Y-MM-dd' }}";
-    const endDateTemplate = "{{ config.end_date|date:'Y-MM-dd' }}";
+    // Récupération des dates depuis le contexte (les dates sont déjà au format "YYYY-MM-DD")
+    const startDateTemplate = "{{ start_date }}";
+    const endDateTemplate = "{{ end_date }}";
+
+    console.log("Start date:", startDateTemplate);
+    console.log("End date:", endDateTemplate);
 
     // Création des objets moment avec le format spécifié
     let start = moment(startDateTemplate, "YYYY-MM-DD");
     let end = moment(endDateTemplate, "YYYY-MM-DD");
 
-    // Vérification et attribution de valeur par défaut si nécessaire
-    if (!start.isValid()) {
-        start = moment("2025-01-01", "YYYY-MM-DD");
-    }
-    if (!end.isValid()) {
-        end = moment("2025-01-01", "YYYY-MM-DD");
-    }
+    console.log("Moment start:", start.format());
+    console.log("Moment end:", end.format());
 
     const updateInput = (start, end) => {
         $("#daterangepicker").val(start.format("YYYY-MM-DD") + " - " + end.format("YYYY-MM-DD"));

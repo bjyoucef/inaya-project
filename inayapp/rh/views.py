@@ -4,7 +4,7 @@ from collections import defaultdict
 import logging
 from datetime import date, datetime, time, timedelta
 from io import BytesIO
-
+from datetime import datetime, date, timedelta, time as datetime_time
 from django.contrib import messages
 from django.contrib.auth.decorators import permission_required, login_required
 from django.db import transaction
@@ -21,6 +21,7 @@ from django.views.generic import ListView
 from .models import Employee, Attendance, Personnel, Services, Planning
 from django.views.decorators.csrf import csrf_exempt
 from accueil.models import ConfigDate
+from datetime import datetime, timedelta, date, time as datetime_time
 
 logger = logging.getLogger(__name__)
 
@@ -194,7 +195,6 @@ def save_planning(request):
         else extract_filters(request)
     )
 
-    print("filters:", filters)
 
     redirect_params = build_redirect_params(filters)
     if request.method != "POST":
@@ -423,299 +423,284 @@ def validate_presence(request):
         logger.exception("Erreur lors de la validation de présence")
         return JsonResponse({"success": False, "message": str(e)}, status=500)
 
-# views.py
+from datetime import datetime, timedelta, time as datetime_time
+from django.shortcuts import render
+from django.utils import timezone
 from .models import Employee, Attendance
 
 
-from django.shortcuts import render
-from django.utils import timezone
+def get_date_range(config):
+    """Retourne la plage de dates validée (start_date <= end_date)."""
+    start_date, end_date = config.start_date, config.end_date
+    if start_date > end_date:
+        start_date, end_date = end_date, start_date
+    return start_date, end_date
 
 
-from collections import defaultdict
-from datetime import datetime, timedelta, date, time
-from django.views.generic import ListView
-from django.db.models import Q
-
-
-class attendance_report(ListView):
-    model = Attendance
-    template_name = "rh/attendance_report.html"
-    context_object_name = "report_data"
-
-    def get_date_range(self, config):
-        """Retourne la plage de dates validée."""
-        start_date = config.start_date
-        end_date = config.end_date
-        if start_date > end_date:
-            start_date, end_date = end_date, start_date
-        return start_date, end_date
-
-    def get_queryset(self):
-        employee_id = self.request.GET.get("employee")
-        # Récupération ou création de la configuration de dates pour l'utilisateur
-        config, _ = ConfigDate.objects.get_or_create(
-            user=self.request.user,
-            page="pointage",
-            defaults={"start_date": date.today(), "end_date": date.today()},
-        )
-        # Mise à jour de la config selon les paramètres GET
-        for param in ["start_date", "end_date"]:
-            value = self.request.GET.get(param)
-            if value:
-                try:
-                    setattr(config, param, datetime.strptime(value, "%Y-%m-%d").date())
-                except ValueError:
-                    pass
-        config.save()
-        start_date, end_date = self.get_date_range(config)
-        # On élargit la plage pour prendre en compte les chevauchements (ex : shifts de nuit)
-        qs = (
-            Attendance.objects.filter(
-                check_time__date__gte=start_date - timedelta(days=1),
-                check_time__date__lte=end_date + timedelta(days=1),
-            )
-            .select_related("employee")
-            .order_by("-check_time")
-        )
-        if employee_id:
-            qs = qs.filter(employee__anviz_id=employee_id)
-        return qs
-
-    def calculate_working_hours(self, attendances, employee, start_date, end_date):
-        """
-        Calcule les heures travaillées pour un employé sur une plage de dates.
-        Pour chaque groupe de pointages (regroupé par date effective), la paire est déterminée
-        en prenant le premier enregistrement comme entrée et le dernier comme sortie.
-        Pour un shift de nuit, si un jour (effective) n'a qu'un seul enregistrement et le jour suivant
-        aussi, ils sont combinés pour constituer l'entrée et la sortie.
-        """
-        from collections import defaultdict
-        from datetime import timedelta, datetime
-        from django.utils import timezone
-
-        tz = timezone.get_current_timezone()
-
-        # Horaires de référence (par défaut si non renseigné)
-        reference_start = employee.reference_start or time(8, 0)
-        reference_end = employee.reference_end or time(16, 0)
-        # Pour les shifts de nuit, on s'assure d'utiliser le champ shift
-        is_night_shift = (employee.shift == "night") or (reference_end < reference_start)
-
-        # On ne conserve que les enregistrements « IN » (puisqu'il n'y a pas de OUT dans la base)
-        # Note : dans votre cas, même si plusieurs enregistrements sont de type "IN", on va en déduire
-        # la paire en considérant que le premier correspond à l'entrée et le dernier à la sortie.
-        in_records = [att for att in attendances if att.check_type == "IN"]
-
-        # Regroupement par "date effective"
-        # Pour le shift de nuit, les enregistrements antérieurs à reference_end sont rattachés à la veille.
-        groups = defaultdict(list)
-        for att in in_records:
+def classify_attendances(attendances, employee, current_date):
+    """
+    Classe les pointages en deux listes : entrées et sorties.
+    Si l'employé dispose d'heures de référence, on compare chaque heure de pointage aux heures de référence.
+    Sinon, tous les pointages sont considérés comme des entrées.
+    """
+    entries, exits = [], []
+    for att in attendances:
+        if employee.reference_start and employee.reference_end:
             att_time = att.check_time.time()
-            att_date = att.check_time.date()
-            effective_date = (
-                att_date - timedelta(days=1)
-                if is_night_shift and att_time < reference_end
-                else att_date
+            ref_start = employee.reference_start
+            ref_end = employee.reference_end
+            # Calcul de la différence en secondes avec l'heure de début et l'heure de fin de référence (dates naïves)
+            diff_start = abs(
+                (
+                    datetime.combine(current_date, att_time)
+                    - datetime.combine(current_date, ref_start)
+                ).total_seconds()
             )
-            groups[effective_date].append(att)
-
-        # Pour chaque groupe, trier par check_time
-        grouped = {
-            d: sorted(records, key=lambda a: a.check_time)
-            for d, records in groups.items()
-            if start_date <= d <= end_date
-        }
-
-        results = []
-        processed_dates = set()
-
-        if is_night_shift:
-            # Pour un shift de nuit, il peut arriver que la paire se répartisse sur deux jours effectifs
-            # Exemple : le 2024-11-23 on a un seul enregistrement à 19:11:58 et le 2024-11-24 un seul enregistrement à 08:14:34.
-            # On va itérer sur les dates effectives triées et, si la date D et la date D+1 ont chacune un seul enregistrement,
-            # les combiner.
-            sorted_dates = sorted(grouped.keys())
-            i = 0
-            while i < len(sorted_dates):
-                d = sorted_dates[i]
-                if d in processed_dates:
-                    i += 1
-                    continue
-                recs = grouped[d]
-                if len(recs) >= 2:
-                    # Plusieurs pointages : on prend le premier comme IN, le dernier comme OUT.
-                    in_time = recs[0].check_time
-                    out_time = recs[-1].check_time
-                    processed_dates.add(d)
-                else:
-                    # Un seul enregistrement sur cette date
-                    # Vérifier si la date suivante existe et a aussi un seul enregistrement
-                    if i + 1 < len(sorted_dates):
-                        d_next = sorted_dates[i + 1]
-                        recs_next = grouped[d_next]
-                        if len(recs_next) == 1:
-                            # On combine : le pointage de d sera considéré comme IN, celui de d_next comme OUT.
-                            in_time = recs[0].check_time
-                            out_time = recs_next[0].check_time
-                            processed_dates.add(d)
-                            processed_dates.add(d_next)
-                            i += 1  # On saute le jour suivant
-                        else:
-                            # Sinon, on ne peut former de paire complète : on prend le seul enregistrement comme les deux.
-                            in_time = out_time = recs[0].check_time
-                            processed_dates.add(d)
-                    else:
-                        in_time = out_time = recs[0].check_time
-                        processed_dates.add(d)
-
-                # Création des horaires théoriques pour la journée effective d'entrée
-                # Pour le shift de nuit, le scheduled_end est calculé sur le jour suivant.
-                scheduled_start = timezone.make_aware(
-                    datetime.combine(d, reference_start), tz
-                )
-                if is_night_shift:
-                    scheduled_end = timezone.make_aware(
-                        datetime.combine(d + timedelta(days=1), reference_end), tz
-                    )
-                else:
-                    scheduled_end = timezone.make_aware(
-                        datetime.combine(d, reference_end), tz
-                    )
-
-                # Assurer que les in_time et out_time soient aware (sinon, on les convertit)
-                if timezone.is_naive(in_time):
-                    in_time = timezone.make_aware(in_time, tz)
-                if timezone.is_naive(out_time):
-                    out_time = timezone.make_aware(out_time, tz)
-
-                total_work = out_time - in_time
-
-                # Calcul du retard et des heures supplémentaires
-                late_delta = in_time - scheduled_start
-                # Tolérance de 5 minutes
-                late_minutes = max(late_delta.total_seconds() / 60 - 5, 0)
-                overtime = max(
-                    out_time - scheduled_end, timedelta()
-                )  # Si out_time > scheduled_end
-
-                results.append(
-                    {
-                        "date": d,  # La date effective de l'entrée
-                        "pairs": [(in_time, out_time)],
-                        "total": total_work,
-                        "overtime": overtime,
-                        "late_minutes": int(late_minutes),
-                        "late": late_minutes > 0,
-                        "entries": [in_time, out_time],
-                    }
-                )
-                i += 1
+            diff_end = abs(
+                (
+                    datetime.combine(current_date, att_time)
+                    - datetime.combine(current_date, ref_end)
+                ).total_seconds()
+            )
+            if diff_start < diff_end:
+                entries.append(att.check_time)
+            else:
+                exits.append(att.check_time)
         else:
-            # Pour un shift de jour
-            for d, recs in grouped.items():
-                if len(recs) >= 2:
-                    in_time = recs[0].check_time
-                    out_time = recs[-1].check_time
-                else:
-                    # Si un seul enregistrement, on le considère comme les deux (ce qui donnera 0 durée)
-                    in_time = out_time = recs[0].check_time
+            entries.append(att.check_time)
+    return entries, exits
 
-                # Horaires théoriques pour la journée
-                scheduled_start = timezone.make_aware(
-                    datetime.combine(d, reference_start), tz
+
+def build_pairs(
+    entries, exits_list, employee, current_date, next_day_records, next_date
+):
+    """
+    Construit les paires (entrée, sortie) en associant chaque entrée à la première sortie ultérieure.
+    Si aucune sortie n'est trouvée sur le même jour, on tente de trouver un pointage dans le jour suivant.
+    Si toujours rien n'est trouvé et que l'heure de référence de fin est définie, on applique une pénalité de 4 heures.
+
+    Par défaut, si les heures de référence ne sont pas définies, on utilise 08:00 et 16:00.
+    """
+    default_ref_start = (
+        employee.reference_start if employee.reference_start else datetime_time(8, 0)
+    )
+    default_ref_end = (
+        employee.reference_end if employee.reference_end else datetime_time(16, 0)
+    )
+
+    pairs = []
+    entry_idx, exit_idx = 0, 0
+    while entry_idx < len(entries):
+        entry = entries[entry_idx]
+        exit_time = None
+        # Recherche d'une sortie dans la liste exits_list
+        while exit_idx < len(exits_list):
+            if exits_list[exit_idx] > entry:
+                exit_time = exits_list[exit_idx]
+                exit_idx += 1
+                break
+            exit_idx += 1
+        # Si aucune sortie n'est trouvée, chercher dans les pointages du jour suivant
+        if not exit_time:
+            for next_att in next_day_records:
+                # On considère les pointages du jour suivant
+                if next_att.check_time.date() == next_date:
+                    if (
+                        default_ref_start
+                        and next_att.check_time.time() < default_ref_start
+                    ):
+                        exit_time = next_att.check_time
+                        break
+        # Dernier recours : appliquer une pénalité en fixant la sortie à reference_end ± 4 heures
+        if not exit_time:
+            if default_ref_end > default_ref_start:
+                # Jour normal : sortie = reference_end - 4h sur le même jour
+                naive_exit = datetime.combine(
+                    entry.date(), default_ref_end
+                ) - timedelta(hours=4)
+                exit_time = timezone.make_aware(naive_exit)
+            else:
+                # Night shift : la reference_end se situe le jour suivant
+                naive_exit = (
+                    datetime.combine(entry.date(), default_ref_end)
+                    + timedelta(days=1)
+                    - timedelta(hours=4)
                 )
-                scheduled_end = timezone.make_aware(datetime.combine(d, reference_end), tz)
+                exit_time = timezone.make_aware(naive_exit)
+        pairs.append((entry, exit_time))
+        entry_idx += 1
+    return pairs
 
-                if timezone.is_naive(in_time):
-                    in_time = timezone.make_aware(in_time, tz)
-                if timezone.is_naive(out_time):
-                    out_time = timezone.make_aware(out_time, tz)
 
-                total_work = out_time - in_time
-                late_delta = in_time - scheduled_start
-                late_minutes = max(late_delta.total_seconds() / 60 - 5, 0)
-                overtime = max(out_time - scheduled_end, timedelta())
+def format_duration(seconds):
+    """Formate une durée (en secondes) au format 'XhYY'. Retourne '-' si la durée est négative ou nulle."""
+    if seconds <= 0:
+        return "-"
+    hours = int(seconds // 3600)
+    minutes = int((seconds % 3600) // 60)
+    return f"{hours}h{minutes:02d}"
 
-                results.append(
-                    {
-                        "date": d,
-                        "pairs": [(in_time, out_time)],
-                        "total": total_work,
-                        "overtime": overtime,
-                        "late_minutes": int(late_minutes),
-                        "late": late_minutes > 0,
-                        "entries": [in_time, out_time],
-                    }
+
+def format_minutes(seconds):
+    """Formate une durée (en secondes) en minutes suivie de ' min'."""
+    minutes = int(seconds // 60)
+    return f"{minutes} min" if minutes > 0 else "-"
+
+
+def attendance_report(request):
+    # Récupération du paramètre employé (anviz_id) depuis la requête GET
+    employee_id = request.GET.get("employee")
+
+    # Récupération ou création de la configuration liée à l'utilisateur pour la page "pointage"
+    config, _ = ConfigDate.objects.get_or_create(
+        user=request.user,
+        page="pointage",
+        defaults={"start_date": date.today(), "end_date": date.today()},
+    )
+
+    # Mise à jour des dates si elles sont passées en GET
+    for param in ["start_date", "end_date"]:
+        value = request.GET.get(param)
+        if value:
+            try:
+                parsed_date = datetime.strptime(value, "%Y-%m-%d").date()
+                setattr(config, param, parsed_date)
+            except ValueError:
+                pass  # Vous pouvez logguer l'erreur ici si nécessaire
+    config.save()
+
+    # Obtention d'une plage de dates correcte
+    start_date, end_date = get_date_range(config)
+
+    # Filtrer sur l'employé si un identifiant est fourni, sinon récupérer uniquement ceux ayant un pointage dans la plage de dates
+    if employee_id:
+        employees = Employee.objects.filter(
+            anviz_id=employee_id,
+            attendances__check_time__date__gte=start_date,
+            attendances__check_time__date__lte=end_date,
+        ).distinct()
+    else:
+        employees = Employee.objects.filter(
+            attendances__check_time__date__gte=start_date,
+            attendances__check_time__date__lte=end_date,
+        ).distinct()
+
+    report = []
+    for employee in employees:
+        emp_data = {
+            "employee": employee,
+            "days": [],
+            "totals": {"hours": 0, "overtime": 0, "late": 0, "absence": 0, "early_leave": 0},
+        }
+        current_date = start_date
+        while current_date <= end_date:
+            # Récupération des pointages du jour courant
+            attendances = Attendance.objects.filter(
+                employee=employee, check_time__date=current_date
+            ).order_by("check_time")
+            # Pointages du jour suivant pour chercher une éventuelle sortie
+            next_date = current_date + timedelta(days=1)
+            next_day_attendances = Attendance.objects.filter(
+                employee=employee, check_time__date=next_date
+            ).order_by("check_time")
+
+            # Classement des pointages en entrées et sorties
+            entries, exits = classify_attendances(attendances, employee, current_date)
+            # Construction des paires d'entrée-sortie
+            pairs = build_pairs(
+                entries, exits, employee, current_date, next_day_attendances, next_date
+            )
+
+            # Calcul du temps total travaillé
+            total_seconds = sum(
+                (exit_time - entry).total_seconds()
+                for entry, exit_time in pairs
+                if exit_time
+            )
+            # Calcul du retard sur la première entrée
+            late_seconds = 0
+            if employee.reference_start and pairs:
+                # On convertit la reference_start en datetime aware
+                ref_start_naive = datetime.combine(
+                    current_date, employee.reference_start
                 )
+                ref_start_dt = timezone.make_aware(ref_start_naive)
+                if pairs[0][0].time() > employee.reference_start:
+                    late_seconds = (pairs[0][0] - ref_start_dt).total_seconds()
 
-        return sorted(results, key=lambda x: x["date"], reverse=True)
+            early_leave_seconds = 0
+            if employee.reference_end and pairs:
+                last_exit = pairs[-1][1]
+                if last_exit.time() < employee.reference_end:
+                    ref_end_naive = datetime.combine(current_date, employee.reference_end)
+                    ref_end_dt = timezone.make_aware(ref_end_naive)
+                    early_leave_seconds = (ref_end_dt - last_exit).total_seconds()
 
-    def calculate_totals(self, days):
-        totals = {
-            "total_work": timedelta(),
-            "total_overtime": timedelta(),
-            "total_late": 0,
-            "work_days": set(),
-        }
-        for day in days:
-            totals["total_work"] += day["total"]
-            totals["total_overtime"] += day["overtime"]
-            totals["total_late"] += day["late_minutes"]
-            totals["work_days"].add(day["date"])
-        return totals
+            # Durée attendue basée sur les heures de référence (si définies)
+            ref_duration = 0
+            if employee.reference_start and employee.reference_end:
+                ref_start_dt = timezone.make_aware(
+                    datetime.combine(current_date, employee.reference_start)
+                )
+                ref_end_dt = timezone.make_aware(
+                    datetime.combine(current_date, employee.reference_end)
+                )
+                ref_duration = (ref_end_dt - ref_start_dt).total_seconds()
 
-    def get_work_days(self, start, end):
-        """Retourne l'ensemble des jours ouvrés (hors week-end) dans l'intervalle."""
-        return {
-            start + timedelta(days=i)
-            for i in range((end - start).days + 1)
-            if (start + timedelta(days=i)).weekday() < 5
-        }
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        config = ConfigDate.objects.get(user=self.request.user, page="pointage")
-
-        # Si end_date n'est pas défini, on le force à start_date ou à la date d'aujourd'hui
-        if not config.end_date:
-            config.end_date = config.start_date or date.today()
-            config.save()
-        start_date, end_date = self.get_date_range(config)
-        work_days = self.get_work_days(start_date, end_date)
-
-        # Récupère les employés présents dans le queryset (afin d'éviter les doublons)
-        employee_ids = self.get_queryset().values_list("employee", flat=True).distinct()
-        employees = Employee.objects.filter(id__in=employee_ids).prefetch_related(
-            "attendances"
-        )
-        report = []
-        for employee in employees:
-            # On travaille sur tous les pointages de l'employé dans la plage demandée
-            days = self.calculate_working_hours(
-                employee.attendances.all(), employee, start_date, end_date
+            total_hours = total_seconds / 3600 if total_seconds else 0
+            overtime_seconds = (
+                max(total_seconds - ref_duration, 0) if ref_duration else 0
             )
-            totals = self.calculate_totals(days)
-            report.append(
-                {
-                    "employee": employee,
-                    "days": days,
-                    "totals": {
-                        "hours": totals["total_work"],
-                        "overtime": totals["total_overtime"],
-                        "late": totals["total_late"],
-                        "absence": len(work_days - totals["work_days"]),
-                    },
-                }
-            )
-        context.update(
-            {
-                "report": report,
-                "config": config,
-                "date_range": f"{start_date} - {end_date}",
-                "employees": Employee.objects.all(),  # Pour alimenter le sélecteur dans le template
+
+            total_hours = total_seconds / 3600
+            overtime_hours = overtime_seconds / 3600
+            late_minutes = int(late_seconds // 60)
+
+            is_absent = not entries
+            if is_absent:
+                emp_data["totals"]["absence"] += 1
+
+            day_info = {
+                "date": current_date,
+                "pairs": [(entry, exit_time) for entry, exit_time in pairs],
+                "total": format_duration(total_seconds),
+                "overtime": format_duration(overtime_seconds),
+                "late_minutes": format_minutes(late_seconds),
+                "is_absent": is_absent,
+                "entries": entries,
+                "early_leave_minutes": format_minutes(early_leave_seconds),
             }
+
+            emp_data["days"].append(day_info)
+            emp_data["totals"]["hours"] += total_hours
+            emp_data["totals"]["overtime"] += overtime_hours
+            emp_data["totals"]["late"] += late_minutes
+            emp_data["totals"]["early_leave"] += int(early_leave_seconds // 60)
+
+            current_date += timedelta(days=1)
+
+        # Formatage global des totaux
+        emp_data["totals"]["hours_formatted"] = format_duration(
+            emp_data["totals"]["hours"] * 3600
         )
-        return context
+        emp_data["totals"]["overtime_formatted"] = format_duration(
+            emp_data["totals"]["overtime"] * 3600
+        )
+        emp_data["totals"]["early_leave_formatted"] = format_minutes(
+            emp_data["totals"]["early_leave"] * 60
+        )
+
+        report.append(emp_data)
+
+    context = {
+        "report": report,
+        "employees": employees,
+        "request": request,
+        "start_date": start_date.strftime("%Y-%m-%d"),
+        "end_date": end_date.strftime("%Y-%m-%d"),
+        "selected_employee": employee_id,
+    }
+    return render(request, "rh/attendance_report.html", context)
 
 
 @csrf_exempt

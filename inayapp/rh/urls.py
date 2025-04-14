@@ -19,7 +19,7 @@ urlpatterns = [
     path("validate-presence/", views.validate_presence, name="validate_presence"),
     path("sync/attendances/", views.sync_attendances, name="sync_attendances"),
     path("sync/users/", views.sync_users, name="sync_users"),
-    path('pointages/', attendance_report.as_view(), name='attendance_report'),
+    path('pointages/', attendance_report, name='attendance_report'),
     path(
         "save-reference-hours/", views.save_reference_hours, name="save_reference_hours"
     ),
