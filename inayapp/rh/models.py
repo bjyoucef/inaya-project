@@ -137,20 +137,23 @@ class HonorairesActe(models.Model):
     )
     id_service = models.ForeignKey(Services, models.DO_NOTHING, db_column="id_service")
 
+    def __str__(self):
+        return f"{self.name_acte}"
+
     class Meta:
         managed = True
         db_table = "honoraires_acte"
 
 
-# class PointagesActes(models.Model):
-#     id_acte = models.ForeignKey(HonorairesActe, models.DO_NOTHING, db_column='id_acte', blank=True, null=True)
-#     id_planning = models.ForeignKey(Planning, models.DO_NOTHING, db_column='id_planning', blank=True, null=True)
-#     nbr_actes = models.IntegerField()
+class PointagesActes(models.Model):
+    id_acte = models.ForeignKey(HonorairesActe, models.DO_NOTHING, db_column='id_acte', blank=True, null=True)
+    id_planning = models.ForeignKey(Planning, models.DO_NOTHING, db_column='id_planning', blank=True, null=True)
+    nbr_actes = models.IntegerField()
 
-#     class Meta:
-#         managed = True
-#         db_table = 'pointages_actes'
-# rh/models.py
+    class Meta:
+        managed = True
+        db_table = 'pointages_actes'
+
 
 ###################################################################################
 class AnvizConfiguration(models.Model):

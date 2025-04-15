@@ -154,9 +154,12 @@ def planning(request):
                     "title": f"{p.employee} - {p.shift_type} - {p.id_service.service_name}",
                     "start": event_start.isoformat(),
                     "end": event_end.isoformat(),
-                    "backgroundColor": service_colors.get(
-                        p.id_service.service_name, "gray"
+                    "backgroundColor": (
+                        "gray"
+                        if p.pointage_created_at
+                        else service_colors.get(p.id_service.service_name, "gray")
                     ),
+
                     "borderColor": service_colors.get(
                         p.id_service.service_name, "gray"
                     ),

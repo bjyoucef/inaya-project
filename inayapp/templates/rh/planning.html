@@ -186,27 +186,41 @@
     <div class="col-sm-2">
       <select name="shift" id="shiftFilter" class="form-select form-select-sm" onchange="this.form.submit()">
         <option value="all">Tous les shifts</option>
-        <option value="day" {% if selected.shift == 'day' %}selected{% endif %}>Jour</option>
-        <option value="night" {% if selected.shift == 'night' %}selected{% endif %}>Nuit</option>
+        <option value="jour" {% if selected.shift == 'jour' %}selected{% endif %}>Jour</option>
+        <option value="nuit" {% if selected.shift == 'nuit' %}selected{% endif %}>Nuit</option>
         <option value="24H" {% if selected.shift == '24H' %}selected{% endif %}>24H</option>
       </select>
     </div>
     <div class="col-sm-3">
       <input type="text" name="daterangepicker" id="daterangepicker" class="form-control form-control-sm" data-bs-toggle="tooltip" title="Sélectionner une plage de dates">
     </div>
-        <!-- Bouton de validation multiple -->
-    <div class="col-sm-2">
-      <button type="button" id="validateRangeBtn" class="btn btn-success btn-sm">Valider plusieurs pointages</button>
-    </div>
 
     <div class="col-sm-1 d-flex align-items-center">
-        <label class="me-2" for="toggleDayMax">Afficher</label>
-        <input type="checkbox" id="toggleDayMax" checked>
+        <input type="checkbox" class="btn-check" id="toggleDayMax" checked>
+        <label class="btn btn-outline-danger" for="toggleDayMax">Afficher</label>
+
       </div>
-      <div class="col-sm-1 d-flex align-items-center">
-        <label class="me-2" for="togglePointage">Pointage</label>
-        <input type="checkbox" id="togglePointage">
-      </div>
+
+
+<div class="col-sm-3 d-flex align-items-center gap-3">
+          <!-- Bouton de validation multiple -->
+
+
+  <!-- Groupe de boutons radio pour l'action -->
+  <div class="btn-group" role="group" aria-label="Choix d'action">
+    <button type="button" id="validateRangeBtn" class="btn btn-success">Valider</button>
+
+    <input type="radio" class="btn-check" name="actionType" id="radioDelete" autocomplete="off" value="delete">
+    <label class="btn btn-outline-danger" for="radioDelete">Suppression</label>
+
+    <input type="radio" class="btn-check" name="actionType" id="radioPointage" autocomplete="off" value="pointage">
+    <label class="btn btn-outline-primary" for="radioPointage">Pointage</label>
+
+    <input type="radio" class="btn-check" name="actionType" id="radioActe" autocomplete="off" value="acte">
+    <label class="btn btn-outline-success" for="radioActe">Acte</label>
+  </div>
+</div>
+
 
   </form>
 
@@ -331,152 +345,158 @@
 <script src="{% static 'js/choices.min.js' %}"></script>
 
 <script>
-  // Fonction utilitaire pour récupérer le CSRF token (si vous utilisez Django)
-  function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== "") {
-      const cookies = document.cookie.split(';');
-      for (let i = 0; i < cookies.length; i++) {
-        const cookie = cookies[i].trim();
-        // Vérifier si ce cookie commence par le nom recherché
-        if (cookie.substring(0, name.length + 1) === (name + '=')) {
-          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-          break;
+    // Fonction utilitaire pour récupérer le CSRF token (si vous utilisez Django)
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== "") {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                // Vérifier si ce cookie commence par le nom recherché
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
         }
-      }
-    }
-    return cookieValue;
-  }
-
-  document.getElementById('validateRangeBtn').addEventListener('click', function(){
-    const dateRange = document.getElementById('daterangepicker').value;
-    if (!dateRange) {
-      alert("Veuillez sélectionner une plage de dates.");
-      return;
+        return cookieValue;
     }
 
-    fetch('/rh/validate-presence-range/', {
-      method: 'POST',
-      headers: {
-        'X-CSRFToken': getCookie('csrftoken'),
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ daterangepicker: dateRange })
-    })
-    .then(response => {
-      if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
-      return response.json();
-    })
-    .then(data => {
-      if (data.success) {
-        window.location.reload();
-      } else {
-        alert(data.message || "Erreur inconnue lors de la validation.");
-      }
-    })
-    .catch(error => {
-      console.error('Erreur:', error);
-      alert("Erreur lors de la validation multiple du pointage.");
+    document.getElementById('validateRangeBtn').addEventListener('click', function () {
+        const dateRange = document.getElementById('daterangepicker').value;
+        if (!dateRange) {
+            alert("Veuillez sélectionner une plage de dates.");
+            return;
+        }
+
+        fetch('/rh/validate-presence-range/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ daterangepicker: dateRange })
+        })
+            .then(response => {
+                if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert(data.message || "Erreur inconnue lors de la validation.");
+                }
+            })
+            .catch(error => {
+                console.error('Erreur:', error);
+                alert("Erreur lors de la validation multiple du pointage.");
+            });
     });
-  });
 </script>
 
 <script>
-// Fonction debounce pour limiter les appels lors du redimensionnement
-function debounce(func, delay) {
-    let debounceTimer;
-    return function () {
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => func.apply(this, arguments), delay);
-    };
-}
+    // Fonction debounce pour limiter les appels lors du redimensionnement
+    function debounce(func, delay) {
+        let debounceTimer;
+        return function () {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => func.apply(this, arguments), delay);
+        };
+    }
 
-// Fonction utilitaire pour récupérer le token CSRF depuis les cookies
-function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
+    // Fonction utilitaire pour récupérer le token CSRF depuis les cookies
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
             }
         }
+        return cookieValue;
     }
-    return cookieValue;
-}
 
-// Attendre que le DOM soit entièrement chargé
-document.addEventListener('DOMContentLoaded', function () {
-    // Initialisation des sélecteurs Choices.js
-    new Choices(document.getElementById('serviceFilter'), { searchEnabled: true });
-    new Choices(document.getElementById('employeeFilter'), { searchEnabled: true, placeholder: true });
-    new Choices(document.getElementById('shiftFilter'), { searchEnabled: false });
+    // Attendre que le DOM soit entièrement chargé
+    document.addEventListener('DOMContentLoaded', function () {
+        // Initialisation des sélecteurs Choices.js
+        new Choices(document.getElementById('serviceFilter'), { searchEnabled: true, removeItemButton: true, placeholder: true });
+        new Choices(document.getElementById('employeeFilter'), { searchEnabled: true, removeItemButton: true, placeholder: true });
+        new Choices(document.getElementById('shiftFilter'), { searchEnabled: false, removeItemButton: true, placeholder: true });
 
- 
 
-    // Récupération des données nécessaires
-    const calendarEl = document.getElementById('calendar');
-    if (!calendarEl) return console.error('Élément "calendar" introuvable.');
-    const eventsData = JSON.parse(document.getElementById('events-data').textContent);
-    const selectedService = "{{ selected.service }}";
-    const selectedShift = "{{ selected.shift }}";
 
-    // Initialisation du calendrier FullCalendar
-    const calendar = new FullCalendar.Calendar(calendarEl, {
-        initialDate: "{{ selected.start_date|default:'2025-01-01' }}",
-        dayMaxEventRows: true, // Valeur initiale
-        height: 650,
-        contentHeight: 600,
-        aspectRatio: 2,
-        locale: 'fr',
-        themeSystem: 'bootstrap5',
-        initialView: 'dayGridMonth',
-        headerToolbar: {
-            right: 'prev,next today myCustomButton',
-            center: 'title',
-            left: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
-        },
-        eventDisplay: 'block',
-        editable: true,
-        weekends: true,
-        nowIndicator: true,
-        buttonText: {
-            today: "Aujourd'hui",
-            month: "Mois",
-            week: "Semaine",
-            day: "Jour",
-            list: "Liste"
-        },
-        events: eventsData.map(event => ({
-            ...event,
-            color: event.color || '#007bff',
-            textColor: '#ffffff'
-        })),
+        // Récupération des données nécessaires
+        const calendarEl = document.getElementById('calendar');
+        if (!calendarEl) return console.error('Élément "calendar" introuvable.');
+        const eventsData = JSON.parse(document.getElementById('events-data').textContent);
+        const selectedService = "{{ selected.service }}";
+        const selectedShift = "{{ selected.shift }}";
+
+        // Initialisation du calendrier FullCalendar
+        const calendar = new FullCalendar.Calendar(calendarEl, {
+            initialDate: "{{ selected.start_date|default:'2025-01-01' }}",
+            dayMaxEventRows: true, // Valeur initiale
+            height: 650,
+            contentHeight: 600,
+            aspectRatio: 2,
+            locale: 'fr',
+            themeSystem: 'bootstrap5',
+            initialView: 'dayGridMonth',
+            headerToolbar: {
+                right: 'prev,next today myCustomButton',
+                center: 'title',
+                left: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
+            },
+            eventDisplay: 'block',
+            editable: true,
+            weekends: true,
+            nowIndicator: true,
+            buttonText: {
+                today: "Aujourd'hui",
+                month: "Mois",
+                week: "Semaine",
+                day: "Jour",
+                list: "Liste"
+            },
+            events: eventsData.map(event => ({
+
+                ...event,
+                color: event.color || '#007bff',
+                textColor: '#ffffff'
+            })),
 
       {% if perms.rh.exporter_planning %}
       customButtons: {
         myCustomButton: {
-          text: 'Télécharger le Planning',
-          click: function () {
-            const params = new URLSearchParams(window.location.search);
-            window.open(`{% url 'print_planning' %}?${params.toString()}`, '_blank');
-          }
-        }
-      },
-      {% endif %}
-
-      eventClick: function (info) {
-        // Vérifier si la checkbox "Pointage" est cochée
-        if (document.getElementById('togglePointage').checked) {
-            // Ouvrir le modal de pointage
-            openPointageModal(info.event.id);
-        } else {
-            // Sinon, ouvrir le modal de suppression
-            openDeleteModal(info.event.id);
+            text: 'Télécharger le Planning',
+            click: function () {
+                const params = new URLSearchParams(window.location.search);
+                window.open(`{% url 'print_planning' %}?${params.toString()}`, '_blank');
+            }
         }
     },
+        {% endif %}
+
+        eventClick: function (info) {
+            // Vérifier si la checkbox "Pointage" est cochée
+            if (document.getElementById('radioPointage').checked) {
+                // Ouvrir le modal de pointage
+                openPointageModal(info.event.id);
+            } 
+            if (document.getElementById('radioDelete').checked) {
+                //ouvrir le modal de suppression
+                openDeleteModal(info.event.id);
+            }
+            if (document.getElementById('radioActe').checked) {
+                //ouvrir le modal de Add acte
+                openPointageActe(info.event.id);
+            }
+        },
         dateClick: function (info) {
             if (selectedService === "all" || selectedShift === "all") {
                 openWarningModal();
@@ -495,12 +515,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 updateForm.submit();
             }
         },
-                    // Styling Specific Days
-    dayCellDidMount: function (info) {
-        const day = info.date.getDay();
-        if (day === 5 || day === 6) { // Vendredi, Samedi
-        info.el.classList.add('week-end-style');
-        }
+        // Styling Specific Days
+        dayCellDidMount: function (info) {
+            const day = info.date.getDay();
+            if (day === 5 || day === 6) { // Vendredi, Samedi
+                info.el.classList.add('week-end-style');
+            }
         },
         windowResize: debounce(() => {
             calendar.updateSize();
@@ -519,13 +539,13 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // Fonction pour ouvrir le modal de pointage
-function openPointageModal(eventId) {
-  const modalEl = document.getElementById('pointageModal'); // Assurez-vous d'avoir un élément avec cet id
-  if (!modalEl) return console.error("Modal de pointage introuvable.");
-  const modal = new bootstrap.Modal(modalEl);
-  // Vous pouvez également insérer des informations supplémentaires dans le modal en fonction de eventId
-  modal.show();
-          document.getElementById('confirmPointageBtn').onclick = function () {
+    function openPointageModal(eventId) {
+        const modalEl = document.getElementById('pointageModal'); // Assurez-vous d'avoir un élément avec cet id
+        if (!modalEl) return console.error("Modal de pointage introuvable.");
+        const modal = new bootstrap.Modal(modalEl);
+        // Vous pouvez également insérer des informations supplémentaires dans le modal en fonction de eventId
+        modal.show();
+        document.getElementById('confirmPointageBtn').onclick = function () {
             fetch(`/rh/validate-presence/${eventId}/`, {
                 method: 'POST',
                 headers: {
@@ -534,24 +554,24 @@ function openPointageModal(eventId) {
                 },
                 body: JSON.stringify({})
             })
-            .then(response => {
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                return response.text().then(text => text ? JSON.parse(text) : {});
-            })
-            .then(data => {
-                if (data.success) {
-                    window.location.reload();
-                } else {
-                    alert(data.message || "Erreur inconnue");
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert("Erreur lors de la validation du pointage");
-            })
-            .finally(() => modal.hide());
-    };
-}
+                .then(response => {
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    return response.text().then(text => text ? JSON.parse(text) : {});
+                })
+                .then(data => {
+                    if (data.success) {
+                        window.location.reload();
+                    } else {
+                        alert(data.message || "Erreur inconnue");
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert("Erreur lors de la validation du pointage");
+                })
+                .finally(() => modal.hide());
+        };
+    }
     // Fonction de suppression (exemple de structure)
     function openDeleteModal(eventId) {
         const modalEl = document.getElementById('deleteEventModal');
@@ -567,23 +587,23 @@ function openPointageModal(eventId) {
                 },
                 body: JSON.stringify({})
             })
-            .then(response => {
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                return response.text().then(text => text ? JSON.parse(text) : {});
-            })
-            .then(data => {
-                if (data.success) {
-                    window.location.reload();
-                } else {
-                    alert(data.message || "Erreur inconnue");
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert("Erreur technique lors de la suppression");
-            })
-            .finally(() => modal.hide());
-    };
+                .then(response => {
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    return response.text().then(text => text ? JSON.parse(text) : {});
+                })
+                .then(data => {
+                    if (data.success) {
+                        window.location.reload();
+                    } else {
+                        alert(data.message || "Erreur inconnue");
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert("Erreur technique lors de la suppression");
+                })
+                .finally(() => modal.hide());
+        };
     }
 
     {% if perms.rh.creer_planning %}
@@ -606,45 +626,47 @@ function openPointageModal(eventId) {
         }
     }
 });
+</script>
 
-// Initialisation du Date Range Picker avec redirection sur changement
-const startDateTemplate = "{{ selected.start_date|default:'2025-01-01' }}";
-const endDateTemplate = "{{ selected.end_date|default:'2025-01-01' }}";
-let start = moment(startDateTemplate, "YYYY-MM-DD");
-let end = moment(endDateTemplate, "YYYY-MM-DD");
-const updateInput = (start, end) => {
-    $("#daterangepicker").val(start.format("YYYY-MM-DD") + " - " + end.format("YYYY-MM-DD"));
-};
-$("#daterangepicker").daterangepicker({
-    startDate: start,
-    endDate: end,
-    autoUpdateInput: true,
-    locale: {
-        format: "YYYY-MM-DD",
-        separator: " - ",
-        applyLabel: "Appliquer",
-        cancelLabel: "Annuler",
-        fromLabel: "De",
-        toLabel: "À",
-        customRangeLabel: "Personnalisée",
-        weekLabel: "S",
-        daysOfWeek: ["Di", "Lu", "Ma", "Me", "Je", "Ve", "Sa"],
-        monthNames: ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"],
-        firstDay: 1
-    },
-    ranges: {
-        "Aujourd'hui": [moment(), moment()],
-        "Hier": [moment().subtract(1, "days"), moment().subtract(1, "days")],
-        "7 derniers jours": [moment().subtract(6, "days"), moment()],
-        "30 derniers jours": [moment().subtract(29, "days"), moment()],
-        "Ce mois-ci": [moment().startOf("month"), moment().endOf("month")],
-        "Le mois dernier": [moment().subtract(1, "month").startOf("month"), moment().subtract(1, "month").endOf("month")]
-    }
-}, updateInput);
-updateInput(start, end);
-$("#daterangepicker").on('apply.daterangepicker', function (ev, picker) {
-    window.location.href = "{% url 'planning' %}?start_date=" + picker.startDate.format("YYYY-MM-DD") +
-        "&end_date=" + picker.endDate.format("YYYY-MM-DD");
-});
+<script>
+    // Initialisation du Date Range Picker avec redirection sur changement
+    const startDateTemplate = "{{ selected.start_date|default:'2025-01-01' }}";
+    const endDateTemplate = "{{ selected.end_date|default:'2025-01-01' }}";
+    let start = moment(startDateTemplate, "YYYY-MM-DD");
+    let end = moment(endDateTemplate, "YYYY-MM-DD");
+    const updateInput = (start, end) => {
+        $("#daterangepicker").val(start.format("YYYY-MM-DD") + " - " + end.format("YYYY-MM-DD"));
+    };
+    $("#daterangepicker").daterangepicker({
+        startDate: start,
+        endDate: end,
+        autoUpdateInput: true,
+        locale: {
+            format: "YYYY-MM-DD",
+            separator: " - ",
+            applyLabel: "Appliquer",
+            cancelLabel: "Annuler",
+            fromLabel: "De",
+            toLabel: "À",
+            customRangeLabel: "Personnalisée",
+            weekLabel: "S",
+            daysOfWeek: ["Di", "Lu", "Ma", "Me", "Je", "Ve", "Sa"],
+            monthNames: ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"],
+            firstDay: 1
+        },
+        ranges: {
+            "Aujourd'hui": [moment(), moment()],
+            "Hier": [moment().subtract(1, "days"), moment().subtract(1, "days")],
+            "7 derniers jours": [moment().subtract(6, "days"), moment()],
+            "30 derniers jours": [moment().subtract(29, "days"), moment()],
+            "Ce mois-ci": [moment().startOf("month"), moment().endOf("month")],
+            "Le mois dernier": [moment().subtract(1, "month").startOf("month"), moment().subtract(1, "month").endOf("month")]
+        }
+    }, updateInput);
+    updateInput(start, end);
+    $("#daterangepicker").on('apply.daterangepicker', function (ev, picker) {
+        window.location.href = "{% url 'planning' %}?start_date=" + picker.startDate.format("YYYY-MM-DD") +
+            "&end_date=" + picker.endDate.format("YYYY-MM-DD");
+    });
 </script>
 {% endblock %}
