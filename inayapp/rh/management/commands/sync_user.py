@@ -1,7 +1,8 @@
-from django.core.management.base import BaseCommand, CommandError
-from rh.models import Employee, AnvizConfiguration
-from rh.anviz_service import AnvizAPI
 import logging
+
+from django.core.management.base import BaseCommand, CommandError
+from rh.anviz_service import AnvizAPI
+from rh.models import AnvizConfiguration, Employee
 
 logger = logging.getLogger(__name__)
 

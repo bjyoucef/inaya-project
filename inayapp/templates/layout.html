@@ -19,6 +19,7 @@
     <link href="{% static 'css/datatables.min.css' %}" rel="stylesheet">
     <link href="{% static 'css/choices.min.css' %}" rel="stylesheet">
     <link href="{% static 'css/bootstrap-icons.css' %}" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
 </head>
 
 <body class="d-flex flex-column min-vh-100">
@@ -185,9 +186,12 @@
                                     <i class="{{ item.icon }}" aria-hidden="true"></i>
                                     <span class="d-none d-md-inline">{{ item.label }}</span>
 
-                                    {% if item.label == 'Dashboard' and nembre_notification > 0 %}
-                                    <span class="badge bg-danger float-end">{{ nembre_notification }}</span>
-                                {% endif %}
+                                    {% if item.label == 'Dashboard' and nembre_notification_hd > 0 %}
+                                    <span class="badge bg-danger float-end">{{ nembre_notification_hd }}</span>
+                                    {% endif %}
+                                    {% if item.label == 'Dashboard RH' and nembre_notification_rh > 0 %}
+                                    <span class="badge bg-danger float-end">{{ nembre_notification_rh }}</span>
+                                    {% endif %}
                                 </a>
                             </li>
                     {% endfor %}
@@ -208,6 +212,11 @@
 <script src="{% static 'js/datatables.min.js' %}"></script>
 <script src="{% static 'js/toastify-js.js' %}"></script>
 <script src="{% static 'js/custom.js' %}"></script>
+
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 {% if messages %}
 {% for message in messages %}

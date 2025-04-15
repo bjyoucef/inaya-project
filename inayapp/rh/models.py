@@ -1,9 +1,10 @@
-from django.contrib.auth.models import Permission
+import re
+
+from django.contrib.auth.models import Permission, User
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
-import re
-from django.contrib.auth.models import User
 from django.utils import timezone
+
 
 class Services(models.Model):
     id_service = models.AutoField(primary_key=True)
@@ -151,7 +152,7 @@ class HonorairesActe(models.Model):
 #         db_table = 'pointages_actes'
 # rh/models.py
 
-
+###################################################################################
 class AnvizConfiguration(models.Model):
     name = models.CharField("Nom", max_length=100, blank=True, null=True)
     ip_address = models.GenericIPAddressField("Adresse IP", protocol='IPv4')
@@ -259,3 +260,79 @@ class Attendance(models.Model):
             "6": "bi-x-circle text-danger",
         }
         return icons.get(self.check_type, "bi-question-circle")
+
+
+class SalaryAdvanceRequest(models.Model):
+    class RequestStatus(models.TextChoices):
+        PENDING = "PEN", "En attente"
+        APPROVED = "APP", "Approuvée"
+        REJECTED = "REJ", "Rejetée"
+        CANCELED = "CAN", "Annulée"
+
+    personnel = models.ForeignKey(
+        Personnel, on_delete=models.CASCADE, related_name="salary_advances"
+    )
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    request_date = models.DateField(default=timezone.now)
+    payment_date = models.DateField()
+    status = models.CharField(
+        max_length=3, choices=RequestStatus.choices, default=RequestStatus.PENDING
+    )
+    reason = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Avance {self.amount} pour {self.personnel} - {self.status}"
+
+    class Meta:
+        permissions = [
+            (
+                "process_salaryadvance_request",
+                "Peut traiter les demandes d'avance sur salaire",
+            ),
+        ]
+
+
+class LeaveRequest(models.Model):
+    class LeaveType(models.TextChoices):
+        VACATION = "VAC", "Congé annuel"
+        SICK = "SIC", "Congé maladie"
+        MATERNITY = "MAT", "Congé maternité"
+        PATERNITY = "PAT", "Congé paternité"
+        OTHER = "AUT", "Autre"
+
+    class RequestStatus(models.TextChoices):
+        PENDING = "PEN", "En attente"
+        APPROVED = "APP", "Approuvé"
+        REJECTED = "REJ", "Rejeté"
+        CANCELED = "CAN", "Annulé"
+
+    personnel = models.ForeignKey(
+        Personnel, on_delete=models.CASCADE, related_name="leave_requests"
+    )
+    start_date = models.DateField()
+    end_date = models.DateField()
+    leave_type = models.CharField(
+        max_length=3, choices=LeaveType.choices, default=LeaveType.VACATION
+    )
+    status = models.CharField(
+        max_length=3, choices=RequestStatus.choices, default=RequestStatus.PENDING
+    )
+    reason = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    @property
+    def duration(self):
+        return (self.end_date - self.start_date).days + 1
+
+    def __str__(self):
+        return (
+            f"{self.get_leave_type_display()} {self.personnel} ({self.duration} jours)"
+        )
+
+    class Meta:
+        permissions = [
+            ("process_leave_request", "Peut traiter les demandes de congé"),
+        ]

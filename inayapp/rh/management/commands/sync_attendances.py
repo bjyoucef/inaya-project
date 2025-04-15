@@ -1,10 +1,11 @@
 # rh/management/commands/sync_attendances.py
+import logging
+
 from django.core.management.base import BaseCommand, CommandError
 from django.utils.dateparse import parse_datetime
 from django.utils.timezone import make_aware
-from rh.models import Employee, Attendance, AnvizConfiguration
 from rh.anviz_service import AnvizAPI
-import logging
+from rh.models import AnvizConfiguration, Attendance, Employee
 
 logger = logging.getLogger(__name__)
 

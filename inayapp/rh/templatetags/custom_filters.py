@@ -20,3 +20,14 @@ def time(value, fmt):
         return value.strftime(fmt)
     except AttributeError:
         return "-"
+
+
+@register.filter(name="status_color")
+def status_color(status):
+    color_map = {
+        "PEN": "warning",
+        "APP": "success",
+        "REJ": "danger",
+        "CAN": "secondary",
+    }
+    return color_map.get(status, "secondary")

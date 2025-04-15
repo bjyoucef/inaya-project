@@ -1,6 +1,6 @@
-from django.contrib import admin
-from .models import Personnel ,Services, HonorairesActe, AnvizConfiguration
-from django.contrib import messages
+from django.contrib import admin, messages
+
+from .models import AnvizConfiguration, HonorairesActe, Personnel, Services
 
 admin.site.register(Services)
 admin.site.register(HonorairesActe)

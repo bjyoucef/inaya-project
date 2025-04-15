@@ -194,6 +194,11 @@
     <div class="col-sm-3">
       <input type="text" name="daterangepicker" id="daterangepicker" class="form-control form-control-sm" data-bs-toggle="tooltip" title="Sélectionner une plage de dates">
     </div>
+        <!-- Bouton de validation multiple -->
+    <div class="col-sm-2">
+      <button type="button" id="validateRangeBtn" class="btn btn-success btn-sm">Valider plusieurs pointages</button>
+    </div>
+
     <div class="col-sm-1 d-flex align-items-center">
         <label class="me-2" for="toggleDayMax">Afficher</label>
         <input type="checkbox" id="toggleDayMax" checked>
@@ -302,7 +307,7 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
-        <button type="button" class="btn btn-primary">Valider le pointage</button>
+        <button type="button" class="btn btn-primary" id="confirmPointageBtn">Valider le pointage</button>
       </div>
     </div>
   </div>
@@ -325,49 +330,56 @@
 <script src="{% static 'js/fullcalendar.js' %}"></script>
 <script src="{% static 'js/choices.min.js' %}"></script>
 
-
 <script>
-  let selectedPlanningId = null;
-
-  // Quand on ouvre la modale
-  document.addEventListener('DOMContentLoaded', function () {
-    document.querySelectorAll('[data-bs-toggle="modal"][data-id]').forEach(button => {
-      button.addEventListener('click', function () {
-        selectedPlanningId = this.getAttribute('data-id');
-        document.getElementById('pointageEventId').innerText = selectedPlanningId;
-      });
-    });
-
-    // Bouton de validation
-    document.querySelector('#pointageModal .btn-primary').addEventListener('click', function () {
-      if (!selectedPlanningId) return;
-
-      fetch("{% url 'validate_presence' %}", {
-        method: 'POST',
-        headers: {
-          'X-CSRFToken': '{{ csrf_token }}',
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        body: new URLSearchParams({
-          'planning_id': selectedPlanningId
-        })
-      })
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) {
-          alert(data.message);
-          location.reload(); // Recharge la page pour voir la mise à jour
-        } else {
-          alert("Erreur : " + data.message);
+  // Fonction utilitaire pour récupérer le CSRF token (si vous utilisez Django)
+  function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== "") {
+      const cookies = document.cookie.split(';');
+      for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        // Vérifier si ce cookie commence par le nom recherché
+        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
         }
-      })
-      .catch(error => {
-        console.error('Erreur lors de la validation du pointage :', error);
-      });
+      }
+    }
+    return cookieValue;
+  }
+
+  document.getElementById('validateRangeBtn').addEventListener('click', function(){
+    const dateRange = document.getElementById('daterangepicker').value;
+    if (!dateRange) {
+      alert("Veuillez sélectionner une plage de dates.");
+      return;
+    }
+
+    fetch('/rh/validate-presence-range/', {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': getCookie('csrftoken'),
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ daterangepicker: dateRange })
+    })
+    .then(response => {
+      if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
+      return response.json();
+    })
+    .then(data => {
+      if (data.success) {
+        window.location.reload();
+      } else {
+        alert(data.message || "Erreur inconnue lors de la validation.");
+      }
+    })
+    .catch(error => {
+      console.error('Erreur:', error);
+      alert("Erreur lors de la validation multiple du pointage.");
     });
   });
 </script>
-
 
 <script>
 // Fonction debounce pour limiter les appels lors du redimensionnement
@@ -513,6 +525,32 @@ function openPointageModal(eventId) {
   const modal = new bootstrap.Modal(modalEl);
   // Vous pouvez également insérer des informations supplémentaires dans le modal en fonction de eventId
   modal.show();
+          document.getElementById('confirmPointageBtn').onclick = function () {
+            fetch(`/rh/validate-presence/${eventId}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({})
+            })
+            .then(response => {
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                return response.text().then(text => text ? JSON.parse(text) : {});
+            })
+            .then(data => {
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert(data.message || "Erreur inconnue");
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert("Erreur lors de la validation du pointage");
+            })
+            .finally(() => modal.hide());
+    };
 }
     // Fonction de suppression (exemple de structure)
     function openDeleteModal(eventId) {

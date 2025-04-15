@@ -78,7 +78,7 @@ ROOT_URLCONF = "inayapp.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [os.path.join(BASE_DIR,'templates')],
+        "DIRS": [os.path.join(BASE_DIR, "templates")],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -86,9 +86,9 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
-                'django.template.context_processors.request',
-                'accueil.context_processors.menu_items',
-                'helpdesk.context_processors.notification', 
+                "django.template.context_processors.request",
+                "accueil.context_processors.menu_items",
+                "accueil.context_processors.notification",
             ],
         },
     },
@@ -155,7 +155,6 @@ TIME_ZONE = "UTC"
 USE_I18N = True
 
 USE_TZ = True
-
 
 
 # Static files (CSS, JavaScript, Images)

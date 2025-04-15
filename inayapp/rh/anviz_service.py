@@ -1,10 +1,12 @@
 # rh/anviz_service.py
-import requests
-import time
-import re
 import json
+import re
+import time
+
+import requests
 from django.core.exceptions import ObjectDoesNotExist
 from rh.models import AnvizConfiguration
+
 
 class AnvizAPI:
     def __init__(self, config=None):
