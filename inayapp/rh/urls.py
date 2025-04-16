@@ -52,4 +52,7 @@ urlpatterns = [
         views.process_leave_request,
         name="process_leave_request",
     ),
+    path("get-honoraires-acte/", views.get_honoraires_acte, name="get_honoraires_acte"),
+    path("add-pointage-acte/", views.add_pointage_acte, name="add_pointage_acte"),
+
 ]

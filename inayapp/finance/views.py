@@ -2,13 +2,15 @@ from datetime import datetime
 from decimal import Decimal
 
 from django.contrib import messages
-from django.contrib.auth.decorators import permission_required
+from django.contrib.auth.decorators import login_required, permission_required
+from django.contrib.auth.models import User
 from django.db import transaction
 from django.db.models import DecimalField, F, Sum
-from django.shortcuts import redirect, reverse
+from django.shortcuts import get_object_or_404, redirect, render, reverse
 from django.utils.dateparse import parse_date
-
 from rh.models import Personnel, Planning
+
+from .forms import DechargeForm, PaymentForm
 from .models import Decharges, Payments
 
 
@@ -52,8 +54,16 @@ def add_decharge_multiple(request):
                     errors.append(f"Identifiant invalide pour l'employé : {emp_id}")
                     continue
 
+                # Récupération du nom complet de l'employé
+                try:
+                    employee_obj = Personnel.objects.get(pk=emp_id_int)
+                    full_name = employee_obj.nom_prenom
+                except Personnel.DoesNotExist:
+                    full_name = "Inconnu"
+                    employee_obj = None
+
                 # Filtrage des plannings pour l'employé sur la période définie
-                # ET qui n'ont pas encore de décharge (decharge_created_at est null)
+                # et qui n'ont pas encore de décharge (decharge_created_at est null)
                 plannings = Planning.objects.filter(
                     employee_id=emp_id_int,
                     shift_date__range=(start_date_obj, end_date_obj),
@@ -66,14 +76,14 @@ def add_decharge_multiple(request):
                     )
                 )
                 total_salary = aggregation["total_salary"] or Decimal("0.00")
-                print(f"Total Salary for {emp_id_int}: {total_salary}")
+                print(f"Total Salary for {full_name}: {total_salary}")
 
                 if total_salary <= 0:
-                    errors.append(f"L'employé {emp_id_int} n'a pas de salaire positif.")
+                    errors.append(f"L'employé {full_name} n'a pas de salaire positif.")
                     continue
 
                 dossiers_list = []
-                # Construction des informations de dossiers pour chaque planning
+                # Construction des informations de dossiers pour chaque planning filtré
                 for p in plannings.select_related("id_service", "employee"):
                     service_name = (
                         p.id_service.service_name if p.id_service else "Inconnu"
@@ -85,18 +95,11 @@ def add_decharge_multiple(request):
                         dossier += f" - Actes {p.prix_acte}"
                     dossiers_list.append(dossier)
 
-                # Mise à jour des plannings avec les informations de décharge
+                # Mise à jour des plannings concernés avec les informations de décharge
                 plannings.update(
                     decharge_id_created_par=personnel_user,
                     decharge_created_at=datetime.now(),
                 )
-
-                # Récupération du nom complet de l'employé
-                try:
-                    employee_obj = Personnel.objects.get(pk=emp_id_int)
-                    full_name = employee_obj.nom_prenom
-                except Personnel.DoesNotExist:
-                    full_name = "Inconnu"
 
                 # Création de la décharge
                 Decharges.objects.create(
@@ -122,3 +125,50 @@ def add_decharge_multiple(request):
         print(f"Erreur : {e}")
 
     return redirect(reverse("planning"))
+
+
+@login_required
+def manage_decharges_payments(request):
+    # Initialisation des formulaires
+    if request.method == "POST":
+        if "submit_decharge" in request.POST:
+            decharge_form = DechargeForm(request.POST)
+            payment_form = PaymentForm()  # Formulaire vide pour paiement
+            if decharge_form.is_valid():
+                decharge = decharge_form.save(commit=False)
+                # Remplissage automatique de certains champs
+                decharge.id_created_par = request.user
+                decharge.created_at = datetime.now()
+                decharge.save()
+                messages.success(request, "Décharge ajoutée avec succès.")
+                return redirect("manage_decharges_payments")
+            else:
+                messages.error(request, "Erreur dans le formulaire de décharge.")
+        elif "submit_payment" in request.POST:
+            payment_form = PaymentForm(request.POST)
+            decharge_form = DechargeForm()  # Formulaire vide pour décharge
+            if payment_form.is_valid():
+                payment = payment_form.save(commit=False)
+                # Si aucun temps de paiement n'est renseigné, on le définit automatiquement
+                if not payment.time_payment:
+                    payment.time_payment = datetime.now()
+                payment.save()
+                messages.success(request, "Paiement ajouté avec succès.")
+                return redirect("manage_decharges_payments")
+            else:
+                messages.error(request, "Erreur dans le formulaire de paiement.")
+    else:
+        decharge_form = DechargeForm()
+        payment_form = PaymentForm()
+
+    # Récupération de la liste des décharges et paiements
+    decharges = Decharges.objects.all().order_by("-created_at")
+    payments = Payments.objects.all().order_by("-time_payment")
+
+    context = {
+        "decharge_form": decharge_form,
+        "payment_form": payment_form,
+        "decharges": decharges,
+        "payments": payments,
+    }
+    return render(request, "finance/decharges_payments.html", context)

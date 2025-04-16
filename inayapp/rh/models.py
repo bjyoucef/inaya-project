@@ -97,12 +97,14 @@ class Planning(models.Model):
         null=True,
     )
     created_at = models.DateTimeField(auto_now_add=True, blank=True, null=True)
-    prix = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    prix = models.DecimalField(
+        max_digits=10, decimal_places=2, blank=True, null=True, default=0
+    )
     prix_acte = models.DecimalField(
-        max_digits=10, decimal_places=2, blank=True, null=True
+        max_digits=10, decimal_places=2, blank=True, null=True, default=0
     )
     paiement = models.DecimalField(
-        max_digits=10, decimal_places=2, blank=True, null=True
+        max_digits=10, decimal_places=2, blank=True, null=True, default=0
     )
 
     # Ce champ enregistre qui a fait le pointage
@@ -114,8 +116,18 @@ class Planning(models.Model):
         blank=True,
         null=True,
     )
-
     pointage_created_at = models.DateTimeField(blank=True, null=True)
+    # Ce champ enregistre qui a fait la decharge
+    decharge_id_created_par = models.ForeignKey(
+        Personnel,
+        on_delete=models.DO_NOTHING,
+        db_column="id_decharge_par",
+        related_name="id_decharge_par",
+        blank=True,
+        null=True,
+    )
+    # ce champ enregistre l'heure de decharge
+    decharge_created_at = models.DateTimeField(blank=True, null=True)
 
     class Meta:
         managed = True
@@ -264,7 +276,11 @@ class Attendance(models.Model):
         }
         return icons.get(self.check_type, "bi-question-circle")
 
-
+#  ###################################################################################
+#  ###################################################################################
+#  ###################################################################################
+#  ###################################################################################
+#  ###################################################################################
 class SalaryAdvanceRequest(models.Model):
     class RequestStatus(models.TextChoices):
         PENDING = "PEN", "En attente"

@@ -11,15 +11,13 @@ handler403 = custom_permission_denied_view
 
 
 urlpatterns = [
-    path("", include('accueil.urls')),
-
+    path("", include("accueil.urls")),
     path("admin/", admin.site.urls),
-    
-    path('helpdesk/', include('helpdesk.urls')),
-    path('documents/', include('documents.urls')),
-    path("annuaire/", include('annuaire.urls')),
-    path("rh/", include('rh.urls')),
-
+    path("helpdesk/", include("helpdesk.urls")),
+    path("documents/", include("documents.urls")),
+    path("annuaire/", include("annuaire.urls")),
+    path("rh/", include("rh.urls")),
+    path("finance/", include("finance.urls")),
 ]
 
 

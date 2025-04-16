@@ -7,158 +7,7 @@
 <link rel="stylesheet" href="{% static 'css/fullcalendar.css' %}">
 <link rel="stylesheet" href="{% static 'css/choices.min.css' %}">
 <link rel="stylesheet" href="{% static 'css/daterangepicker.css' %}">
-<style>
-
-  .fc-toolbar-title { 
-    font-size: 1.25rem; 
-    font-weight: 600;
-}
-
-  .fc-event { 
-    font-size: 0.85em; 
-    padding: 2px 5px; 
-    border-radius: 3px; 
-    margin: 1px; 
-}
-
-  .choices__inner { 
-    min-height: 38px; 
-    padding: 4px 8px; 
-    border: 1px solid #dee2e6 !important; 
-    border-radius: 0.375rem; 
-    background-color: white; }
-
-  .choices__list--dropdown { 
-    border: 1px solid #dee2e6; 
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15); 
-    z-index: 1060 !important; }
-
-  .form-control-sm, .form-select-sm { 
-    height: 38px; 
-    padding: 0.25rem 0.5rem; 
-    font-size: 0.875rem; }
-
-  .week-end-style {
-    background-color:#dbcffb;
-    /* Jaune clair */
-    color: #000;
-    /* Texte noir */
-}
-        
-    @media (max-width: 768px) {
-        .week-end-style {
-            background-color: #dbcffb !important; /* Jaune clair */
-            color: #000 !important; /* Texte noir */
-        }
-    }
-
-:root {
-    --fc-small-font-size: .85em;
-    --fc-page-bg-color: #fff;
-    --fc-neutral-bg-color: rgba(208, 208, 208, 0.3);
-    --fc-neutral-text-color: #808080;
-    --fc-border-color: #ddd;
-  
-    --fc-button-text-color: #fff;
-    --fc-button-bg-color:#7a6ad8;
-    --fc-button-border-color: #3b0087;
-    --fc-button-hover-bg-color:#3b0087;
-    --fc-button-hover-border-color: #3b0087;
-    --fc-button-active-bg-color:#3b0087;
-    --fc-button-active-border-color: #3b0087;
-  
-    --fc-event-bg-color: #3788d8;
-    --fc-event-border-color: #3788d8;
-    --fc-event-text-color: #fff;
-    --fc-event-selected-overlay-color: rgba(0, 0, 0, 0.25);
-  
-    --fc-more-link-bg-color: #d0d0d0;
-    --fc-more-link-text-color: inherit;
-  
-    --fc-event-resizer-thickness: 7px;
-    --fc-event-resizer-dot-total-width: 8px;
-    --fc-event-resizer-dot-border-width: 1px;
-  
-    --fc-non-business-color: rgba(215, 215, 215, 0.3);
-    --fc-bg-event-color: rgb(143, 223, 130);
-    --fc-bg-event-opacity: 0.3;
-    --fc-highlight-color: rgba(188, 232, 241, 0.3);
-    --fc-today-bg-color:#8d6eff;
-    --fc-now-indicator-color: red;
-  }
-
-
-/* Conteneur principal */
-.daterangepicker {
-    font-family: Arial, sans-serif;
-    background-color: #f8f9fa;
-    border: 1px solid #dee2e6;
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-    border-radius: 0.375rem;
-  }
-  
-  /* Zones des calendriers */
-  .daterangepicker .drp-calendar {
-    border: none;
-    padding: 10px;
-  }
-  
-  /* En-têtes des calendriers */
-  .daterangepicker .drp-calendar thead th {
-    font-weight: 600;
-    color: #495057;
-    padding: 5px;
-    background-color: #e9ecef;
-    border: none;
-  }
-  
-  /* Tableau du calendrier */
-  .daterangepicker .calendar-table {
-    width: 100%;
-    border-collapse: collapse;
-  }
-  .daterangepicker .calendar-table td {
-    text-align: center;
-    padding: 8px;
-    border: 1px solid #dee2e6;
-    cursor: pointer;
-    transition: background-color 0.2s;
-  }
-  
-  /* Date active sélectionnée */
-  .daterangepicker .calendar-table td.active,
-  .daterangepicker .calendar-table td.active:hover {
-    background-color: #7a6ad8;
-    color: #fff;
-    border-color: #007bff;
-  }
-  
-  /* Section des plages prédéfinies */
-  .daterangepicker .ranges {
-    background-color:rgb(247, 249, 255);
-    border-right: 1px solid #7a6ad8;
-    padding: 10px;
-    font-size: 0.875rem;
-  }
-  
-  /* Boutons d'action */
-  .daterangepicker .applyBtn,
-  .daterangepicker .cancelBtn {
-    background-color: #7a6ad8;
-    color: #fff;
-    border: none;
-    padding: 5px 15px;
-    border-radius: 0.375rem;
-    cursor: pointer;
-    transition: background-color 0.2s;
-    font-size: 0.875rem;
-  }
-  .daterangepicker .applyBtn:hover,
-  .daterangepicker .cancelBtn:hover {
-    background-color: #0056b3;
-  }
-  
-</style>
+<link rel="stylesheet" href="{% static 'css/planning-bundle.min.css' %}">
 
 <div class="container-fluid px-4">
     <form method="get" action="{% url 'planning' %}" id="filterForm" class="row g-2 mb-2 align-items-center justify-content-between">
@@ -208,7 +57,9 @@
 
   <!-- Groupe de boutons radio pour l'action -->
   <div class="btn-group" role="group" aria-label="Choix d'action">
+
     <button type="button" id="validateRangeBtn" class="btn btn-success">Valider</button>
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal"data-bs-target="#multiDechargeModal">Décharges</button>
 
     <input type="radio" class="btn-check" name="actionType" id="radioDelete" autocomplete="off" value="delete">
     <label class="btn btn-outline-danger" for="radioDelete">Suppression</label>
@@ -224,52 +75,8 @@
 
   </form>
 
-  {% if perms.rh.creer_planning %}
-  <!-- Modal Ajout planning -->
-  <div class="modal fade" id="addShiftModal" tabindex="-1" aria-labelledby="addShiftModalLabel">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <form method="post" action="{% url 'save_planning' %}">
-          {% csrf_token %}
-          <div class="modal-header">
-            <h5 class="modal-title">Ajouter un shift</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-          </div>
-          <div class="modal-body">
-            <input type="date" name="date" id="date" class="form-control" required>
-            <input type="hidden" name="service" value="{{ selected.service }}">
-            <input type="hidden" name="employee" value="{{ selected.employee }}">
-            <input type="hidden" name="shift" value="{{ selected.shift }}">
-            <input type="hidden" name="event_id" value="{{ event_id|default_if_none:'' }}">
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-            <button type="submit" class="btn btn-primary">Enregistrer</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  </div>
-  {% endif %}
-  
 
-  <!-- Modal Avertissement -->
-  <div class="modal fade" id="warningModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">Sélection Incomplète</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
-        <div class="modal-body">
-          <p>Veuillez sélectionner un service, un employé et un shift avant de continuer.</p>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
-        </div>
-      </div>
-    </div>
-  </div>
+
 
   {% if perms.rh.change_planning %}
   <!-- Formulaire Mise à Jour (caché) -->
@@ -285,48 +92,6 @@
   </form>
   {% endif %}
 
-  {% if perms.rh.delete_planning %}
-  <!-- Modal Suppression -->
-  <div class="modal fade" id="deleteEventModal" tabindex="-1">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">Confirmation de suppression</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
-        <div class="modal-body">
-          Êtes-vous sûr de vouloir supprimer cet événement ?
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-          <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Supprimer</button>
-        </div>
-      </div>
-    </div>
-  </div>
-  {% endif %}
-
-
-  <!-- Modal Pointage -->
-<div class="modal fade" id="pointageModal" tabindex="-1" aria-labelledby="pointageModalLabel">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="pointageModalLabel">Pointage</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <!-- Contenu spécifique au pointage -->
-        Pointage de l'événement <span id="pointageEventId"></span>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
-        <button type="button" class="btn btn-primary" id="confirmPointageBtn">Valider le pointage</button>
-      </div>
-    </div>
-  </div>
-</div>
-
 
   <!-- Calendrier FullCalendar -->
   <div class="card border-0 shadow-sm">
@@ -335,6 +100,9 @@
       <div id="calendar" class="mb-3"></div>
     </div>
   </div>
+
+{% include "rh/planning_table.html" %}
+{% include "rh/planning_modals.html" %}
 </div>
 
 <!-- Inclusion des bibliothèques JS -->
@@ -344,6 +112,7 @@
 <script src="{% static 'js/fullcalendar.js' %}"></script>
 <script src="{% static 'js/choices.min.js' %}"></script>
 
+<!-- Script utilitaire commun -->
 <script>
     // Fonction utilitaire pour récupérer le CSRF token (si vous utilisez Django)
     function getCookie(name) {
@@ -352,7 +121,6 @@
             const cookies = document.cookie.split(';');
             for (let i = 0; i < cookies.length; i++) {
                 const cookie = cookies[i].trim();
-                // Vérifier si ce cookie commence par le nom recherché
                 if (cookie.substring(0, name.length + 1) === (name + '=')) {
                     cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
                     break;
@@ -362,6 +130,86 @@
         return cookieValue;
     }
 
+</script>
+
+<!-- Gestion des dates -->
+<script>
+    // Affecte la date du jour à tous les champs de date de la classe "decharge-date"
+    document.addEventListener('DOMContentLoaded', function () {
+    const today = new Date().toISOString().split('T')[0];
+    document.querySelectorAll('.decharge-date').forEach(input => {
+        input.value = today;
+        });
+    });
+</script>
+
+<!-- Initialisation Choices.js -->
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const choicesConfig = {
+            removeItemButton: true,
+            searchEnabled: true,
+            placeholderValue: 'Sélectionnez les employeurs',
+            searchPlaceholderValue: 'Rechercher'
+        };
+
+        // Initialisation pour le sélecteur d'employeurs
+        if (document.getElementById('selectEmployeurs')) {
+            new Choices(document.getElementById('selectEmployeurs'), choicesConfig);
+        }
+        // Initialisation pour les autres sélecteurs
+        if (document.getElementById('serviceFilter')) {
+            new Choices(document.getElementById('serviceFilter'), { searchEnabled: true, removeItemButton: true, placeholder: true });
+        }
+        if (document.getElementById('employeeFilter')) {
+            new Choices(document.getElementById('employeeFilter'), { searchEnabled: true, removeItemButton: true, placeholder: true });
+        }
+        if (document.getElementById('shiftFilter')) {
+            new Choices(document.getElementById('shiftFilter'), { searchEnabled: false, removeItemButton: true, placeholder: true });
+        }
+    });
+</script>
+
+<!-- Mise à jour des données en fonction des sélections -->
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const selectEmployeurs = document.getElementById('selectEmployeurs');
+        const previewContainer = document.getElementById('previewEmployees');
+        const hiddenInput = document.getElementById('id_dossiers_hidden');
+
+        if (selectEmployeurs) {
+            // Mise à jour du preview et de l'input caché lors de la sélection
+            selectEmployeurs.addEventListener('change', function () {
+                // Mise à jour de l'input caché
+                if (hiddenInput) {
+                    const idDossiers = Array.from(this.selectedOptions).map(option => option.getAttribute('data-id-dossiers'));
+                    hiddenInput.value = idDossiers.join(', ');
+                }
+
+                // Mise à jour du container de preview
+                if (previewContainer) {
+                previewContainer.innerHTML = '';
+                Array.from(this.selectedOptions).forEach(option => {
+                    const amount = option.getAttribute('data-amount') || '0';
+                    const dossiers = option.getAttribute('data-dossiers') || 'Aucun dossier';
+                    const previewBlock = `
+                        <div class="border rounded p-2 mb-2 bg-light">
+                            <strong>${option.text}</strong><br>
+                            <small><strong>Salaire :</strong> ${amount} DA</small><br>
+                            <small><strong>Dossiers :</strong></small>
+                            <pre style="white-space: pre-wrap; font-size: 0.9em;">${dossiers}</pre>
+                        </div>
+                    `;
+                    previewContainer.innerHTML += previewBlock;
+                });
+                }
+            });
+        }
+    });
+</script>
+
+<!-- Gestion de la validation multiple par date range -->
+<script>
     document.getElementById('validateRangeBtn').addEventListener('click', function () {
         const dateRange = document.getElementById('daterangepicker').value;
         if (!dateRange) {
@@ -395,52 +243,29 @@
     });
 </script>
 
+<!-- Initialisation et configuration du FullCalendar -->
 <script>
-    // Fonction debounce pour limiter les appels lors du redimensionnement
-    function debounce(func, delay) {
-        let debounceTimer;
-        return function () {
-            clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(() => func.apply(this, arguments), delay);
-        };
-    }
-
-    // Fonction utilitaire pour récupérer le token CSRF depuis les cookies
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
-        }
-        return cookieValue;
-    }
-
-    // Attendre que le DOM soit entièrement chargé
     document.addEventListener('DOMContentLoaded', function () {
         // Initialisation des sélecteurs Choices.js
         new Choices(document.getElementById('serviceFilter'), { searchEnabled: true, removeItemButton: true, placeholder: true });
         new Choices(document.getElementById('employeeFilter'), { searchEnabled: true, removeItemButton: true, placeholder: true });
         new Choices(document.getElementById('shiftFilter'), { searchEnabled: false, removeItemButton: true, placeholder: true });
 
-
-
         // Récupération des données nécessaires
         const calendarEl = document.getElementById('calendar');
-        if (!calendarEl) return console.error('Élément "calendar" introuvable.');
+        if (!calendarEl) {
+            console.error('Élément "calendar" introuvable.');
+            return;
+        }
+
+        // Récupération des données du calendrier et des sélections
         const eventsData = JSON.parse(document.getElementById('events-data').textContent);
         const selectedService = "{{ selected.service }}";
         const selectedShift = "{{ selected.shift }}";
 
-        // Initialisation du calendrier FullCalendar
         const calendar = new FullCalendar.Calendar(calendarEl, {
             initialDate: "{{ selected.start_date|default:'2025-01-01' }}",
-            dayMaxEventRows: true, // Valeur initiale
+            dayMaxEventRows: true,
             height: 650,
             contentHeight: 600,
             aspectRatio: 2,
@@ -464,12 +289,10 @@
                 list: "Liste"
             },
             events: eventsData.map(event => ({
-
                 ...event,
                 color: event.color || '#007bff',
                 textColor: '#ffffff'
             })),
-
       {% if perms.rh.exporter_planning %}
       customButtons: {
         myCustomButton: {
@@ -481,19 +304,12 @@
         }
     },
         {% endif %}
-
         eventClick: function (info) {
-            // Vérifier si la checkbox "Pointage" est cochée
             if (document.getElementById('radioPointage').checked) {
-                // Ouvrir le modal de pointage
                 openPointageModal(info.event.id);
-            } 
-            if (document.getElementById('radioDelete').checked) {
-                //ouvrir le modal de suppression
+            } else if (document.getElementById('radioDelete').checked) {
                 openDeleteModal(info.event.id);
-            }
-            if (document.getElementById('radioActe').checked) {
-                //ouvrir le modal de Add acte
+            } else if (document.getElementById('radioActe').checked) {
                 openPointageActe(info.event.id);
             }
         },
@@ -507,30 +323,33 @@
         eventDrop: function (info) {
             const eventId = info.event.id;
             const newDate = info.event.start?.toISOString().slice(0, 10);
-            if (!eventId || !newDate) return console.error("Données événement invalides.");
+            if (!eventId || !newDate) {
+                console.error("Données événement invalides.");
+                return;
+            }
             const updateForm = document.getElementById('updateEventForm');
             if (updateForm) {
                 updateForm.querySelector('#eventId').value = eventId;
                 updateForm.querySelector('#eventStart').value = newDate;
                 updateForm.submit();
+    } else {
+    console.error('Formulaire de mise à jour introuvable.');
             }
         },
-        // Styling Specific Days
         dayCellDidMount: function (info) {
-            const day = info.date.getDay();
-            if (day === 5 || day === 6) { // Vendredi, Samedi
+            if ([5, 6].includes(info.date.getDay())) {
                 info.el.classList.add('week-end-style');
             }
-        },
-        windowResize: debounce(() => {
-            calendar.updateSize();
-        }, 250)
-
-
+        }
+        
     });
+
     calendar.render();
 
-    // Gestion du checkbox pour activer/désactiver dayMaxEventRows
+
+
+
+    // Gestion de la checkbox pour activer/désactiver dayMaxEventRows
     const toggleDayMax = document.getElementById('toggleDayMax');
     if (toggleDayMax) {
         toggleDayMax.addEventListener('change', function (e) {
@@ -538,12 +357,14 @@
         });
     }
 
-    // Fonction pour ouvrir le modal de pointage
-    function openPointageModal(eventId) {
-        const modalEl = document.getElementById('pointageModal'); // Assurez-vous d'avoir un élément avec cet id
-        if (!modalEl) return console.error("Modal de pointage introuvable.");
+    // Fonctions de gestion des actions sur événements
+    window.openPointageModal = function (eventId) {
+        const modalEl = document.getElementById('pointageModal');
+        if (!modalEl) {
+            console.error("Modal de pointage introuvable.");
+            return;
+        }
         const modal = new bootstrap.Modal(modalEl);
-        // Vous pouvez également insérer des informations supplémentaires dans le modal en fonction de eventId
         modal.show();
         document.getElementById('confirmPointageBtn').onclick = function () {
             fetch(`/rh/validate-presence/${eventId}/`, {
@@ -571,11 +392,14 @@
                 })
                 .finally(() => modal.hide());
         };
-    }
-    // Fonction de suppression (exemple de structure)
-    function openDeleteModal(eventId) {
+    };
+
+    window.openDeleteModal = function (eventId) {
         const modalEl = document.getElementById('deleteEventModal');
-        if (!modalEl) return console.error("Modal de suppression introuvable.");
+        if (!modalEl) {
+            console.error("Modal de suppression introuvable.");
+            return;
+        }
         const modal = new bootstrap.Modal(modalEl);
         modal.show();
         document.getElementById('confirmDeleteBtn').onclick = function () {
@@ -604,10 +428,50 @@
                 })
                 .finally(() => modal.hide());
         };
+    };
+
+    window.openPointageActe = function (eventId) {
+    const eventData = eventsData.find(ev => ev.id == eventId);
+    if (!eventData) {
+        console.error("Événement non trouvé.");
+        return;
     }
+    const serviceId = eventData.service_id;
+    fetch(`/rh/get-honoraires-acte/?service_id=${serviceId}`)
+      .then(response => {
+          if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+          return response.json();
+      })
+      .then(data => {
+          if (data.success) {
+              const selectActe = document.getElementById('selectActe');
+                    selectActe.innerHTML = "";
+              data.data.forEach(acte => {
+                  const option = document.createElement('option');
+                  option.value = acte.id_acte;
+                  option.text = `${acte.name_acte} - ${acte.prix_acte}`;
+                  selectActe.appendChild(option);
+              });
+              document.getElementById('acteEventId').value = eventId;
+              const modalEl = document.getElementById('pointageActeModal');
+              if (!modalEl) {
+                  console.error("Modal pour pointage acte introuvable.");
+                  return;
+              }
+              const modal = new bootstrap.Modal(modalEl);
+              modal.show();
+          } else {
+              alert("Erreur lors de la récupération des actes: " + data.message);
+          }
+      })
+      .catch(error => {
+          console.error('Erreur:', error);
+          alert("Erreur lors de la récupération des actes.");
+      });
+    };
 
     {% if perms.rh.creer_planning %}
-    function openAddModal(date) {
+    window.openAddModal = function (date) {
         const dateInput = document.getElementById('date');
         if (dateInput) dateInput.value = date;
         const modalEl = document.getElementById('addShiftModal');
@@ -615,28 +479,84 @@
             const modal = new bootstrap.Modal(modalEl);
             modal.show();
         }
-    }
+    };
     {% endif %}
 
-    function openWarningModal() {
+    window.openWarningModal = function () {
         const modalEl = document.getElementById('warningModal');
         if (modalEl) {
             const modal = new bootstrap.Modal(modalEl);
             modal.show();
         }
+    };
+    });
+
+
+    let ticking = false;
+window.addEventListener('resize', function () {
+    if (!ticking) {
+        window.requestAnimationFrame(function () {
+            calendar.updateSize();
+            ticking = false;
+        });
+        ticking = true;
     }
+});
+
+</script>
+
+<!-- Gestion du formulaire pour pointage d'acte -->
+<script>
+    document.getElementById('pointageActeForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        const data = {
+            event_id: document.getElementById('acteEventId').value,
+            acte_id: document.getElementById('selectActe').value,
+            nbr_actes: document.getElementById('nbrActes').value
+        };
+
+        fetch(`/rh/add-pointage-acte/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify(data)
+})
+.then(response => {
+    if (!response.ok) {
+        return response.text().then(text => {
+            console.error(`HTTP error! status: ${response.status}\nResponse: ${text}`);
+            throw new Error(`HTTP error! status: ${response.status}`);
+        });
+    }
+    return response.json();
+})
+            .then(data => {
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert(data.message || "Erreur inconnue");
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert("Erreur lors de l'ajout du pointage acte.");
+            });
 });
 </script>
 
+<!-- Initialisation du Date Range Picker -->
 <script>
-    // Initialisation du Date Range Picker avec redirection sur changement
     const startDateTemplate = "{{ selected.start_date|default:'2025-01-01' }}";
     const endDateTemplate = "{{ selected.end_date|default:'2025-01-01' }}";
     let start = moment(startDateTemplate, "YYYY-MM-DD");
     let end = moment(endDateTemplate, "YYYY-MM-DD");
+
     const updateInput = (start, end) => {
         $("#daterangepicker").val(start.format("YYYY-MM-DD") + " - " + end.format("YYYY-MM-DD"));
     };
+
     $("#daterangepicker").daterangepicker({
         startDate: start,
         endDate: end,
@@ -663,7 +583,9 @@
             "Le mois dernier": [moment().subtract(1, "month").startOf("month"), moment().subtract(1, "month").endOf("month")]
         }
     }, updateInput);
+
     updateInput(start, end);
+
     $("#daterangepicker").on('apply.daterangepicker', function (ev, picker) {
         window.location.href = "{% url 'planning' %}?start_date=" + picker.startDate.format("YYYY-MM-DD") +
             "&end_date=" + picker.endDate.format("YYYY-MM-DD");

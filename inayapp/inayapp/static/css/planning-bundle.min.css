@@ -1,0 +1,32 @@
+/* planning-bundle.min.css (extrait) */
+.fc-toolbar-title {
+    font-size: 1.25rem;
+    font-weight: 600
+}
+
+.fc-event {
+    font-size: .85em;
+    padding: 2px 5px;
+    border-radius: 3px;
+    margin: 1px
+}
+
+.choices__inner {
+    min-height: 38px;
+    padding: 4px 8px;
+    border: 1px solid #dee2e6 !important;
+    border-radius: .375rem;
+    background-color: #fff
+}
+
+.week-end-style {
+    background-color: #dbcffb;
+    color: #000
+}
+
+@media (max-width:768px) {
+    .week-end-style {
+        background-color: #dbcffb !important;
+        color: #000 !important
+    }
+}

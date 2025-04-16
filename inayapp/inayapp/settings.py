@@ -20,29 +20,26 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
-    'jazzmin',
-    'fontawesomefree',
-    'widget_tweaks',
-
+    "jazzmin",
+    "fontawesomefree",
+    "widget_tweaks",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    'maintenance_mode',
-    
-    'filer',
-    'easy_thumbnails',
-    'mptt',
-    'django_ckeditor_5',
-
+    "maintenance_mode",
+    "filer",
+    "easy_thumbnails",
+    "mptt",
+    "django_ckeditor_5",
     "accueil",
     "helpdesk",
-    'annuaire',
-    'rh',
-    'documents',
-    
+    "annuaire",
+    "rh",
+    "documents",
+    "finance",
 ]
 
 THUMBNAIL_HIGH_RESOLUTION = True

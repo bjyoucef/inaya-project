@@ -1,0 +1,197 @@
+<!-- Script utilitaire commun -->
+<script>
+    document.addEventListener('DOMContentLoaded',
+        function () {
+            const calendarEl = document.getElementById('calendar');
+
+            if (!calendarEl) {
+                console.error('Élément avec id="calendar" introuvable.');
+                return;
+            }
+
+            // Récupération des événements depuis Flask
+            const events = {{ events | tojson | safe
+        }};
+    console.log(events); // Vérifiez les données dans la console
+
+    const selectedEmployee = "{{ selected_employee }}";
+    const selectedService = "{{ selected_service }}";
+    const selectedShift = "{{ selected_shift }}";
+
+    // Initialisation du calendrier FullCalendar
+    const calendar = new FullCalendar.Calendar(
+        calendarEl, {
+        initialDate: "{{ selected_start_date }}", // La date passée depuis Flask via Jinja2
+    <!--  dayMaxEventRows: true,
+
+    locale: 'fr',
+    themeSystem: 'bootstrap5',
+    initialView: 'dayGridMonth',
+    headerToolbar: {
+    left: 'prev,next today myCustomButton',
+    center: 'title', // Calendar title in the center
+    right: 'dayGridMonth,timeGridWeek,timeGridDay,list',},
+    eventDisplay: 'block', // Affiche les événements comme des blocs (pas des points)
+
+    editable: true,
+    weekends: true,
+    nowIndicator: true,
+
+    buttonText: {
+    today: "Aujourd'hui",
+    month: "Mois",
+    week: "Semaine",
+    day: "Jour",
+    list: "Liste"
+    },
+
+    events: events.map(event => {
+    // Détecter si un événement dure plusieurs jours
+    const isMultiDay = event.start && event.end && new Date(event.end) > new Date(event.start);
+
+    return {
+    ...event,
+    color: event.color || '#007bff', // Couleur par défaut
+    textColor: '#ffffff',           // Couleur du texte
+    editable: !event.passive,       // Contrôle de l'éditabilité
+    classNames: isMultiDay ? ['multi-day-event'] : ['single-day-event'], // Classes dynamiques
+    };
+    }),
+
+    {% if 'EXPORTER_PLANNING' in session.privileges %}
+
+    // Custom Buttons for downloading the planning
+
+    customButtons: {
+    myCustomButton: {
+    text: 'Télécharger le Planning',
+    click: function () {
+    // Récupérer les valeurs des filtres
+    const filters = ['serviceFilter', 'employeeFilter', 'shiftFilter', 'startDate', 'endDate']
+        .reduce((acc, id) => {
+    const el = document.getElementById(id);
+    acc[id] = el ? el.value : '';
+    return acc;
+    }, {});
+
+    const { serviceFilter, employeeFilter, shiftFilter, startDate, endDate } = filters;
+
+    // Générer l'URL dynamiquement avec les paramètres
+    const url = `{{ url_for('print_planning') }}?service=${serviceFilter}&employee=${employeeFilter}&shift=${shiftFilter}&start_date=${startDate}&end_date=${endDate}`;
+
+    // Redirection vers l'URL pour télécharger le planning
+    window.location.href = url;
+    }
+    }
+    },
+    {% endif %}
+
+    // Handling Event Click (Open Modal)
+    eventClick: function (info) {
+    // Ouvrir le modal de confirmation de suppression
+    openDeleteModal(info.event.id); // Passer l'ID de l'événement au modal
+    },
+
+    // Handling Date Clicks
+    dateClick: function (info) {
+    if (selectedService === "all" || selectedShift === "all" || selectedEmployee === "all") {
+    openWarningModal();  // Ouvrir le modal d'avertissement
+    } else {
+    openModal(info.dateStr);  // Ouvrir le modal normal
+    }
+    },
+
+
+    // Handling Event Drag and Drop (Updating Event)
+    eventDrop: function (info) {
+    const eventId = info.event.id;
+    const newDate = info.event.start?.toISOString().slice(0, 10); // Format YYYY-MM-DD
+
+    if (!eventId || !newDate) {
+    console.error("L'ID de l'événement ou la date ne sont pas définis.");
+    return;
+    }
+
+    // Mise à jour des champs du formulaire
+    const updateForm = document.getElementById('updateEventForm');
+    if (updateForm) {
+    updateForm.querySelector('#eventId').value = eventId;
+    updateForm.querySelector('#eventStart').value = newDate;
+    updateForm.submit();
+    } else {
+    console.error('Formulaire de mise à jour introuvable.');
+    }
+    },
+
+    // Styling Specific Days
+    dayCellDidMount: function (info) {
+    const day = info.date.getDay();
+    if (day === 5 || day === 6) { // Vendredi, Samedi
+    info.el.classList.add('week-end-style');
+    }
+    }
+    });
+
+    // Render the Calendar
+    calendar.render();
+
+    // Fonction pour ouvrir le modal de suppression
+    function openDeleteModal(eventId) {
+    const modalEl = document.getElementById('deleteEventModal');
+    if (modalEl) {
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+
+    // Gestion de la suppression au clic sur "Supprimer"
+    const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+    confirmDeleteBtn.onclick = function () {
+    // Supprimer l'événement via une requête AJAX
+    fetch(`/delete-event/${eventId}`, {
+    method: 'DELETE',
+    }).then(response => {
+    if (response.ok) {
+    // Fermer le modal
+    modal.hide();
+    // Recharger la page ou mettre à jour l'interface
+    window.location.reload();
+    } else {
+    console.error('Erreur lors de la suppression de l\'événement.');
+    }
+    });
+    };
+    } else {
+    console.error('Modal de suppression introuvable.');
+    }
+    }
+
+    // Fonction pour ouvrir le modal d'ajout
+    function openModal(date) {
+    const dateInput = document.getElementById('date');
+    if (dateInput) {
+    dateInput.value = date;
+    } else {
+    console.error('Champ "date" introuvable dans le formulaire.');
+    }
+
+    const modalEl = document.getElementById('addShiftModal');
+    if (modalEl) {
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+    } else {
+    console.error('Modal avec id="addShiftModal" introuvable.');
+    }
+    }
+
+    // Fonction pour ouvrir le modal d'avertissement
+    function openWarningModal() {
+    const modalEl = document.getElementById('warningModal');
+    if (modalEl) {
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+    } else {
+    console.error('Modal d\'avertissement introuvable.');
+    }
+    }
+
+    });
+</script>

@@ -171,7 +171,7 @@ def attendance_report(request):
 
     # Pagination
     page_number = request.GET.get("page", 1)
-    paginator = Paginator(employees, 1)  # 10 employés par page
+    paginator = Paginator(employees.order_by('id'), 1)
     page = paginator.get_page(page_number)
 
     report = []
@@ -300,9 +300,9 @@ def attendance_report(request):
         "page": page,
     }
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-        return render(request, "rh/attendance_report_partial.html", context)
+        return render(request, "rh/pointage_report_partial.html", context)
 
-    return render(request, "rh/attendance_report.html", context)
+    return render(request, "rh/pointage_report.html", context)
 
 
 @csrf_exempt

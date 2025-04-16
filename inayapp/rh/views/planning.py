@@ -14,45 +14,12 @@ from django.urls import reverse
 from django.utils.timezone import now
 from django.views.decorators.http import require_http_methods
 from xhtml2pdf import pisa
-
-from ..models import Personnel, Planning, Services
+from collections import defaultdict
+from decimal import Decimal
+from ..models import (HonorairesActe, Personnel, Planning, PointagesActes,
+                      Services)
 
 logger = logging.getLogger(__name__)
-
-
-@require_http_methods(["GET"])
-def api_events(request):
-    """
-    Retourne les événements sous forme JSON pour un chargement asynchrone.
-    """
-    try:
-        allowed_services = [
-            s.service_name
-            for s in Services.objects.all()
-            if request.user.has_perm(f"rh.view_service_{s.service_name}")
-        ]
-        qs = Planning.objects.filter(
-            employee=request.GET.get("employee"),
-            id_service__service_name__in=allowed_services,
-            shift_type=request.GET.get("shift"),
-            shift_date__range=[request.GET.get("start"), request.GET.get("end")],
-        ).select_related("employee", "id_service")
-        events = [
-            {
-                "id": event.id,
-                "title": f"{event.employee} - {event.shift_type}",
-                "start": event.shift_date.isoformat(),
-                "color": event.id_service.color,
-                "extendedProps": {"time": event.get_time_display()},
-            }
-            for event in qs.iterator()
-        ]
-        return JsonResponse({"events": events})
-    except Exception as e:
-        logger.exception("Erreur lors du chargement asynchrone des événements")
-        return JsonResponse(
-            {"events": [], "error": "Erreur lors du chargement"}, status=500
-        )
 
 
 def extract_filters(request):
@@ -81,24 +48,24 @@ def build_redirect_params(filters):
 
 @permission_required("accueil.view_menu_items_plannings", raise_exception=True)
 def planning(request):
+    # Extraction et configuration des filtres
     filters = extract_filters(request)
-
-    # Configuration et mise à jour des dates utilisateur
     config, _ = ConfigDate.objects.get_or_create(
         user=request.user,
         page="planning",
         defaults={"start_date": "2025-01-01", "end_date": "2025-01-01"},
     )
-    if filters["start_date"]:
+    if filters.get("start_date"):
         config.start_date = filters["start_date"]
-    if filters["end_date"]:
+    if filters.get("end_date"):
         config.end_date = filters["end_date"]
     config.save()
 
-    start_date = filters["start_date"] or config.start_date
-    end_date = filters["end_date"] or config.end_date
+    # Utiliser les dates des filtres ou celles du config
+    start_date = filters.get("start_date") or config.start_date
+    end_date = filters.get("end_date") or config.end_date
 
-    # Conversion en ISO si nécessaire
+    # Convertir en ISO pour la comparaison (si nécessaire)
     filters["start_date"] = (
         start_date.isoformat() if isinstance(start_date, date) else start_date
     )
@@ -106,22 +73,43 @@ def planning(request):
         end_date.isoformat() if isinstance(end_date, date) else end_date
     )
 
-    # Construction du filtre de requête
+    # Construction du filtre de requête pour Planning
     planning_filter = Q(shift_date__range=[filters["start_date"], filters["end_date"]])
-    if filters["service"] != "all":
+    pointage_filter = Q(
+        id_planning__shift_date__range=[filters["start_date"], filters["end_date"]]
+    )
+
+    if filters.get("service", "all") != "all":
         planning_filter &= Q(id_service__service_name=filters["service"])
-    if filters["employee"] != "all":
-        # Recherche sur le champ unique nom_prenom
+        pointage_filter &= Q(id_planning__id_service__service_name=filters["service"])
+
+    if filters.get("employee", "all") != "all":
         employee_name = filters["employee"].strip()
         planning_filter &= Q(employee__nom_prenom__icontains=employee_name)
-    if filters["shift"] != "all":
+        pointage_filter &= Q(id_planning__employee__nom_prenom__icontains=employee_name)
+
+    if filters.get("shift", "all") != "all":
         planning_filter &= Q(shift_type=filters["shift"])
+        pointage_filter &= Q(id_planning__shift_type=filters["shift"])
 
     try:
-        plannings = Planning.objects.filter(planning_filter)
+        planningsValidees = Planning.objects.select_related("employee", "id_service").filter(
+            planning_filter, pointage_created_at__isnull=False
+        )
+
+        # Récupération des plannings avec jointures optimisées
+        plannings = Planning.objects.select_related("employee", "id_service").filter(planning_filter)
+
+        # Récupération des pointages d'actes avec jointures optimisées et tri par date
+        pointages = PointagesActes.objects.select_related(
+            "id_planning__employee", "id_planning__id_service", "id_acte"
+        ).filter(pointage_filter).order_by("id_planning__shift_date")
+
     except Exception:
         logger.exception("Erreur lors du filtrage des plannings")
-        plannings = []
+        plannings = Planning.objects.none()
+        planningsValidees = Planning.objects.none()
+        pointages = PointagesActes.objects.none()
 
     # Récupération des services autorisés et des employés actifs
     services = [
@@ -133,13 +121,15 @@ def planning(request):
         "nom_prenom"
     )
 
-    # Préparation des événements pour le calendrier
+    # Préparation des couleurs de services et configuration des shifts
     service_colors = {s.service_name: s.color for s in services}
     shift_configs = {
         "jour": (timedelta(hours=8), timedelta(hours=8)),
         "nuit": (timedelta(hours=17), timedelta(hours=16)),
         "24H": (timedelta(hours=8), timedelta(hours=24)),
     }
+
+    # Construction de la liste des événements pour FullCalendar
     events = []
     for p in plannings.iterator():
         time_config = shift_configs.get(p.shift_type)
@@ -151,28 +141,58 @@ def planning(request):
             events.append(
                 {
                     "id": p.id,
+                    "service_id": p.id_service.id_service,
                     "title": f"{p.employee} - {p.shift_type} - {p.id_service.service_name}",
                     "start": event_start.isoformat(),
                     "end": event_end.isoformat(),
                     "backgroundColor": (
                         "gray"
                         if p.pointage_created_at
-                        else service_colors.get(p.id_service.service_name, "gray")
+                        else service_colors.get(p.id_service.service_name, "black")
                     ),
-
                     "borderColor": service_colors.get(
-                        p.id_service.service_name, "gray"
+                        p.id_service.service_name, "black"
                     ),
                 }
             )
 
+    # Calculer le total (prix unitaire * nombre d'actes) pour chaque pointage
+    for pa in pointages:
+        pa.total = pa.id_acte.prix_acte * pa.nbr_actes
+    # Dictionnaire pour grouper par employé
+    grouped_plannings = defaultdict(lambda: {
+        "employee": None,
+        "prix_total": Decimal(0),
+        "prix_acte_total": Decimal(0),
+        "pointagesDetail": []
+    })
+    # Grouper
+    for planning in planningsValidees:
+        emp_id = planning.employee.id_personnel
+        grouped_plannings[emp_id]["employee"] = planning.employee
+        grouped_plannings[emp_id]["prix_total"] += planning.prix or 0
+        grouped_plannings[emp_id]["prix_acte_total"] += planning.prix_acte or 0
+
+        grouped_plannings[emp_id]["pointagesDetail"].append({
+            "service_name": planning.id_service.service_name,
+            "date_pointage": planning.shift_date.strftime("%Y-%m-%d"),
+            "shift_type": planning.shift_type,
+            "prix": planning.prix,
+            "prix_acte": planning.prix_acte,
+        })
+
+    # Transformer en liste pour le template
+    plannings_groupes = list(grouped_plannings.values())
+
     context = {
+        "planningsValidees": plannings_groupes,
         "employees": employees,
         "services": services,
         "events": events,
         "selected": filters,
         "title": "Plannings",
         "user": request.user,
+        "pointages": pointages,
     }
     return render(request, "rh/planning.html", context)
 
@@ -476,4 +496,69 @@ def validate_presence_range(request):
         )
     except Exception as e:
         logger.exception("Erreur lors de la validation multiple de présence")
+        return JsonResponse({"success": False, "message": str(e)}, status=500)
+
+
+@permission_required("accueil.view_menu_items_plannings", raise_exception=True)
+def get_honoraires_acte(request):
+    service_id = request.GET.get("service_id")
+    if not service_id:
+        return JsonResponse(
+            {"success": False, "message": "Service id requis"}, status=400
+        )
+    try:
+        actes = HonorairesActe.objects.filter(id_service=service_id)
+        actes_list = [
+            {
+                "id_acte": acte.id_acte,
+                "name_acte": acte.name_acte,
+                "prix_acte": str(acte.prix_acte),
+            }
+            for acte in actes
+        ]
+        return JsonResponse({"success": True, "data": actes_list})
+    except Exception as e:
+        return JsonResponse({"success": False, "message": str(e)}, status=500)
+
+
+@transaction.atomic
+@login_required
+def add_pointage_acte(request):
+    if request.method != "POST":
+        return JsonResponse(
+            {"success": False, "message": "Méthode non autorisée."}, status=405
+        )
+    try:
+        data = json.loads(request.body)
+        event_id = data.get("event_id")
+        acte_id = data.get("acte_id")
+        nbr_actes = data.get("nbr_actes")
+
+        if not all([event_id, acte_id, nbr_actes]):
+            return JsonResponse(
+                {"success": False, "message": "Données incomplètes."}, status=400
+            )
+
+        # Récupération des instances correspondantes
+        planning = Planning.objects.get(id=event_id)
+        acte = HonorairesActe.objects.get(id_acte=acte_id)
+
+        # Créer ou mettre à jour l'enregistrement dans PointagesActes
+        pointage_acte, created = PointagesActes.objects.update_or_create(
+            id_planning=planning, id_acte=acte, defaults={"nbr_actes": nbr_actes}
+        )
+
+        # Calcul du prix total : prix unitaire de l'acte * nombre d'actes
+        # Note : Conversion en Decimal est implicite si vos champs sont du type DecimalField
+        total_price = acte.prix_acte * int(nbr_actes)
+
+        # Enregistrement du prix calculé dans le planning (champ prix_acte)
+        planning.prix_acte = total_price
+        planning.save()
+
+        return JsonResponse(
+            {"success": True, "message": "Pointage acte enregistré avec succès."}
+        )
+    except Exception as e:
+        logger.exception("Erreur lors de l'ajout du pointage acte")
         return JsonResponse({"success": False, "message": str(e)}, status=500)

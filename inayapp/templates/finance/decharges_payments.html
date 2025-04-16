@@ -1,0 +1,82 @@
+{% extends "layout.html" %} {% load static %} {% load custom_filters %} {% block
+content %}
+
+<div class="forms-container">
+  <div class="form-section">
+    <h2>Ajouter une Décharge</h2>
+    <form method="post">
+      {% csrf_token %} {{ decharge_form.as_p }}
+      <button type="submit" name="submit_decharge">Ajouter Décharge</button>
+    </form>
+  </div>
+
+  <div class="form-section">
+    <h2>Ajouter un Paiement</h2>
+    <form method="post">
+      {% csrf_token %} {{ payment_form.as_p }}
+      <button type="submit" name="submit_payment">Ajouter Paiement</button>
+    </form>
+  </div>
+</div>
+
+<hr />
+
+<h2>Liste des Décharges</h2>
+<table border="1" cellspacing="0" cellpadding="5">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Nom</th>
+      <th>Montant</th>
+      <th>Date</th>
+      <th>Note</th>
+      <th>Créé le</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for decharge in decharges %}
+    <tr>
+      <td>{{ decharge.id_decharge }}</td>
+      <td>{{ decharge.name }}</td>
+      <td>{{ decharge.amount }}</td>
+      <td>{{ decharge.date }}</td>
+      <td>{{ decharge.note }}</td>
+      <td>{{ decharge.created_at }}</td>
+    </tr>
+    {% empty %}
+    <tr>
+      <td colspan="6">Aucune décharge enregistrée.</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<h2>Liste des Paiements</h2>
+<table border="1" cellspacing="0" cellpadding="5">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Décharge associée</th>
+      <th>Montant du paiement</th>
+      <th>Temps de paiement</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for payment in payments %}
+    <tr>
+      <td>{{ payment.id_payment }}</td>
+      <td>
+        {% if payment.id_decharge %} {{ payment.id_decharge.name }} {% else %}
+        N/A {% endif %}
+      </td>
+      <td>{{ payment.payment }}</td>
+      <td>{{ payment.time_payment }}</td>
+    </tr>
+    {% empty %}
+    <tr>
+      <td colspan="4">Aucun paiement enregistré.</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock content %}
