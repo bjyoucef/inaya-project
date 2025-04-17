@@ -1,9 +1,15 @@
 # accueil/context_processors.py
 
-from rh.models import LeaveRequest, SalaryAdvanceRequest
-from .models import MenuItems
+
+from django.db.models import F, Q, Sum, Value
+from django.db.models.functions import Coalesce
+from finance.models import Decharges
 from helpdesk.models import Helpdesk
-from django.db.models import Q
+from rh.models import LeaveRequest, SalaryAdvanceRequest
+from django.db.models import F, Sum, Value, ExpressionWrapper
+from django.db.models.functions import Coalesce
+from django.db import models
+from .models import MenuItems
 
 
 def menu_items(request):
@@ -71,7 +77,29 @@ def notification(request):
                     status=LeaveRequest.RequestStatus.PENDING
                 ).count()
 
+        # finance - Gestion des decharges
+        if user.has_perm("finance.process_expense_request"):
+            pending_decharges = (
+                Decharges.objects.annotate(
+                    total_payments=Coalesce(
+                        Sum("payments__payment"),
+                        Value(0, output_field=models.DecimalField()),
+                        output_field=models.DecimalField(),
+                    )
+                )
+                .annotate(
+                    balance=ExpressionWrapper(
+                        F("amount") - F("total_payments"),
+                        output_field=models.DecimalField(
+                            max_digits=10, decimal_places=2
+                        ),
+                    )
+                )
+                .filter(balance__gt=0)
+            ).count()
+
     return {
         "nembre_notification_hd": nembre_notification_hd,
         "nembre_notification_rh": pending_salary + pending_leave,
+        "nembre_notification_decharge": pending_decharges,
     }

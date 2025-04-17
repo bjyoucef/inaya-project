@@ -2,10 +2,30 @@
 import json
 import re
 import time
+from datetime import date
 
 import requests
 from django.core.exceptions import ObjectDoesNotExist
-from rh.models import AnvizConfiguration
+from .models import AnvizConfiguration, Attendance
+from django.db.models import Max
+
+
+def get_last_attendance_sync_date():
+    last_sync = Attendance.objects.aggregate(last_sync=Max("synced_at"))["last_sync"]
+
+    if last_sync is None:
+        # Si aucune date de synchronisation n'existe, on retourne une date très ancienne
+        return "2024-01-01"
+    
+    # Formater la date au format attendu par l'API Anviz
+    last_sync = last_sync.strftime("%Y-%m-%d")
+    # today = (date.today()).strftime("%Y-%m-%d")
+
+    # if last_sync == today:
+    #     # Si la date de dernière synchronisation est aujourd'hui, on retourne une date antérieure
+    #     last_sync = "2024-01-01"
+
+    return last_sync
 
 
 class AnvizAPI:
@@ -62,14 +82,13 @@ class AnvizAPI:
             # Correction des clés non citées
             json_text = re.sub(r'(\w+):', r'"\1":', raw_text)
             data = json.loads(json_text)
-            print(f"Données de la réponse : {data}")
+
             if data.get('code') == 'success':
                 self.session_key = data.get('session_key')
                 # Ajout des cookies attendus par la pointeuse
                 self.session.cookies.set("session_id", self.username, domain=self.ip, path="/")
                 self.session.cookies.set("session_key", self.session_key, domain=self.ip, path="/")
                 self.session.cookies.set("session_power", "1", domain=self.ip, path="/")
-                print(f"Connexion réussie, clé de session : {self.session_key}")
                 return True
             else:
                 print(f"Échec de la connexion : {data.get('msg', 'Erreur inconnue')}")
@@ -101,14 +120,10 @@ class AnvizAPI:
                 "X-Requested-With": "XMLHttpRequest",
                 "Referer": f"{self.base_url}/advance/index.html"
             }
-            
+
             response = self.session.get(users_url, params=params, headers=headers, timeout=5)
-            print(f"URL des utilisateurs : {users_url}")
-            print(f"Paramètres des utilisateurs : {params}")
-            print(f"Réponse des utilisateurs : {response.url}")
-            print(f"Contenu de la réponse des utilisateurs : {response.text}")
             response.raise_for_status()
-            
+
             # Nettoyage de la réponse en retirant les balises HTML
             raw_text = response.text.replace("<html>", "").replace("</html>", "").strip()
             json_text = re.sub(r'(\w+):', r'"\1":', raw_text)
@@ -120,8 +135,7 @@ class AnvizAPI:
         except ValueError as e:
             print(f"Erreur d'analyse JSON lors de la récupération des utilisateurs : {e}")
             return []
-        
-        
+
     def get_attendances(self, start=0, limit=100):
         """Récupère la liste des enregistrements d'attendances depuis l'appareil"""
         if not self.session_key:
@@ -129,10 +143,20 @@ class AnvizAPI:
                 return []
 
         try:
+
+            from_date = (
+                get_last_attendance_sync_date()
+            )  # Date de dernière synchronisation des enregistrements d'attendance
+
+            today = date.today()  # Date de fin pour la recherche  
+            to_date = today.strftime("%Y-%m-%d")
+
             attendances_url = f"{self.base_url}/searchrecord"
             params = {
                 'start': start,
                 'limit': limit,
+                'from': from_date,
+                'to': to_date,
                 'session_id': self.username,
                 'session_key': self.session_key,
                 't': self._get_timestamp()
@@ -145,11 +169,11 @@ class AnvizAPI:
             response = self.session.get(attendances_url, params=params, headers=headers, timeout=5)
 
             response.raise_for_status()
-            
+
             # Nettoyage de la réponse pour obtenir un JSON valide
             raw_text = response.text.replace("<html>", "").replace("</html>", "").strip()
             json_text = re.sub(r'([{,]\s*)(\w+)\s*:', r'\1"\2":', raw_text)
-            print("JSON formaté :", json_text)
+
             data = json.loads(json_text)
             # On suppose que les enregistrements se trouvent dans la clé "record"
             return data.get('record', [])
@@ -162,3 +186,5 @@ class AnvizAPI:
 
 
 # http://192.168.10.250/goform/userlist?start=0&limit=15&session_id=admin&session_key=1636275619&t=1744300074269
+# http://192.168.10.250/goform/searchrecord?start=0&limit=15&userid=&from=&to=&order=asc&session_id=admin&session_key=1664087492&t=1744833365331
+# http://192.168.10.250/goform/searchrecord?start=0&limit=15&userid=&from=2025-04-01&to=2025-04-30&order=asc&session_id=admin&session_key=1664087492&t=1744833479587

@@ -1,0 +1,15 @@
+<!-- templates/patients/patient_form.html -->
+{% extends "layout.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>{% if object %}Modifier{% else %}Créer{% endif %} Patient</h2>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn btn-primary">Enregistrer</button>
+        <a href="{% url 'patient_list' %}" class="btn btn-secondary">Annuler</a>
+    </form>
+</div>
+{% endblock %}

@@ -171,7 +171,7 @@ def attendance_report(request):
 
     # Pagination
     page_number = request.GET.get("page", 1)
-    paginator = Paginator(employees.order_by('id'), 1)
+    paginator = Paginator(employees.order_by('id'),1)
     page = paginator.get_page(page_number)
 
     report = []
@@ -297,10 +297,8 @@ def attendance_report(request):
         "start_date": start_date.strftime("%Y-%m-%d"),
         "end_date": end_date.strftime("%Y-%m-%d"),
         "selected_employee": employee_id,
-        "page": page,
     }
-    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-        return render(request, "rh/pointage_report_partial.html", context)
+
 
     return render(request, "rh/pointage_report.html", context)
 

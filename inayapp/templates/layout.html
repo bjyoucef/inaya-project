@@ -155,6 +155,9 @@
                                     {% if item.label == 'Dashboard RH' and nembre_notification_rh > 0 %}
                                     <span class="badge bg-danger float-end">{{ nembre_notification_rh }}</span>
                                     {% endif %}
+                                    {% if item.label == 'Décharges' and nembre_notification_rh > 0 %}
+                                    <span class="badge bg-danger float-end">{{ nembre_notification_decharge }}</span>
+                                    {% endif %}
                                 </a>
                             </li>
                     {% endfor %}
@@ -168,7 +171,6 @@
         </main>
     </div>
 </div>
-
 <script src="{% static 'js/jquery-3.7.1.min.js' %}"></script>
 <script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
 <script src="{% static 'js/datatables.js' %}"></script>
@@ -180,6 +182,9 @@
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+
+
 
 {% if messages %}
 {% for message in messages %}

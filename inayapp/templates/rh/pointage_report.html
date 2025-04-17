@@ -340,9 +340,11 @@
     
 
 
-    <div id="reports-container">
-        {% include "rh/pointage_report_partial.html" %}
-    </div>
+
+
+<div id="reports-container">
+    {% include "rh/pointage_report_partial.html" %}
+</div>
 
 
 </div>
@@ -399,33 +401,6 @@
 <script src="{% static 'js/daterangepicker.min.js' %}"></script>
 <script src="{% static 'js/choices.min.js' %}"></script>
 
-<script>
-let loading = false;
-
-function loadMoreReports() {
-    if (loading) return;
-    loading = true;
-
-    let nextPage = parseInt("{{ page.number }}") + 1;
-    $.ajax({
-        url: window.location.pathname + '?page=' + nextPage,
-        headers: { "X-Requested-With": "XMLHttpRequest" },
-        success: function (data) {
-            if (data.trim() !== "") {
-                $("#reports-container").append(data);
-                loading = false;
-            } else {
-                $("#loader").hide();  // Cache le spinner si plus rien à charger
-            }
-        },
-        error: function () {
-            console.error("Erreur lors du chargement AJAX");
-            loading = false;
-            $("#loader").hide();
-        }
-    });
-}
-</script>
 
 <script>
     // Initialisation de Choices.js pour le select des employés

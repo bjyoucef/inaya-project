@@ -40,6 +40,7 @@ class Payments(models.Model):
         Decharges,
         models.DO_NOTHING,
         db_column="id_decharge",
+        related_name="payments",
         blank=True,
         null=True,
         default=None,  # Add this explicitly

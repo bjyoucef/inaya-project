@@ -3,13 +3,16 @@ from decimal import Decimal
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
-from django.contrib.auth.models import User
 from django.db import transaction
-from django.db.models import DecimalField, F, Sum
+from django.db.models import DecimalField, F, Sum, Value
+from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404, redirect, render, reverse
+from django.utils import timezone
 from django.utils.dateparse import parse_date
 from rh.models import Personnel, Planning
-
+from django.db.models import F, Sum, Value, ExpressionWrapper
+from django.db.models.functions import Coalesce
+from django.db import models
 from .forms import DechargeForm, PaymentForm
 from .models import Decharges, Payments
 
@@ -128,47 +131,132 @@ def add_decharge_multiple(request):
 
 
 @login_required
-def manage_decharges_payments(request):
-    # Initialisation des formulaires
+def decharge_list(request):
+    decharges = (
+        Decharges.objects.annotate(
+            total_payments=Coalesce(
+                Sum("payments__payment"),
+                Value(0, output_field=models.DecimalField()),
+                output_field=models.DecimalField(),
+            )
+        )
+        .annotate(
+            balance=ExpressionWrapper(
+                F("amount") - F("total_payments"),
+                output_field=models.DecimalField(max_digits=10, decimal_places=2),
+            )
+        )
+        .filter(balance__gt=0)
+        .order_by("-date")
+    )
+
+    return render(request, "finance/decharges_list.html", {"decharges": decharges})
+
+
+@login_required
+def decharge_settled(request):
+    decharges = ( Decharges.objects.annotate(
+        total_payments=Coalesce(
+            Sum("payments__payment", output_field=models.DecimalField()),
+            Value(0, output_field=models.DecimalField())
+    )).annotate(
+        balance=ExpressionWrapper(
+            F("amount") - F("total_payments"),
+            output_field=models.DecimalField(max_digits=10, decimal_places=2)
+        )
+    ).filter(balance=0).order_by("-date"))
+    
+    return render(request, "finance/decharges_settled.html", {"decharges": decharges})
+
+@login_required
+def decharge_detail(request, pk):
+    decharge = get_object_or_404(Decharges, pk=pk)
+    payments = Payments.objects.filter(id_decharge=decharge)
+
+    # Calcul des totaux
+    total_payments = payments.aggregate(total=Sum("payment")).get("total") or 0
+    balance = decharge.amount - total_payments
+
     if request.method == "POST":
-        if "submit_decharge" in request.POST:
-            decharge_form = DechargeForm(request.POST)
-            payment_form = PaymentForm()  # Formulaire vide pour paiement
-            if decharge_form.is_valid():
-                decharge = decharge_form.save(commit=False)
-                # Remplissage automatique de certains champs
-                decharge.id_created_par = request.user
-                decharge.created_at = datetime.now()
-                decharge.save()
-                messages.success(request, "Décharge ajoutée avec succès.")
-                return redirect("manage_decharges_payments")
+        form = PaymentForm(request.POST)
+        if form.is_valid():
+            payment_amount = form.cleaned_data["payment"]
+
+            if payment_amount > balance:
+                messages.error(request, "Le montant dépasse le solde restant!")
+            elif balance <= 0:
+                messages.error(request, "Le solde est déjà réglé!")
             else:
-                messages.error(request, "Erreur dans le formulaire de décharge.")
-        elif "submit_payment" in request.POST:
-            payment_form = PaymentForm(request.POST)
-            decharge_form = DechargeForm()  # Formulaire vide pour décharge
-            if payment_form.is_valid():
-                payment = payment_form.save(commit=False)
-                # Si aucun temps de paiement n'est renseigné, on le définit automatiquement
-                if not payment.time_payment:
-                    payment.time_payment = datetime.now()
+                payment = form.save(commit=False)
+                payment.id_decharge = decharge
+                payment.id_payment_par = Personnel.objects.get(user=request.user)
+                payment.time_payment = timezone.now()  # Ajout du timestamp
                 payment.save()
-                messages.success(request, "Paiement ajouté avec succès.")
-                return redirect("manage_decharges_payments")
-            else:
-                messages.error(request, "Erreur dans le formulaire de paiement.")
+                messages.success(request, "Paiement ajouté avec succès")
+                return redirect("decharge_detail", pk=pk)
     else:
-        decharge_form = DechargeForm()
-        payment_form = PaymentForm()
+        form = PaymentForm()
 
-    # Récupération de la liste des décharges et paiements
-    decharges = Decharges.objects.all().order_by("-created_at")
-    payments = Payments.objects.all().order_by("-time_payment")
+    return render(
+        request,
+        "finance/decharges_detail.html",
+        {
+            "decharge": decharge,
+            "payments": payments,
+            "form": form,
+            "total_payments": total_payments,
+            "balance": balance,
+        },
+    )
 
-    context = {
-        "decharge_form": decharge_form,
-        "payment_form": payment_form,
-        "decharges": decharges,
-        "payments": payments,
-    }
-    return render(request, "finance/decharges_payments.html", context)
+
+@login_required
+def decharge_create(request):
+    if request.method == "POST":
+        form = DechargeForm(request.POST)
+        if form.is_valid():
+            decharge = form.save(commit=False)
+            decharge.id_created_par = request.user
+            decharge.save()
+            messages.success(request, "Décharge créée avec succès")
+            return redirect("decharge_list")
+    else:
+        form = DechargeForm()
+    return render(request, "finance/decharges_form.html", {"form": form})
+
+
+@login_required
+def decharge_edit(request, pk):
+    decharge = get_object_or_404(Decharges, pk=pk)
+    if request.method == "POST":
+        form = DechargeForm(request.POST, instance=decharge)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Décharge mise à jour avec succès")
+            return redirect("decharge_list")
+    else:
+        form = DechargeForm(instance=decharge)
+    return render(request, "finance/decharges_form.html", {"form": form})
+
+
+@login_required
+def decharge_delete(request, pk):
+    decharge = get_object_or_404(Decharges, pk=pk)
+    if request.method == "POST":
+        decharge.delete()
+        messages.success(request, "Décharge supprimée avec succès")
+        return redirect("decharge_list")
+    return render(request, "finance/decharges_confirm_delete.html", {"decharge": decharge})
+
+
+@login_required
+def payment_delete(request, pk):
+    payment = get_object_or_404(Payments, pk=pk)
+    decharge_pk = payment.id_decharge.pk
+    if request.method == "POST":
+        payment.delete()
+        messages.success(request, "Paiement supprimé avec succès")
+        return redirect("decharge_detail", pk=decharge_pk)
+    return render(
+        request, "finance/decharges_confirm_payment_delete.html", {"payment": payment}
+    )

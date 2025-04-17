@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     "rh",
     "documents",
     "finance",
+    "patients",
 ]
 
 THUMBNAIL_HIGH_RESOLUTION = True
