@@ -1,40 +1,58 @@
-from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from django.urls import reverse_lazy
+from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from .models import Patient
-from .forms import PatientForm
 
 
-# patients/views.py
 class PatientListView(ListView):
     model = Patient
     template_name = "patients/patient_list.html"
     context_object_name = "patients"
+    paginate_by = 20  # ajustez selon vos besoins
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["form"] = PatientForm()  # Ajout du formulaire vide
-        return context
+    def get_queryset(self):
+        return Patient.objects.filter(is_active=True).order_by("last_name")
 
 
-# patients/views.py
 class PatientCreateView(CreateView):
     model = Patient
-    form_class = PatientForm
-    template_name = "patients/patient_list.html"  # Utilise le même template
-    success_url = reverse_lazy("patient_list")
+    template_name = "patients/patient_form.html"
+    fields = [
+        "first_name",
+        "last_name",
+        "date_of_birth",
+        "place_of_birth",
+        "social_security_number",
+        "nom_de_assure",
+        "securite_sociale",
+        "gender",
+        "phone_number",
+        "email",
+        "address",
+    ]
+    success_url = reverse_lazy("patients:list")
 
-    def form_invalid(self, form):
-        return self.render_to_response(self.get_context_data(form=form))
+    def form_valid(self, form):
+        form.instance.id_created_par = self.request.user.personnel
+        return super().form_valid(form)
 
 
 class PatientUpdateView(UpdateView):
     model = Patient
-    form_class = PatientForm
     template_name = "patients/patient_form.html"
-    success_url = reverse_lazy("patient_list")
+    fields = PatientCreateView.fields
+    success_url = reverse_lazy("patients:list")
+
+    def form_valid(self, form):
+        form.instance.id_updated_par = self.request.user.personnel
+        return super().form_valid(form)
 
 
 class PatientDeleteView(DeleteView):
     model = Patient
     template_name = "patients/patient_confirm_delete.html"
-    success_url = reverse_lazy("patient_list")
+    success_url = reverse_lazy("patients:list")
+
+    def delete(self, request, *args, **kwargs):
+        obj = self.get_object()
+        obj.delete()  # override soft-delete
+        return super().form_valid(form=None)

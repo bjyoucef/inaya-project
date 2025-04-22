@@ -6,11 +6,11 @@ from .views import (
     PatientDeleteView,
 )
 
+app_name = "patients"
+
 urlpatterns = [
-    path("", PatientListView.as_view(), name="patient_list"),
-    path("patients/new/", PatientCreateView.as_view(), name="patient_create"),
-    path("patients/<int:pk>/edit/", PatientUpdateView.as_view(), name="patient_update"),
-    path(
-        "patients/<int:pk>/delete/", PatientDeleteView.as_view(), name="patient_delete"
-    ),
+    path("", PatientListView.as_view(), name="list"),
+    path("ajouter/", PatientCreateView.as_view(), name="add"),
+    path("<int:pk>/modifier/", PatientUpdateView.as_view(), name="edit"),
+    path("<int:pk>/supprimer/", PatientDeleteView.as_view(), name="delete"),
 ]

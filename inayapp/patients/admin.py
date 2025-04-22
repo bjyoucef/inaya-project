@@ -10,7 +10,10 @@ class PatientAdmin(admin.ModelAdmin):
         "date_of_birth",
         "gender",
         "phone_number",
+        "is_active",
     )
-    search_fields = ("last_name", "first_name", "phone_number")
-    list_filter = ("gender",)
-    ordering = ("last_name",)
+    list_filter = ("gender", "is_active", "created_at")
+    search_fields = ("last_name", "first_name", "social_security_number")
+    readonly_fields = ("created_at", "updated_at")
+    date_hierarchy = "created_at"
+    ordering = ("-created_at",)

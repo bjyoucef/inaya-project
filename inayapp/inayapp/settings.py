@@ -34,6 +34,9 @@ INSTALLED_APPS = [
     "easy_thumbnails",
     "mptt",
     "django_ckeditor_5",
+    
+]
+INSTALLED_APPS += [
     "accueil",
     "helpdesk",
     "annuaire",
@@ -42,7 +45,6 @@ INSTALLED_APPS = [
     "finance",
     "patients",
 ]
-
 THUMBNAIL_HIGH_RESOLUTION = True
 THUMBNAIL_PROCESSORS = (
     'easy_thumbnails.processors.colorspace',
