@@ -1,35 +1,32 @@
-from datetime import datetime
 from decimal import Decimal
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
-from django.db import transaction
-from django.db.models import DecimalField, F, Sum, Value
+from django.db import models, transaction
+from django.db.models import DecimalField, ExpressionWrapper, F, Sum, Value
 from django.db.models.functions import Coalesce
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render, reverse
 from django.utils import timezone
 from django.utils.dateparse import parse_date
+from num2words import num2words
 from rh.models import Personnel, Planning
-from django.db.models import F, Sum, Value, ExpressionWrapper
-from django.db.models.functions import Coalesce
-from django.db import models
+
 from .forms import DechargeForm, PaymentForm
 from .models import Decharges, Payments
+from .utils.pdf import render_to_pdf
 
 
+# decharge planning
 @permission_required("accueil.view_menu_items_plannings", raise_exception=True)
 def add_decharge_multiple(request):
     if request.method != "POST":
         messages.error(request, "Méthode non autorisée.")
         return redirect(reverse("planning"))
-
     employee_ids = request.POST.getlist("employeurs")
     start_date_str = request.POST.get("start_date", "").strip()
     end_date_str = request.POST.get("end_date", "").strip()
     date_str = request.POST.get("date", "").strip()
-    print(
-        f"Received employee_ids: {employee_ids}, start_date: {start_date_str}, end_date: {end_date_str}, date: {date_str}"
-    )
 
     if not employee_ids or not date_str:
         messages.error(request, "Tous les champs sont requis.")
@@ -70,7 +67,7 @@ def add_decharge_multiple(request):
                 plannings = Planning.objects.filter(
                     employee_id=emp_id_int,
                     shift_date__range=(start_date_obj, end_date_obj),
-                    decharge_created_at__isnull=True,
+                    id_decharge__isnull=True,
                 )
 
                 aggregation = plannings.aggregate(
@@ -79,7 +76,6 @@ def add_decharge_multiple(request):
                     )
                 )
                 total_salary = aggregation["total_salary"] or Decimal("0.00")
-                print(f"Total Salary for {full_name}: {total_salary}")
 
                 if total_salary <= 0:
                     errors.append(f"L'employé {full_name} n'a pas de salaire positif.")
@@ -92,27 +88,26 @@ def add_decharge_multiple(request):
                         p.id_service.service_name if p.id_service else "Inconnu"
                     )
                     dossier = (
-                        f"{service_name} - {p.shift_date} - {p.shift_type} - {p.prix}"
+                        f"{service_name} - {p.shift_date} - {p.shift} - {p.prix}"
                     )
                     if p.prix_acte and p.prix_acte != 0:
                         dossier += f" - Actes {p.prix_acte}"
                     dossiers_list.append(dossier)
 
-                # Mise à jour des plannings concernés avec les informations de décharge
-                plannings.update(
-                    decharge_id_created_par=personnel_user,
-                    decharge_created_at=datetime.now(),
-                )
-
-                # Création de la décharge
-                Decharges.objects.create(
+                # Création de la décharge et récupération de l'instance
+                decharge = Decharges.objects.create(
                     name=full_name,
                     amount=total_salary,
                     date=date_obj,
                     note="\n".join(dossiers_list),
-                    created_at=datetime.now(),
+                    created_at=timezone.now(),
                     id_created_par=request.user,
                     id_employe=emp_id_int,
+                )
+
+                # Mise à jour des plannings concernés avec l’ID de la décharge
+                plannings.update(
+                    id_decharge=decharge.id_decharge,
                 )
 
             if errors:
@@ -150,7 +145,9 @@ def decharge_list(request):
         .order_by("-date")
     )
 
-    return render(request, "finance/decharges_list.html", {"decharges": decharges})
+    return render(
+        request, "finance/decharges/decharges_list.html", {"decharges": decharges}
+    )
 
 
 @login_required
@@ -165,8 +162,10 @@ def decharge_settled(request):
             output_field=models.DecimalField(max_digits=10, decimal_places=2)
         )
     ).filter(balance=0).order_by("-date"))
-    
-    return render(request, "finance/decharges_settled.html", {"decharges": decharges})
+
+    return render(
+        request, "finance/decharges/decharges_settled.html", {"decharges": decharges}
+    )
 
 @login_required
 def decharge_detail(request, pk):
@@ -199,7 +198,7 @@ def decharge_detail(request, pk):
 
     return render(
         request,
-        "finance/decharges_detail.html",
+        "finance/decharges/decharges_detail.html",
         {
             "decharge": decharge,
             "payments": payments,
@@ -222,7 +221,7 @@ def decharge_create(request):
             return redirect("decharge_list")
     else:
         form = DechargeForm()
-    return render(request, "finance/decharges_form.html", {"form": form})
+    return render(request, "finance/decharges/decharges_form.html", {"form": form})
 
 
 @login_required
@@ -236,17 +235,27 @@ def decharge_edit(request, pk):
             return redirect("decharge_list")
     else:
         form = DechargeForm(instance=decharge)
-    return render(request, "finance/decharges_form.html", {"form": form})
+    return render(request, "finance/decharges/decharges_form.html", {"form": form})
 
 
 @login_required
 def decharge_delete(request, pk):
     decharge = get_object_or_404(Decharges, pk=pk)
+    plannings = Planning.objects.filter(id_decharge=decharge)
+
     if request.method == "POST":
-        decharge.delete()
+        with transaction.atomic():
+            # On dissocie la décharge de tous les plannings
+            plannings.update(id_decharge=None)
+            # Puis on supprime la décharge
+            decharge.delete()
         messages.success(request, "Décharge supprimée avec succès")
         return redirect("decharge_list")
-    return render(request, "finance/decharges_confirm_delete.html", {"decharge": decharge})
+    return render(
+        request,
+        "finance/decharges/decharges_confirm_delete.html",
+        {"decharge": decharge},
+    )
 
 
 @login_required
@@ -258,5 +267,55 @@ def payment_delete(request, pk):
         messages.success(request, "Paiement supprimé avec succès")
         return redirect("decharge_detail", pk=decharge_pk)
     return render(
-        request, "finance/decharges_confirm_payment_delete.html", {"payment": payment}
+        request,
+        "finance/decharges/decharges_confirm_payment_delete.html",
+        {"payment": payment},
     )
+
+
+@login_required
+def export_decharge_pdf(request, decharge_id):
+    decharge = get_object_or_404(Decharges, pk=decharge_id)
+
+    amount_in_words = num2words(decharge.amount, lang="fr").capitalize() + " dinars"
+
+    context = {
+        "id": decharge.id_decharge,
+        "date": decharge.date.strftime("%d/%m/%Y") if decharge.date else "",
+        "name": decharge.name,
+        "amount": decharge.amount,
+        "amount_in_words": amount_in_words,
+        "dossiers": decharge.note.split("\n") if decharge.note else [],
+    }
+
+    pdf_response = render_to_pdf("finance/decharges/decharge_pdf.html", context)
+    if pdf_response:
+        decharge.time_export_decharge_pdf = timezone.now()
+        decharge.id_export_par = request.user
+        decharge.save()
+
+        filename = f"decharge_{decharge.id_decharge}.pdf"
+        pdf_response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        return pdf_response
+
+    return HttpResponse("Erreur lors de la génération du PDF", status=500)
+
+
+# views.py
+@login_required
+def print_decharge_view(request, decharge_id):
+    decharge = get_object_or_404(Decharges, pk=decharge_id)
+    amount_in_words = num2words(decharge.amount, lang="fr").capitalize() + " dinars"
+
+    context = {
+        "id": decharge.id_decharge,
+        "date": decharge.date.strftime("%d/%m/%Y") if decharge.date else "",
+        "name": (
+            decharge.id_created_par.get_full_name() if decharge.id_created_par else ""
+        ),
+        "amount": decharge.amount,
+        "amount_in_words": amount_in_words,
+        "dossiers": decharge.note.split("\n") if decharge.note else [],
+    }
+
+    return render(request, "finance/decharges/decharge_pdf.html", context)

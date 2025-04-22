@@ -206,6 +206,42 @@ body {
     }
 }
 
+
+/* Dans styles.css */
+.sidebar {
+    transition: all 0.3s;
+    min-height: calc(100vh - 80px);
+}
+
+.sidebar-menu .dropdown-menu {
+    position: relative !important;
+    transform: none !important;
+    border: none;
+    background-color: rgba(255, 255, 255, 0.1);
+    margin-left: 1rem;
+}
+
+.sidebar-menu .dropdown-item {
+    color: #fff;
+    border-radius: 0.5rem;
+}
+
+.sidebar-menu .dropdown-item.active {
+    background-color: #7a6ad8;
+}
+
+@media (max-width: 768px) {
+    .sidebar {
+        width: 100% !important;
+        position: static;
+    }
+
+    .dropdown-menu {
+        width: 100%;
+    }
+}
+
+
 /* ---------------------------------------------
    Services Style
 --------------------------------------------- */
@@ -540,9 +576,9 @@ video.fullscreen {
    Styles pour fullcalandar
 --------------------------------------------- */
 calendar {
-    height: 50vh; 
+    height: 50vh;
     width: 100%;
-  }
+}
 
 
 .fc-event-dot {
@@ -844,7 +880,6 @@ calendar {
         /* Réduire le padding du corps des modals */
     }
 
-    .table {}
 
     .center {
         display: block;
@@ -853,3 +888,168 @@ calendar {
         width: 50%;
     }
 }
+
+/* Transition fluide */
+html {
+    transition: background-color 0.3s, color 0.3s;
+}
+
+/* Thème sombre étendu */
+[data-bs-theme="dark"] {
+    --bs-body-bg: #1a1a1a;
+    --bs-body-color: #e0e0e0;
+    --bs-border-color: #404040;
+    --bs-primary: #6354b8;
+    --bs-primary-rgb: 99, 84, 184;
+    --bs-link-color: #7a6ad8;
+}
+
+[data-bs-theme="dark"] .card {
+    background-color: #2d2d2d;
+    border-color: rgba(255, 255, 255, 0.125);
+}
+
+[data-bs-theme="dark"] .table {
+    --bs-table-bg: #2d2d2d;
+    --bs-table-striped-bg: #383838;
+    --bs-table-hover-bg: #404040;
+}
+
+[data-bs-theme="dark"] .dropdown-menu {
+    --bs-dropdown-bg: #2d2d2d;
+    --bs-dropdown-link-color: #e0e0e0;
+}
+
+[data-bs-theme="dark"] .modal-content {
+    background-color: #2d2d2d;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Correction du contraste */
+[data-bs-theme="dark"] .text-dark {
+    color: #e0e0e0 !important;
+}
+
+.dropdown-menu {
+    z-index: 1030 !important;
+    /* Doit être supérieur au header (1020) */
+}
+
+.navbar .dropdown-menu {
+    position: absolute !important;
+    transform: none !important;
+}
+
+/* Sidebar sombre */
+.sidebar {
+    background-color: #7a6ad8;
+    /* ton violet actuel */
+}
+
+.sidebar .nav-link {
+    color: #ffffff;
+    /* texte toujours blanc */
+}
+
+.sidebar .nav-link:hover,
+.sidebar .nav-link:focus {
+    color: #f0f0f0;
+    /* légère nuance au survol */
+}
+
+.sidebar .nav-link.active {
+    background-color: #5b4db7;
+    /* violet plus sombre pour l’actif */
+    color: #ffffff;
+    /* texte toujours blanc */
+}
+
+
+.fc-toolbar-title {
+    font-size: 1.25em;
+}
+
+.fc-daygrid-day-number {
+    font-size: 0.9em;
+}
+
+.fc-timegrid-axis {
+    font-size: 0.8em;
+}
+
+.modal-body p {
+    margin-bottom: 0.5rem;
+}
+
+
+/* 1. Style unifié pour toggles ET items */
+.sidebar .nav-link {
+    background-color: #7a6ad8;
+    /* violet de base */
+    color: #ffffff;
+    /* texte blanc */
+    border-radius: 0;
+    /* coins carrés */
+    margin: 0;
+    /* pas d’espacement externe */
+    padding: 0.75rem 1rem;
+    /* ajustez si besoin */
+    transition: background-color .2s ease;
+}
+
+/* hover/focus */
+.sidebar .nav-link:hover,
+.sidebar .nav-link:focus {
+    background-color: #5b4db7;
+    /* violet un peu plus foncé */
+    color: #ffffff;
+}
+
+/* 2. Items actifs : légère nuance pour distinguer */
+.sidebar .nav-link.active {
+    background-color: #493a9e;
+    /* violet encore plus sombre */
+    color: #ffffff;
+}
+
+/* 3. Effet « déferlante » sur l’ouverture */
+.sidebar .collapse .nav-item {
+    overflow: hidden;
+}
+
+/* on cible le lien lui‑même pour l’animation */
+.sidebar .collapse .nav-link {
+    opacity: 0;
+    transform: translateX(-10px);
+    transition: opacity .3s ease, transform .3s ease;
+}
+
+/* quand le groupe est ouvert, on anime chaque item avec un petit delay */
+.sidebar .collapse.show .nav-item:nth-child(1) .nav-link {
+    transition-delay: 0.05s;
+}
+
+.sidebar .collapse.show .nav-item:nth-child(2) .nav-link {
+    transition-delay: 0.10s;
+}
+
+.sidebar .collapse.show .nav-item:nth-child(3) .nav-link {
+    transition-delay: 0.15s;
+}
+
+.sidebar .collapse.show .nav-item:nth-child(4) .nav-link {
+    transition-delay: 0.20s;
+}
+
+.sidebar .collapse.show .nav-item:nth-child(5) .nav-link {
+    transition-delay: 0.25s;
+}
+
+/* ajoutez autant de lignes que nécessaire selon votre nombre max d’items */
+
+.sidebar .collapse.show .nav-link {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+

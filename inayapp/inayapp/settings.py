@@ -44,6 +44,8 @@ INSTALLED_APPS += [
     "documents",
     "finance",
     "patients",
+    "medical",
+    "medecin",
 ]
 THUMBNAIL_HIGH_RESOLUTION = True
 THUMBNAIL_PROCESSORS = (
@@ -63,7 +65,7 @@ ANVIZ_CONFIG = {
 }
 
 MIDDLEWARE = [
-    'maintenance_mode.middleware.MaintenanceModeMiddleware',
+    "maintenance_mode.middleware.MaintenanceModeMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -87,7 +89,8 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "django.template.context_processors.request",
-                "accueil.context_processors.menu_items",
+                "accueil.context_processors.get_menu_groups",
+                "accueil.context_processors.get_menu_items",
                 "accueil.context_processors.notification",
             ],
         },
@@ -114,7 +117,7 @@ X_FRAME_OPTIONS = 'ALLOWALL'
 DATABASES = {
     "default": {
         'ENGINE': 'django.db.backends.mysql',  # Django utilise mysqlclient pour MariaDB
-        'NAME': 'inayapp',
+        'NAME': 'b1',
         'USER': 'root',
         'PASSWORD': '@Dmin1548@',
         'HOST': '127.0.0.1',

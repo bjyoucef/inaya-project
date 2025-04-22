@@ -1,0 +1,86 @@
+{% extends "layout.html" %}
+{% load static %}
+{% load permissions_tags %}
+
+{% block title %}
+    Home
+{% endblock %}
+
+{% block content %}
+
+    <!-- Home Banner -->
+
+    <img src="{% static 'assets/img/search-bg.png' %}" class="img-fluid" alt="Cardiology">
+
+
+    <!-- Clinic and Specialities -->
+    <section class="section section-specialities">
+        <div class="container-fluid">
+
+            <div class="row justify-content-center">
+                <div class="col-md-9">
+                    <!-- Slider -->
+                    <div class="specialities-slider slider">
+
+                        <!-- Slider Item -->
+                        <div class="speicality-item text-center">
+                            <div class="speicality-img">
+                                <img src="{% static 'assets/img/specialities/specialities-01.png' %}" class="img-fluid" alt="Cardiology">
+                                <span><i class="fa fa-circle" aria-hidden="true"></i></span>
+                            </div>
+                            <p>Cardiology</p>
+                        </div>
+                        <!-- /Slider Item -->
+
+                        <!-- Slider Item -->
+                        <div class="speicality-item text-center">
+                            <div class="speicality-img">
+                                <img src="{% static 'assets/img/specialities/specialities-02.png' %}" class="img-fluid" alt="Neurology">
+                                <span><i class="fa fa-circle" aria-hidden="true"></i></span>
+                            </div>
+                            <p>Neurology</p>
+                        </div>
+                        <!-- /Slider Item -->
+
+                        <!-- Slider Item -->
+                        <div class="speicality-item text-center">
+                            <div class="speicality-img">
+                                <img src="{% static 'assets/img/specialities/specialities-03.png' %}" class="img-fluid" alt="Orthopedics">
+                                <span><i class="fa fa-circle" aria-hidden="true"></i></span>
+                            </div>
+                            <p>Orthopedics</p>
+                        </div>
+                        <!-- /Slider Item -->
+
+                        <!-- Slider Item -->
+                        <div class="speicality-item text-center">
+                            <div class="speicality-img">
+                                <img src="{% static 'assets/img/specialities/specialities-04.png' %}" class="img-fluid" alt="Pediatrics">
+                                <span><i class="fa fa-circle" aria-hidden="true"></i></span>
+                            </div>
+                            <p>Pediatrics</p>
+                        </div>
+                        <!-- /Slider Item -->
+
+                        <!-- Slider Item -->
+                        <div class="speicality-item text-center">
+                            <div class="speicality-img">
+                                <img src="{% static 'assets/img/specialities/specialities-05.png' %}" class="img-fluid" alt="Dentistry">
+                                <span><i class="fa fa-circle" aria-hidden="true"></i></span>
+                            </div>
+                            <p>Dentistry</p>
+                        </div>
+                        <!-- /Slider Item -->
+
+                    </div>
+                    <!-- /Slider -->
+
+                </div>
+            </div>
+        </div>
+    </section>
+    <!-- Clinic and Specialities -->
+
+
+
+{% endblock %}

@@ -9,10 +9,15 @@ from rh.models import LeaveRequest, SalaryAdvanceRequest
 from django.db.models import F, Sum, Value, ExpressionWrapper
 from django.db.models.functions import Coalesce
 from django.db import models
-from .models import MenuItems
+from .models import MenuItems, MenuGroup
 
 
-def menu_items(request):
+def get_menu_groups(request):
+    groups = MenuGroup.objects.prefetch_related("items").all()
+    return {"menu_groups": groups}
+
+
+def get_menu_items(request):
     items = MenuItems.objects.all().order_by("n")
     filtered_items = []
 
@@ -97,9 +102,11 @@ def notification(request):
                 )
                 .filter(balance__gt=0)
             ).count()
+        else:
+            pending_decharges = ''
+        # "nembre_notification_decharge": pending_decharges,
 
     return {
         "nembre_notification_hd": nembre_notification_hd,
         "nembre_notification_rh": pending_salary + pending_leave,
-        "nembre_notification_decharge": pending_decharges,
     }

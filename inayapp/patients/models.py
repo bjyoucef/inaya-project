@@ -1,8 +1,10 @@
 from django.db import models
 
 from rh.models import Personnel
-from django.db import models
 from django.utils import timezone
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 class Patient(models.Model):
     GENDER_CHOICES = [
@@ -71,3 +73,121 @@ class Patient(models.Model):
     def delete(self, using=None, keep_parents=False):
         self.is_active = False
         self.save()
+
+
+class DossierMedical(models.Model):
+    """Modèle pour gérer le dossier médical complet d'un patient"""
+
+    patient = models.OneToOneField(
+        Patient,
+        on_delete=models.CASCADE,
+        related_name="dossier_medical",
+        verbose_name="Patient associé",
+    )
+
+    GOUPE_SANGUIN_CHOICES = [
+        ("A+", "A+"),
+        ("A-", "A-"),
+        ("B+", "B+"),
+        ("B-", "B-"),
+        ("AB+", "AB+"),
+        ("AB-", "AB-"),
+        ("O+", "O+"),
+        ("O-", "O-"),
+    ]
+
+    groupe_sanguin = models.CharField(
+        max_length=3,
+        choices=GOUPE_SANGUIN_CHOICES,
+        blank=True,
+        null=True,
+        verbose_name="Groupe sanguin",
+    )
+
+    poids = models.FloatField(blank=True, null=True, verbose_name="Poids (kg)")
+
+    taille = models.FloatField(blank=True, null=True, verbose_name="Taille (cm)")
+
+    created_by = models.ForeignKey(
+        Personnel,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="dossiers_crees",
+        verbose_name="Créé par",
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True, verbose_name="Date de création"
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True, verbose_name="Dernière mise à jour"
+    )
+
+    def __str__(self):
+        return f"Dossier médical de {self.patient.first_name} {self.patient.last_name}"
+
+    class Meta:
+        verbose_name = "Dossier Médical"
+        verbose_name_plural = "Dossiers Médicaux"
+
+
+class Antecedent(models.Model):
+    """Modèle pour gérer les antécédents médicaux d'un patient"""
+
+    TYPE_ANTECEDENT_CHOICES = [
+        ("MEDICAL", "Antécédent Médical"),
+        ("CHIRURGICAL", "Antécédent Chirurgical"),
+        ("FAMILIAL", "Antécédent Familial"),
+        ("ALLERGIE", "Allergie"),
+        ("TRAITEMENT", "Traitement en cours"),
+    ]
+
+    dossier = models.ForeignKey(
+        DossierMedical,
+        on_delete=models.CASCADE,
+        related_name="antecedents",
+        verbose_name="Dossier associé",
+    )
+
+    type_antecedent = models.CharField(
+        max_length=20, choices=TYPE_ANTECEDENT_CHOICES, verbose_name="Type d'antécédent"
+    )
+
+    description = models.TextField(verbose_name="Description détaillée")
+
+    date_decouverte = models.DateField(
+        verbose_name="Date de découverte", blank=True, null=True
+    )
+
+    gravite = models.CharField(
+        max_length=50,
+        choices=[("LEGERE", "Légère"), ("MODEREE", "Modérée"), ("SEVERE", "Sévère")],
+        blank=True,
+        null=True,
+        verbose_name="Gravité",
+    )
+
+    commentaire_medecin = models.TextField(
+        blank=True, null=True, verbose_name="Commentaire du médecin"
+    )
+
+    documents = models.FileField(
+        upload_to="antecedents/",
+        blank=True,
+        null=True,
+        verbose_name="Documents associés",
+    )
+
+    def __str__(self):
+        return f"{self.get_type_antecedent_display()} - {self.date_decouverte}"
+
+    class Meta:
+        verbose_name = "Antécédent Médical"
+        verbose_name_plural = "Antécédents Médicaux"
+        ordering = ["-date_decouverte"]
+
+
+
+
+

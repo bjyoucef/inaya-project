@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Schéma Hôpital</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@11.6.0/dist/mermaid.min.js"></script>
+    <script>
+        mermaid.initialize({ startOnLoad: true });
+    </script>
+</head>
+<body>
+    <div class="mermaid">
+flowchart LR
+%% ACCUEIL
+subgraph ACCUEIL
+MG[MenuGroup]
+MI[MenuItems]
+CD[ConfigDate]
+TH[Theme]
+CT[Contacts]
+DOC[Documents]
+end
+MG --> MI
+UserAuth((auth_user)) --> CD
+UserAuth --> TH
+
+%% FINANCE
+subgraph FINANCE
+DCH[Decharges]
+PAY[Payments]
+TARIFF[Tarif]
+end
+DCH --> PAY
+PersonnelRH((Personnel)) --> PAY
+UserAuth --> DCH
+UserAuth --> DCHExport[id_export_par]
+PosteRH((Poste)) --> TARIFF
+ServicesMD((Services)) --> TARIFF
+ShiftRH((Shift)) --> TARIFF
+
+%% HELPDESK
+subgraph HELPDESK
+HD[Helpdesk]
+end
+
+%% MÉDICAL
+subgraph MÉDICAL
+MD[Medecin]
+RV[RendezVous]
+SV[Services]
+end
+PersonnelRH --> MD
+SV --> RV
+MD --> RV
+PatientPT((Patient)) --> RV
+
+%% PATIENTS
+subgraph PATIENTS
+PT[Patient]
+DM[DossierMedical]
+AN[Antecedent]
+end
+PT --> DM
+DM --> AN
+
+%% RH (Planning & Actes)
+subgraph RH
+PL[Planning]
+HA[HonorairesActe]
+PA[PointagesActes]
+end
+ServicesMD --> PL
+PersonnelRH --> PL
+ShiftRH --> PL
+HA --> PA
+PL --> PA
+
+%% POINTAGE ANVIZ
+subgraph ATTENDANCE
+EMPL[Employee]
+AT[Attendance]
+end
+EMPL --> AT
+
+%% DEMANDES RH
+subgraph REQUESTS
+SA[SalaryAdvanceRequest]
+LR[LeaveRequest]
+end
+PersonnelRH --> SA
+PersonnelRH --> LR
+
+    </div>
+
+</body>
+</html>

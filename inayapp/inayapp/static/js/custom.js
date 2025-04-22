@@ -139,11 +139,7 @@ function validateFileCount(input) {
 $(document).ready(function() {
     // Pour chaque tableau portant la classe "datatable"
     $('.datatable').each(function() {
-        // Ajout d'une zone de recherche dans le pied de tableau pour chaque cellule
-        $(this).find('tfoot th').each(function() {
-        var title = $(this).text();
-        $(this).html('<input type="text" placeholder="Rechercher ' + title + '" class="form-control form-control-sm" />');
-    });
+
 
         // Initialisation de DataTables pour ce tableau
         $(this).DataTable({

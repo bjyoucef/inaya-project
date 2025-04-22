@@ -14,6 +14,7 @@
           <div class="modal-body">
             <input type="date" name="date" id="date" class="form-control" required>
             <input type="hidden" name="service" value="{{ selected.service }}">
+            <input type="hidden" name="poste" value="{{ selected.poste }}">
             <input type="hidden" name="employee" value="{{ selected.employee }}">
             <input type="hidden" name="shift" value="{{ selected.shift }}">
             <input type="hidden" name="event_id" value="{{ event_id|default_if_none:'' }}">
@@ -38,7 +39,7 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body">
-          <p>Veuillez sélectionner un service, un employé et un shift avant de continuer.</p>
+          <p>Veuillez sélectionner un service,un poste, un employé et un shift avant de continuer.</p>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
@@ -139,6 +140,7 @@
                     {% csrf_token %}
                     <input type="hidden" name="start_date" value="{{ selected.start_date }}">
                     <input type="hidden" name="end_date" value="{{ selected.end_date }}">
+
 
                     <div class="mb-3">
                         <label for="selectEmployeurs" class="form-label">Sélectionner les employeurs :</label>

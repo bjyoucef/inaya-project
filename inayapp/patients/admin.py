@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Patient
+from .models import Antecedent, DossierMedical, Patient
 
 
 @admin.register(Patient)
@@ -17,3 +17,19 @@ class PatientAdmin(admin.ModelAdmin):
     readonly_fields = ("created_at", "updated_at")
     date_hierarchy = "created_at"
     ordering = ("-created_at",)
+
+
+# admin.py
+
+
+@admin.register(DossierMedical)
+class DossierMedicalAdmin(admin.ModelAdmin):
+    list_display = ("patient", "groupe_sanguin", "poids", "taille")
+    search_fields = ("patient__nom", "patient__prenom")
+
+
+@admin.register(Antecedent)
+class AntecedentAdmin(admin.ModelAdmin):
+    list_display = ("type_antecedent", "dossier", "date_decouverte", "gravite")
+    list_filter = ("type_antecedent", "gravite")
+    raw_id_fields = ("dossier",)

@@ -6,6 +6,7 @@ from datetime import date
 
 import requests
 from django.core.exceptions import ObjectDoesNotExist
+from django.core.management import CommandError
 from .models import AnvizConfiguration, Attendance
 from django.db.models import Max
 

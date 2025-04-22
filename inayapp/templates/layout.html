@@ -1,29 +1,30 @@
 {% load static %} 
 {% load permissions_tags %}
+
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" data-bs-theme="light">
+
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="description" content="Inaya - Application de gestion">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="description" content="Inaya - Application de gestion médicale">
 
-    <title>INAYA {{ title|default_if_none:"" }}</title>
+    <title>INAYA | {{ title|default:"Gestion Médicale" }}</title>
     <link rel="icon" type="image/x-icon" href="{% static 'icon/favicon.ico' %}">
     <link href="{% static 'css/bootstrap.min.css' %}" rel="stylesheet">
     <link href="{% static 'css/bootstrap-icons.min.css' %}" rel="stylesheet">
     <link href="{% static 'fontawesomefree/css/all.min.css' %}" rel="stylesheet" type="text/css">
     <link href="{% static 'css/styles.css' %}" rel="stylesheet">
     <link href="{% static 'css/toastify.css' %}" rel="stylesheet">
-    <link href="{% static 'css/datatables.css' %}" rel="stylesheet">
     <link href="{% static 'css/datatables.min.css' %}" rel="stylesheet">
     <link href="{% static 'css/choices.min.css' %}" rel="stylesheet">
     <link href="{% static 'css/bootstrap-icons.css' %}" rel="stylesheet">
 </head>
 
-<body class="d-flex flex-column min-vh-100">
-<div class="js-preloader" id="js-preloader">
-    <div class="preloader-inner" aria-live="polite" role="status">
+<body class="d-flex flex-column">
+    <!-- Preloader -->
+    <div id="js-preloader" class="js-preloader" role="status" aria-label="Chargement">
+    <div class="preloader-inner">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 841.9 500">
             <style>
                 .st0 { fill: #7a6ad8; }
@@ -63,128 +64,133 @@
 	c-6.3-26.7-0.2-50.8,21-69.3c6.3-5.5,14.8-8.7,22.4-12.7c1.3-0.7,3-0.5,5.4-0.8C393.2,128.3,386,162.1,402.2,201.6z"/>
         </svg>
         <div class="dots" aria-hidden="true">
-            <span class="dot"></span>
-            <span class="dot"></span>
-            <span class="dot"></span>
-            <span class="dot"></span>
-            <span class="dot"></span>
-            <span class="dot"></span>
-            <span class="dot"></span>
+                {% for i in "1234567" %}<span class="dot"></span>{% endfor %}
         </div>
     </div>
 </div>
 
 <!-- Header with login/logout -->
-<header class="py-1 shadow" style="background-color: #7a6ad8;">
-    <div class="container-fluid d-flex justify-content-between align-items-center">
-        <div class="d-flex align-items-center gap-2">
-            <a href="{% url 'home' %}" class="navbar-brand text-white d-flex align-items-center gap-2">
-                <img src="{% static 'icon/logo_inaya.svg' %}" alt="Logo" width="30" height="30" class="rounded-circle">
-                <span class="fs-5">INAYA</span>
+<header class="header sticky-top py-2 shadow-sm" style="background-color: #7a6ad8;">
+    <nav class="container-fluid d-flex justify-content-between align-items-center">
+            <a href="{% url 'home' %}" class="brand-logo d-flex align-items-center gap-2 text-decoration-none">
+                <img src="{% static 'icon/logo_inaya.svg' %}" alt="Accueil" width="40" height="40">
+                <span class="text-white fs-5 fw-semibold">INAYA</span>
             </a>
-        </div>
-        <div class="d-flex align-items-center gap-3">
-            {% block header %}
             {% if user.is_authenticated %}
-        <div class="col-auto dropdown-center d-flex align-items-center gap-3">
-
             <div class="dropdown">
-                <button class="btn btn-link text-decoration-none text-white p-0"
-                        type="button"
-                        data-bs-toggle="dropdown"
-                        aria-expanded="false"
-                        aria-label="Menu utilisateur">
-                    <i class="fa fa-user me-2"></i>
-                    <strong>{{ user.first_name }} {{ user.last_name }}</strong>
+        <button id="userDropdown" class="btn btn-transparent text-white dropdown-toggle d-flex align-items-center gap-2"
+                        type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Menu utilisateur">
+                        <i class="fas fa-user-circle fs-5"></i>
+                        <span class="d-none d-md-inline">{{ user.first_name }} {{ user.last_name }}</span>
                 </button>
-                <ul class="dropdown-menu dropdown-menu-end shadow">
-                    <li>
-                        <a class="dropdown-item d-flex align-items-center gap-2"
-                           href="{% url 'admin:index' %}">
-                            <i class="fas fa-pen fa-flip-horizontal"></i>
-                            Admin
-                        </a>
-                    </li>
 
+        <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="userDropdown"
+            style="min-width: 200px; z-index: 1030;">
+            <li>
+                <a class="dropdown-item d-flex align-items-center gap-2" href="{% url 'admin:index' %}">
+                    <i class="fas fa-cog"></i> Administration
+                </a>
+            </li>
                     <li>
-                        <hr class="dropdown-divider">
+                <hr class="dropdown-divider m-0">
                     </li>
                     <li>
-
-                        <form method="post" action="{% url 'admin:logout' %}">
+                <form method="post" action="{% url 'admin:logout' %}">
                             {% csrf_token %}
-                            <button type="submit" class="dropdown-item d-flex align-items-center gap-2">
-                                <i class="fas fa-right-to-bracket"></i> Déconnexion
+                    <button type="submit" class="dropdown-item d-flex align-items-center gap-2 text-danger"
+                        aria-label="Déconnexion">
+                        <i class="fas fa-sign-out-alt"></i> Déconnexion
                             </button>
                         </form>
                     </li>
                 </ul>
-            </div>
         </div>
         {% else %}
-        <div class="col-auto">
             <a href="{% url 'admin:login' %}" class="btn btn-outline-light">
-                <i class="fas fa-door-open me-2"></i>
-                Connexion
+                    <i class="fas fa-sign-in-alt me-2"></i>Connexion
             </a>
-        </div>
         {% endif %}
-            {% endblock %}
-        </div>
-    </div>
-
+        <div class="theme-switcher end">
+    <button type="button" 
+            class="btn btn-link text-white" 
+            id="themeToggle"
+            aria-label="Changer le thème"
+            data-bs-toggle="tooltip"
+            data-bs-placement="bottom"
+            title="Thème clair/sombre">
+        <i class="fas fa-adjust"></i>
+    </button>
+</div>
+    </nav>
 </header>
 
-<div class="container-fluid overflow-auto">
+    <!-- Main Content -->
+<div class="container-fluid flex-grow-1">
     <div class="row flex-grow-0">
-        <aside class="col-sm-2 sidebar sticky-top" style="width: 15%; max-height: 90vh; overflow-y: auto;">
-            <div class="rounded-3 p-1 sticky-top">
-        
-                <ul class="nav flex-column sidebar-menu">
-                    {% for item in menu_items %}
-                            <li class="nav-item">
-                                <a class="nav-link mb-1 me-2 {% if request.path == item.route %}active{% endif %}"
-                                   href="{{ item.route }}"
-                                   aria-current="{% if request.path == item.route %}page{% else %}false{% endif %}">
-                                    <i class="{{ item.icon }}" aria-hidden="true"></i>
-                                    <span class="d-none d-md-inline">{{ item.label }}</span>
 
-                                    {% if item.label == 'Dashboard' and nembre_notification_hd > 0 %}
-                                    <span class="badge bg-danger float-end">{{ nembre_notification_hd }}</span>
-                                    {% endif %}
-                                    {% if item.label == 'Dashboard RH' and nembre_notification_rh > 0 %}
-                                    <span class="badge bg-danger float-end">{{ nembre_notification_rh }}</span>
-                                    {% endif %}
-                                    {% if item.label == 'Décharges' and nembre_notification_rh > 0 %}
-                                    <span class="badge bg-danger float-end">{{ nembre_notification_decharge }}</span>
-                                    {% endif %}
-                                </a>
-                            </li>
-                    {% endfor %}
-                </ul>
+
+<aside class="sidebar col-lg-2 d-flex flex-column">
+  <nav class="sidebar-nav flex-grow-1 sticky-top">
+    <ul class="nav flex-column">
+      {% for group in menu_groups %}
+        {% has_permission request.user group.permission as can_view_group %}
+        {% if can_view_group %}
+
+          {% group_is_active group as is_active %}
+
+          <li class="nav-item">
+<a 
+  class="nav-link dropdown-toggle nav-group-toggle d-flex align-items-center mb-2 mt-2 rounded-3 text-white bg-gradient border border-white border-opacity-25 shadow-sm"
+  data-bs-toggle="collapse"
+  href="#menu-{{ group.id }}"
+  role="button"
+  aria-expanded="{{ is_active|yesno:'true,false' }}"
+>
+  <i class="{{ group.icon }} fs-5"></i>
+  <span class="flex-grow-1 d-flex justify-content-center">{{ group.name }}</span>
+</a>
+
+
+            <div class="collapse {% if is_active %}show{% endif %}" id="menu-{{ group.id }}">
+              <ul class="nav flex-column">
+                {% for item in group.items.all %}
+                  {% has_permission request.user item.permission as can_view_item %}
+                  {% if can_view_item %}
+                    <li class="nav-item">
+                      <a href="{{ item.route }}"
+                         class="nav-link d-flex align-items-center gap-2 py-2 px-4 text-white{% if request.path == item.route %} active{% endif %}"
+                         aria-current="{% if request.path == item.route %}page{% endif %}">
+                        <i class="{{ item.icon }}"></i>
+                        {{ item.label }}
+                        {% include 'partials/menu-badges.html' with item=item %}
+                      </a>
+                    </li>
+                  {% endif %}
+                {% endfor %}
+              </ul>
             </div>
-        </aside>
-        <main class="col overflow-auto flex-grow-1">
-            <div class="rounded-3 p-1">
+          </li>
+        {% endif %}
+      {% endfor %}
+    </ul>
+  </nav>
+</aside>
+
+
+            <!-- Content Area -->
+            <main class="col-lg-10">
+                <div class="container-fluid py-4 px-3">
                 {% block content %}{% endblock %}
             </div>
         </main>
     </div>
 </div>
+<!-- Bon ordre à garder -->
 <script src="{% static 'js/jquery-3.7.1.min.js' %}"></script>
 <script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
-<script src="{% static 'js/datatables.js' %}"></script>
 <script src="{% static 'js/datatables.min.js' %}"></script>
 <script src="{% static 'js/toastify-js.js' %}"></script>
 <script src="{% static 'js/custom.js' %}"></script>
-
-
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
-
-
 
 {% if messages %}
 {% for message in messages %}
@@ -203,6 +209,68 @@
     </script>
 {% endfor %}
 {% endif %}
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const getStoredTheme = () => localStorage.getItem('theme');
+    const setStoredTheme = theme => localStorage.setItem('theme', theme);
+
+    const getSystemTheme = () => {
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 
+            'dark' : 'light';
+    };
+
+    const applyTheme = (theme) => {
+        document.documentElement.setAttribute('data-bs-theme', theme);
+        const btn = document.querySelector('#themeToggle');
+        btn.innerHTML = theme === 'dark' ? 
+            '<i class="fas fa-sun"></i>' : 
+            '<i class="fas fa-moon"></i>';
+        
+        // Enregistrement côté serveur pour utilisateurs connectés
+        {% if user.is_authenticated %}
+        fetch('/update-theme/', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': '{{ csrf_token }}'
+    },
+    body: JSON.stringify({theme: theme})
+})
+.then(response => {
+    if (!response.ok) {
+        throw new Error('Erreur réseau');
+    }
+    return response.json();
+})
+.then(data => {
+    if(data.status !== 'success') {
+        console.error('Erreur:', data.message);
+    }
+})
+.catch(error => {
+    console.error('Erreur:', error);
+});
+        {% endif %}
+    };
+
+    // Initialisation avec priorité : stockage local > système > light
+    const initialTheme = getStoredTheme() || getSystemTheme() || 'light';
+    applyTheme(initialTheme);
+
+    // Gestion du clic
+    document.querySelector('#themeToggle').addEventListener('click', () => {
+        const currentTheme = document.documentElement.getAttribute('data-bs-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        applyTheme(newTheme);
+        setStoredTheme(newTheme);
+    });
+
+});
+</script>
+
+<script src="{% static 'js/datatables.min.js' %}"></script>
 
 </body>
 </html>

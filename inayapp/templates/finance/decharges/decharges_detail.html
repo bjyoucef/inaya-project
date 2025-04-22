@@ -1,0 +1,150 @@
+{% extends "layout.html" %}
+{% load static %}
+{% load permissions_tags %}
+
+{% block content %}
+<div class="container my-2">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold">Détails de la Décharge</h2>
+        <div>
+
+    <a href="{% url 'print_decharge' decharge.pk %}" target="_blank" class="btn btn-outline-success">
+    <i class="fas fa-print"></i> Imprimer
+</a>
+    <a href="{% url 'export_decharge_pdf' decharge.id_decharge %}" class="btn btn-outline-primary"><i class="fas fa-file-pdf"></i> Télécharger en PDF</a>
+    <a href="{% url 'decharge_list' %}" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-left"></i> Retour aux Décharges
+    </a>
+  </div>
+      </div>
+
+
+  <!-- Détail de la décharge -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-body">
+      <div class="row">
+        <div class="col-md-8">
+          <h5 class="card-title">{{ decharge.name }}</h5>
+          <p class="card-text">
+            <strong>Montant:</strong> {{ decharge.amount|floatformat:2 }} €<br>
+            <strong>Date:</strong> {{ decharge.date|date:"d/m/Y" }}<br>
+            <strong>Note:</strong> {{ decharge.note|default:"—" }}
+          </p>
+        </div>
+        <div class="col-md-4 text-end">
+          {# Calcul du pourcentage avec le tag widthratio intégré #}
+          {% widthratio total_payments decharge.amount 100 as pct %}
+          <span class="badge bg-{{ pct|floatformat:0|floatval|ge:100|yesno:'success,info' }} py-2 fs-6">
+            {{ pct|floatformat:0 }}% payé
+          </span>
+          <div class="progress mt-2" style="height: 10px;">
+            <div class="progress-bar bg-primary" role="progressbar" style="width: {{ pct }}%;" aria-valuenow="{{ pct }}" aria-valuemin="0" aria-valuemax="100"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Paiement status -->
+  <div class="row mb-4">
+    <div class="col-md-4">
+      <div class="card text-center shadow-sm">
+        <div class="card-body">
+          <h6>Total</h6>
+          <p class="fs-4 fw-bold">{{ decharge.amount|floatformat:2 }} €</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card text-center shadow-sm">
+        <div class="card-body">
+          <h6>Payé</h6>
+          <p class="fs-4 fw-bold text-success">{{ total_payments|floatformat:2 }} €</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card text-center shadow-sm">
+        <div class="card-body">
+          <h6>Restant</h6>
+          <p class="fs-4 fw-bold text-danger">{{ balance|floatformat:2 }} €</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+ 
+
+  <!-- Historique des paiements -->
+  <div class="card shadow-sm">
+<div class="card-header bg-white d-flex justify-content-between align-items-center">
+  <h5 class="mb-0 text-black">Historique des paiements</h5>
+  
+  {% if balance > 0 %}
+  <div>
+    <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#paymentModal">
+      <i class="fas fa-plus-circle"></i> Ajouter un paiement
+    </button>
+  </div>
+  {% else %}
+  <div class="alert alert-success text-center shadow-sm mb-0 p-2">
+    <i class="fas fa-check-circle me-2"></i>
+    Cette décharge est entièrement payée !
+  </div>
+  {% endif %}
+</div>
+    <div class="card-body p-0">
+      <table id="paymentsTable" class="table table-hover mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Montant (€)</th>
+            <th>Date & Heure</th>
+            <th>Effectué par</th>
+            <th class="text-center">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for payment in payments %}
+          <tr>
+            <td>{{ payment.payment|floatformat:2 }}</td>
+            <td>{{ payment.time_payment|date:"d/m/Y H:i" }}</td>
+            <td>{{ payment.id_payment_par }}</td>
+
+                            <td>
+                    <a href="{% url 'payment_delete' payment.pk %}" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash-alt"></i></a>
+                </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+
+<!-- Modal pour ajouter un paiement -->
+<div class="modal fade" id="paymentModal" tabindex="-1" aria-labelledby="paymentModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="paymentModalLabel">Ajouter un paiement</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" id="paymentForm">
+        {% csrf_token %}
+        <div class="modal-body">
+          <div class="mb-3">
+            {{ form.payment.label_tag }}
+            {{ form.payment }}
+            <div class="form-text">Maximum autorisé : {{ balance|floatformat:2 }} €</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

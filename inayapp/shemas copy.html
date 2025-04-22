@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Schéma Hôpital</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@11.6.0/dist/mermaid.min.js"></script>
+    <script>
+        mermaid.initialize({ startOnLoad: true });
+    </script>
+</head>
+<body>
+    <div class="mermaid">
+graph TD
+%% Accueil Models
+User -->|1:1| Theme
+User -->|1:N| ConfigDate
+MenuGroup -->|1:N| MenuItems
+Contacts
+
+%% Documents
+Documents --> FilerFileField
+
+%% Finance Models
+Decharges -->|1:N| Payments
+Tarif --> Poste
+Tarif --> Services
+Tarif --> Shift
+
+%% Helpdesk Models
+Helpdesk
+
+%% Medical Models
+Medecin -->|1:1| Personnel
+Medecin -->|M:N| Services
+RendezVous --> Medecin
+RendezVous --> Patient
+RendezVous --> Services
+Patient -->|1:1| DossierMedical
+DossierMedical -->|1:N| Antecedent
+Services -->|1:N| Personnel
+
+%% RH Models
+Personnel -->|M:1| Poste
+Personnel -->|M:1| Services
+Personnel -->|1:1| User
+Planning --> Services
+Planning --> Personnel
+Planning --> Shift
+Poste
+Shift
+HonorairesActe --> Services
+PointagesActes --> HonorairesActe
+PointagesActes --> Planning
+
+%% Anviz Models
+AnvizConfiguration
+Employee -->|1:N| Attendance
+
+%% HR Requests
+SalaryAdvanceRequest --> Personnel
+LeaveRequest --> Personnel
+
+classDef default fill:#f9f,stroke:#333;
+
+    </div>
+
+</body>
+</html>

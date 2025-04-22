@@ -1,0 +1,55 @@
+{% extends "layout.html" %}
+{% load static %}
+{% load custom_filters %}
+
+{% block content %}
+<div class="container my-2">
+    <div class="d-flex justify-content-between mb-4">
+        <h2>Décharges Réglées</h2>
+        <div>
+            <a href="{% url 'decharge_list' %}" class="btn btn-primary">
+                <i class="fas fa-arrow-left"></i> Retour aux Décharges
+            </a>
+        </div>
+    </div>
+
+    <table class="table table-striped table-hover">
+        <!-- Même structure que decharges_list.html mais avec balance=0 -->
+        <thead class="thead-dark">
+            <tr>
+                <th>Nom</th>
+                <th>Montant Total</th>
+                <th>Total Payé</th>
+                <th>Statut</th>
+                <th>Date</th>
+                <th>Créé par</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for decharge in decharges %}
+            <tr>
+                <td>{{ decharge.name }}</td>
+                <td>{{ decharge.amount|floatformat:2 }} €</td>
+                <td>{{ decharge.total_payments|floatformat:2 }} €</td>
+                <td class="text-success font-weight-bold">
+                    <i class="fas fa-check-circle"></i> Réglée
+                </td>
+                <td>{{ decharge.date|date:"d/m/Y" }}</td>
+                <td>{{ decharge.id_created_par|default:"-" }}</td>
+                <td>
+                    <a href="{% url 'decharge_detail' decharge.pk %}" 
+                       class="btn btn-sm btn-info" title="Détails">
+                        <i class="fas fa-eye"></i>
+                    </a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7" class="text-center">Aucune décharge réglée</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock content %}

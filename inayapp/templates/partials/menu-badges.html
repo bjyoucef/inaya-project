@@ -1,0 +1,27 @@
+{% comment %} 
+Template partial pour les badges de notifications du menu
+Paramètres :
+- item : objet menu item avec son label
+Contexte requis :
+- nembre_notification_hd
+- nembre_notification_rh
+- nembre_notification_decharge
+{% endcomment %}
+
+{% spaceless %}
+{% if item.label == 'Dashboard' and nembre_notification_hd > 0 %}
+    <span class="badge bg-danger float-end" title="Notifications en attente">
+        {{ nembre_notification_hd }}
+    </span>
+
+{% elif item.label == 'Dashboard RH' and nembre_notification_rh > 0 %}
+    <span class="badge bg-danger float-end" title="Notifications RH">
+        {{ nembre_notification_rh }}
+    </span>
+
+{% elif item.label == 'Décharges' and nembre_notification_decharge > 0 %}
+    <span class="badge bg-danger float-end" title="Décharges en attente">
+        {{ nembre_notification_decharge }}
+    </span>
+{% endif %}
+{% endspaceless %}

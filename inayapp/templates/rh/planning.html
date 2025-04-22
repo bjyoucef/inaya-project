@@ -8,10 +8,22 @@
 <link rel="stylesheet" href="{% static 'css/choices.min.css' %}">
 <link rel="stylesheet" href="{% static 'css/daterangepicker.css' %}">
 <link rel="stylesheet" href="{% static 'css/planning-bundle.min.css' %}">
+<style>
+  /* Assure-toi que le parent garde son flow normal */
+  .container-fluid {
+    position: relative;
+  }
+
+  /* Cible le dropdown Choices.js */
+  .choices__list--dropdown {
+    position: absolute;     /* bien détaché du flux */
+    z-index: 9999 !important;/* au‑dessus de FullCalendar */
+  }
+</style>
 
 <div class="container-fluid px-4">
     <form method="get" action="{% url 'planning' %}" id="filterForm" class="row g-2 mb-2 align-items-center justify-content-between">
-    <div class="col-sm-3">
+    <div class="col-sm-2">
       <select name="service" id="serviceFilter" class="form-select form-select-sm" onchange="this.form.submit()">
         <option value="all">Tous les services</option>
         {% for service in services %}
@@ -21,26 +33,45 @@
         {% endfor %}
       </select>
     </div>
-    <div class="col-sm-3">
-      <select name="employee" id="employeeFilter" class="form-select form-select-sm" onchange="this.form.submit()">
-        <option value="all">Tous les employés</option>
-        {% for employee in employees %}
-          <option value="{{ employee.nom_prenom }}"
-            {% if selected.employee == employee.nom_prenom %}selected{% endif %}>
-            {{ employee.nom_prenom }}
-          </option>
-        {% endfor %}
-      </select>
-    </div>
+  <!-- Filtre Poste -->
+  <div class="col-sm-2">
+    <select name="poste" id="posteFilter" class="form-select form-select-sm" onchange="this.form.submit()">
+      <option value="all">Tous les postes</option>
+      {% for poste in postes %}
+        <option value="{{ poste.label }}"
+                {% if selected.poste == poste.label %}selected{% endif %}>
+          {{ poste.label }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <!-- Filtre Employé, avec data-poste -->
+  <div class="col-sm-2">
+    <select name="employee" id="employeeFilter" class="form-select form-select-sm">
+      <option value="all" data-poste="all">Tous les employés</option>
+      {% for employee in employees %}
+        <option value="{{ employee.nom_prenom }}"
+                data-poste="{{ employee.poste.label }}"
+                {% if selected.employee == employee.nom_prenom %}selected{% endif %}>
+          {{ employee.nom_prenom }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+
+<div class="col-sm-2">
+  <select name="shift" id="shiftFilter" class="form-select form-select-sm" onchange="this.form.submit()">
+    <option value="all">Tous les shifts</option>
+    {% for shift in shifts %}
+      <option value="{{ shift.code }}" 
+              {% if selected.shift == shift.code %}selected{% endif %}>
+        {{ shift.label }}
+      </option>
+    {% endfor %}
+  </select>
+</div>
     <div class="col-sm-2">
-      <select name="shift" id="shiftFilter" class="form-select form-select-sm" onchange="this.form.submit()">
-        <option value="all">Tous les shifts</option>
-        <option value="jour" {% if selected.shift == 'jour' %}selected{% endif %}>Jour</option>
-        <option value="nuit" {% if selected.shift == 'nuit' %}selected{% endif %}>Nuit</option>
-        <option value="24H" {% if selected.shift == '24H' %}selected{% endif %}>24H</option>
-      </select>
-    </div>
-    <div class="col-sm-3">
       <input type="text" name="daterangepicker" id="daterangepicker" class="form-control form-control-sm" data-bs-toggle="tooltip" title="Sélectionner une plage de dates">
     </div>
 
@@ -85,6 +116,7 @@
     <input type="hidden" name="event_id" id="eventId">
     <input type="hidden" name="start" id="eventStart">
     <input type="hidden" name="service" value="{{ selected.service }}">
+    <input type="hidden" name="poste" value="{{ selected.poste }}">
     <input type="hidden" name="employee" value="{{ selected.employee }}">
     <input type="hidden" name="shift" value="{{ selected.shift }}">
     <input type="hidden" name="start_date" value="{{ selected.start_date }}">
@@ -94,11 +126,9 @@
 
 
   <!-- Calendrier FullCalendar -->
-  <div class="card border-0 shadow-sm">
-    <div class="card-body p-1">
+  <div class="border-0 shadow-sm">
       {{ events|json_script:"events-data" }}
       <div id="calendar" class="mb-3"></div>
-    </div>
   </div>
 
 {% include "rh/planning_table.html" %}
@@ -111,6 +141,24 @@
 <script src="{% static 'js/daterangepicker.min.js' %}"></script>
 <script src="{% static 'js/fullcalendar.js' %}"></script>
 <script src="{% static 'js/choices.min.js' %}"></script>
+
+<script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const empSelect   = document.getElementById('employeeFilter');
+    const posteSelect = document.getElementById('posteFilter');
+    const form        = document.getElementById('filterForm');
+
+    empSelect.addEventListener('change', function() {
+      // Récupère l'attribut data-poste de l'option sélectionnée
+      const posteValue = this.options[this.selectedIndex].getAttribute('data-poste') || 'all';
+      // Met à jour le select des postes
+      posteSelect.value = posteValue;
+      // Soumet le formulaire pour rafraîchir le planning
+      form.submit();
+    });
+  });
+</script>
 
 <!-- Script utilitaire commun -->
 <script>
@@ -213,7 +261,7 @@
     document.getElementById('validateRangeBtn').addEventListener('click', function () {
         const dateRange = document.getElementById('daterangepicker').value;
         if (!dateRange) {
-            alert("Veuillez sélectionner une plage de dates.");
+            showToast("Veuillez sélectionner une plage de dates.");
             return;
         }
 
@@ -233,12 +281,12 @@
                 if (data.success) {
                     window.location.reload();
                 } else {
-                    alert(data.message || "Erreur inconnue lors de la validation.");
+                    showToast(data.message || "Erreur inconnue lors de la validation.");
                 }
             })
             .catch(error => {
                 console.error('Erreur:', error);
-                alert("Erreur lors de la validation multiple du pointage.");
+                showToast("Erreur lors de la validation multiple du pointage.");
             });
     });
 </script>
@@ -248,6 +296,7 @@
     document.addEventListener('DOMContentLoaded', function () {
         // Initialisation des sélecteurs Choices.js
         new Choices(document.getElementById('serviceFilter'), { searchEnabled: true, removeItemButton: true, placeholder: true });
+        new Choices(document.getElementById('posteFilter'), { searchEnabled: true, removeItemButton: true, placeholder: true });
         new Choices(document.getElementById('employeeFilter'), { searchEnabled: true, removeItemButton: true, placeholder: true });
         new Choices(document.getElementById('shiftFilter'), { searchEnabled: false, removeItemButton: true, placeholder: true });
 
@@ -261,6 +310,7 @@
         // Récupération des données du calendrier et des sélections
         const eventsData = JSON.parse(document.getElementById('events-data').textContent);
         const selectedService = "{{ selected.service }}";
+        const selectedPoste = "{{ selected.poste }}";
         const selectedShift = "{{ selected.shift }}";
 
         const calendar = new FullCalendar.Calendar(calendarEl, {
@@ -314,7 +364,7 @@
             }
         },
         dateClick: function (info) {
-            if (selectedService === "all" || selectedShift === "all") {
+            if (selectedService === "all" || selectedShift === "all" || selectedPoste === "all") {
                 openWarningModal();
             } else {
                 openAddModal(info.dateStr);
@@ -345,9 +395,6 @@
     });
 
     calendar.render();
-
-
-
 
     // Gestion de la checkbox pour activer/désactiver dayMaxEventRows
     const toggleDayMax = document.getElementById('toggleDayMax');
@@ -383,12 +430,12 @@
                     if (data.success) {
                         window.location.reload();
                     } else {
-                        alert(data.message || "Erreur inconnue");
+                        showToast(data.message || "Erreur inconnue");
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    alert("Erreur lors de la validation du pointage");
+                    showToast("Erreur lors de la validation du pointage");
                 })
                 .finally(() => modal.hide());
         };
@@ -419,13 +466,10 @@
                     if (data.success) {
                         window.location.reload();
                     } else {
-                        alert(data.message || "Erreur inconnue");
+                        showToast(data.message || "Erreur inconnue");
                     }
                 })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert("Erreur technique lors de la suppression");
-                })
+
                 .finally(() => modal.hide());
         };
     };
@@ -436,8 +480,8 @@
         console.error("Événement non trouvé.");
         return;
     }
-    const serviceId = eventData.service_id;
-    fetch(`/rh/get-honoraires-acte/?service_id=${serviceId}`)
+    const posteId = eventData.id_poste;
+    fetch(`/rh/get-honoraires-acte/?id_poste=${posteId}`)
       .then(response => {
           if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
           return response.json();
@@ -461,12 +505,12 @@
               const modal = new bootstrap.Modal(modalEl);
               modal.show();
           } else {
-              alert("Erreur lors de la récupération des actes: " + data.message);
+              showToast("Erreur lors de la récupération des actes: " + data.message);
           }
       })
       .catch(error => {
           console.error('Erreur:', error);
-          alert("Erreur lors de la récupération des actes.");
+          showToast("Erreur lors de la récupération des actes.");
       });
     };
 
@@ -536,12 +580,12 @@ window.addEventListener('resize', function () {
                 if (data.success) {
                     window.location.reload();
                 } else {
-                    alert(data.message || "Erreur inconnue");
+                    showToast(data.message || "Erreur inconnue");
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert("Erreur lors de l'ajout du pointage acte.");
+                showToast("Erreur lors de l'ajout du pointage acte.");
             });
 });
 </script>

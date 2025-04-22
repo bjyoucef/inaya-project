@@ -1,0 +1,73 @@
+<script>
+
+
+    document.getElementById('validateRangeBtn').addEventListener('click', function () {
+        const dateRange = document.getElementById('daterangepicker').value;
+        if (!dateRange) {
+            showToast("Veuillez sélectionner une plage de dates.");
+            return;
+        }
+
+        fetch('/rh/validate-presence-range/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ daterangepicker: dateRange })
+        })
+            .then(response => {
+                if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    showToast(data.message || "Erreur inconnue lors de la validation.");
+                }
+            })
+            .catch(error => {
+                console.error('Erreur:', error);
+                showToast("Erreur lors de la validation multiple du pointage.");
+            });
+    });
+
+    // Fonction pour afficher la modal et valider le pointage
+    window.openPointageModal = function (eventId) {
+        const modalEl = document.getElementById('pointageModal');
+        if (!modalEl) {
+            console.error("Modal de pointage introuvable.");
+            return;
+        }
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
+
+        document.getElementById('confirmPointageBtn').onclick = function () {
+            fetch(`/rh/validate-presence/${eventId}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({})
+            })
+                .then(response => {
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    return response.text().then(text => text ? JSON.parse(text) : {});
+                })
+                .then(data => {
+                    if (data.success) {
+                        window.location.reload();
+                    } else {
+                        showToast(data.message || "Erreur inconnue");
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showToast("Erreur lors de la validation du pointage");
+                })
+                .finally(() => modal.hide());
+        };
+    };
+</script>
