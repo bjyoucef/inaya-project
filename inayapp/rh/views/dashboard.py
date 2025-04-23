@@ -13,7 +13,7 @@ from ..models import (
     Personnel,
     SalaryAdvanceRequest,
 )
-from .utils import get_date_range
+from utils.utils import get_date_range
 
 logger = logging.getLogger(__name__)
 

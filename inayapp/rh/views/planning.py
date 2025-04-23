@@ -14,11 +14,12 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render, reverse
 from django.urls import reverse
 from django.utils.timezone import now
-from finance.models import Tarif
+from finance.models import Tarif_Gardes
 from xhtml2pdf import pisa
-
+from utils.utils import services_autorises
+from medical.models import Service
 from ..models import (HonorairesActe, Personnel, Planning, PointagesActes, Poste,
-                      Services, Shift)
+                       Shift)
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +42,6 @@ def build_redirect_params(filters):
     """
     Construit les paramètres de redirection à partir des filtres.
     """
-    print("xxxxxxxxxxxxxxxxxxxxx",filters)
     return (
         f"?service={filters['service']}&poste={filters['poste']}&shift={filters['shift']}"
         f"&employee={filters['employee']}&start_date={filters['start_date']}"
@@ -56,8 +56,9 @@ def planning(request):
     config, _ = ConfigDate.objects.get_or_create(
         user=request.user,
         page="planning",
-        defaults={"start_date": "2025-01-01", "end_date": "2025-01-01"},
+        defaults={"start_date": date.today(), "end_date": date.today()},
     )
+
     if filters.get("start_date"):
         config.start_date = filters["start_date"]
     if filters.get("end_date"):
@@ -82,8 +83,8 @@ def planning(request):
         id_planning__shift_date__range=[filters["start_date"], filters["end_date"]]
     )
     if filters.get("service", "all") != "all":
-        planning_filter &= Q(id_service__service_name=filters["service"])
-        pointage_filter &= Q(id_planning__id_service__service_name=filters["service"])
+        planning_filter &= Q(id_service__name=filters["service"])
+        pointage_filter &= Q(id_planning__id_service__name=filters["service"])
 
     if filters.get("poste", "all") != "all":
         planning_filter &= Q(id_poste__label=filters["poste"])
@@ -125,18 +126,14 @@ def planning(request):
         pointages = PointagesActes.objects.none()
 
     # Récupération des services autorisés et des employés actifs
-    services = [
-        s
-        for s in Services.objects.all()
-        if request.user.has_perm(f"rh.view_service_{s.service_name}")
-    ]
+    services = services_autorises(request.user)
     employees = Personnel.objects.filter(statut_activite=1, use_in_planning=1).order_by(
         "nom_prenom"
     )
     postes = Poste.objects.all().order_by("label")
 
     # Préparation des couleurs de services et configuration des shifts
-    service_colors = {s.service_name: s.color for s in services}
+    service_colors = {s.name: s.color for s in services}
 
     # Construction des événements
     events = []
@@ -166,7 +163,7 @@ def planning(request):
                 "backgroundColor": (
                     "gray"
                     if p.pointage_created_at
-                    else service_colors.get(p.id_service.service_name, "black")
+                    else service_colors.get(p.id_service.name, "black")
                 ),
             }
         )
@@ -192,7 +189,7 @@ def planning(request):
         grouped["prix_acte_total"] += planning.prix_acte or 0
         grouped["pointagesDetail"].append(
             {
-                "service_name": planning.id_service.service_name,
+                "service_name": planning.id_service.name,
                 "date_pointage": planning.shift_date.strftime("%Y-%m-%d"),
                 "shift": planning.shift.label if planning.shift else "",
                 "prix": planning.prix,
@@ -258,7 +255,7 @@ def save_planning(request):
     try:
         with transaction.atomic():
             # Récupération du service
-            service_obj = get_object_or_404(Services, service_name=service_name)
+            service_obj = get_object_or_404(Service, name=service_name)
             poste_obj = get_object_or_404(Poste, label=poste_name)
             print("service_obj",service_obj)
             print("poste_obj",poste_obj)
@@ -404,7 +401,7 @@ def print_planning(request):
     # Recherche du service si filtré
     service_obj = None
     if selected_service != "all":
-        service_obj = Services.objects.filter(service_name=selected_service).first()
+        service_obj = Service.objects.filter(name=selected_service).first()
 
     queryset = Planning.objects.select_related("employee", "id_service").all()
     if service_obj:
@@ -424,7 +421,7 @@ def print_planning(request):
             "shift_date": p.shift_date,
             "full_name": p.employee.nom_prenom,
             "shift": p.shift,
-            "service": p.id_service.service_name if p.id_service else "",
+            "service": p.id_service.name if p.id_service else "",
         }
         for p in queryset.iterator()
     ]
@@ -465,9 +462,11 @@ def validate_presence(request, event_id):
         shift = planning.shift
 
         # Recherche du tarif
-        tarif = Tarif.objects.filter(poste=poste, service=service, shift=shift).first()
+        tarif = Tarif_Gardes.objects.filter(
+            poste=poste, service=service, shift=shift
+        ).first()
         if not tarif:
-            tarif = Tarif.objects.filter(
+            tarif = Tarif_Gardes.objects.filter(
                 poste=poste, service=service, shift__isnull=True
             ).first()
 
@@ -517,12 +516,12 @@ def validate_presence_range(request):
             service = planning.id_service
             shift = planning.shift
 
-            tarif = Tarif.objects.filter(
+            tarif = Tarif_Gardes.objects.filter(
                 poste=poste, service=service, shift=shift
             ).first()
 
             if not tarif:
-                tarif = Tarif.objects.filter(
+                tarif = Tarif_Gardes.objects.filter(
                     poste=poste, service=service, shift__isnull=True
                 ).first()
 
@@ -546,7 +545,7 @@ def validate_presence_range(request):
 
 @permission_required("accueil.view_menu_items_plannings", raise_exception=True)
 def get_honoraires_acte(request):
-    # On récupère maintenant poste_id (pas service_id)
+    # On récupère maintenant poste_id
     poste_id = request.GET.get("id_poste")
     print("********************************************",poste_id)
     if not poste_id:

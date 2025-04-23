@@ -13,7 +13,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
-from .utils import get_date_range
+from utils.utils import get_date_range
 
 from ..models import (Attendance, Employee)
 
@@ -57,13 +57,7 @@ def classify_attendances(attendances, employee, current_date):
 def build_pairs(
     entries, exits_list, employee, current_date, next_day_records, next_date
 ):
-    """
-    Construit les paires (entrée, sortie) en associant chaque entrée à la première sortie ultérieure.
-    Si aucune sortie n'est trouvée sur le même jour, on tente de trouver un pointage dans le jour suivant.
-    Si toujours rien n'est trouvé et que l'heure de référence de fin est définie, on applique une pénalité de 4 heures.
 
-    Par défaut, si les heures de référence ne sont pas définies, on utilise 08:00 et 16:00.
-    """
     default_ref_start = (
         employee.reference_start if employee.reference_start else datetime_time(8, 0)
     )

@@ -2,8 +2,7 @@
 
 from django.db import models
 from django.contrib.auth.models import User
-
-from medical.models.services import Services
+from django.utils import timezone
 
 
 class Decharges(models.Model):
@@ -60,10 +59,10 @@ class Payments(models.Model):
         db_table = "Payments"
 
 
-class Tarif(models.Model):
+class Tarif_Gardes(models.Model):
     poste = models.ForeignKey("rh.Poste", on_delete=models.CASCADE, related_name="tarifs")
     service = models.ForeignKey(
-        Services, on_delete=models.CASCADE, related_name="tarifs"
+        "medical.Service", on_delete=models.CASCADE, related_name="tarifs"
     )
     shift = models.ForeignKey(
         "rh.Shift", on_delete=models.CASCADE, null=True, blank=True, related_name="tarifs"
@@ -77,11 +76,64 @@ class Tarif(models.Model):
 
     class Meta:
         unique_together = ("poste", "service", "shift")
-        verbose_name = "Tarif"
-        verbose_name_plural = "Tarifs"
+        verbose_name = "Tarif_Gardes"
+        verbose_name_plural = "Tarif_Gardes"
 
     def __str__(self):
         desc = f"{self.poste} / {self.service}"
         if self.shift:
             desc += f" ({self.shift})"
         return desc
+
+
+class TarifActe(models.Model):
+    acte = models.ForeignKey("medical.Acte", on_delete=models.CASCADE, related_name="tarifs")
+    montant = models.DecimalField(max_digits=10, decimal_places=2)
+    date_effective = models.DateField(default=timezone.now)
+
+    def __str__(self):
+        return f"{self.acte.code} - {self.montant}"
+
+    class Meta:
+        verbose_name = "Tarif de base"
+        verbose_name_plural = "Tarifs de base"
+        ordering = ["-date_effective"]
+
+
+class Convention(models.Model):
+    code = models.CharField(max_length=20, unique=True)
+    nom = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
+    active = models.BooleanField(default=True)
+    actes = models.ManyToManyField(
+        "medical.Acte", through="TarifActeConvention", related_name="conventions"
+    )
+
+    def __str__(self):
+        return self.nom
+
+    class Meta:
+        verbose_name = "Convention"
+        verbose_name_plural = "Conventions"
+
+
+class TarifActeConvention(models.Model):
+    convention = models.ForeignKey(
+        Convention, on_delete=models.CASCADE, related_name="tarifs"
+    )
+    acte = models.ForeignKey(
+        "medical.Acte", on_delete=models.CASCADE, related_name="tarifs_convention"
+    )
+    tarif_acte = models.ForeignKey(
+        TarifActe, on_delete=models.CASCADE, related_name="tarifs_par_convention"
+    )
+    date_effective = models.DateField(default=timezone.now)
+
+    class Meta:
+        unique_together = ("convention", "acte")
+        verbose_name = "Tarif par convention"
+        verbose_name_plural = "Tarifs par convention"
+        ordering = ["-date_effective"]
+
+    def __str__(self):
+        return f"{self.convention.nom} - {self.acte.code}"

@@ -1,20 +1,19 @@
 from django.contrib.auth.models import User
 from django.db import models
 from django.utils import timezone
-from medical.models.services import Services
-
+from medical.models import Service
 
 class Personnel(models.Model):
     id_personnel = models.AutoField(primary_key=True)
     nom_prenom = models.CharField(max_length=100, blank=True, null=True)
     id_service = models.ForeignKey(
-        Services,
+        Service,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name="personnels",
     )
-    
+
     poste = models.ForeignKey(
         "Poste",
         on_delete=models.SET_NULL,
@@ -22,7 +21,7 @@ class Personnel(models.Model):
         blank=True,
         verbose_name="Poste occupé"
     )
-    
+
     telephone = models.CharField(max_length=15, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True, blank=True, null=True)
     updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
@@ -32,10 +31,8 @@ class Personnel(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True)
 
     def get_associated_services(self):
-        from medical.models import Service
-
         if hasattr(self, "medecin_profile"):
-            return self.medecin_profile.services.all()
+            return self.medecin_profile.service.all()
         return Service.objects.none()
 
     def __str__(self):
@@ -48,7 +45,9 @@ class Personnel(models.Model):
 
 
 class Planning(models.Model):
-    id_service = models.ForeignKey(Services, on_delete=models.DO_NOTHING)
+    id_service = models.ForeignKey(
+        Service, on_delete=models.DO_NOTHING
+    )
     id_poste = models.ForeignKey("Poste", on_delete=models.DO_NOTHING)
     shift_date = models.DateField()
     employee = models.ForeignKey(Personnel, on_delete=models.DO_NOTHING)

@@ -34,7 +34,7 @@ INSTALLED_APPS = [
     "easy_thumbnails",
     "mptt",
     "django_ckeditor_5",
-    
+
 ]
 INSTALLED_APPS += [
     "accueil",
@@ -44,8 +44,8 @@ INSTALLED_APPS += [
     "documents",
     "finance",
     "patients",
-    "medical",
     "medecin",
+    "medical.apps.MedicalConfig",
 ]
 THUMBNAIL_HIGH_RESOLUTION = True
 THUMBNAIL_PROCESSORS = (
@@ -99,11 +99,12 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "inayapp.wsgi.application"
 
-MEDIA_URL = '/files/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'files')
+
+MEDIA_URL = "/files/"
+MEDIA_ROOT = os.path.join(BASE_DIR, "files")
+
 
 MAINTENANCE_MODE = False
-
 # MAINTENANCE_MODE_IGNORE_SUPERUSER = True  # Les superusers peuvent accéder au site
 # MAINTENANCE_MODE_IGNORE_STAFF = True  # Les utilisateurs avec is_staff=True sont autorisés
 # MAINTENANCE_MODE_IGNORE_IP_ADDRESSES = ['127.0.0.1', '192.168.1.100']  # Liste des IPs autorisées
@@ -117,7 +118,7 @@ X_FRAME_OPTIONS = 'ALLOWALL'
 DATABASES = {
     "default": {
         'ENGINE': 'django.db.backends.mysql',  # Django utilise mysqlclient pour MariaDB
-        'NAME': 'b1',
+        'NAME': 'inaya',
         'USER': 'root',
         'PASSWORD': '@Dmin1548@',
         'HOST': '127.0.0.1',

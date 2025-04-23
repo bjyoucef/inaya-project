@@ -1,16 +1,24 @@
 from django.urls import path
 from . import views
-from .views import (
-    save_planning,
-    update_event,
-    delete_event,
-    print_planning,
-    attendance_report,
 
-)
-
+app_name = "medical"  # ou le nom de votre app
 
 urlpatterns = [
-    path("calendar/", views.CalendarView.as_view(), name="calendar"),
-    path("rendezvous-json/", views.rendezvous_json, name="rendezvous_json"),
+    path(
+        "prestations/nouveau/",
+        views.PrestationCreateView.as_view(),
+        name="prestation_create",
+    ),
+    path("prestations/", views.PrestationListView.as_view(), name="prestation_list"),
+    path(
+        "prestations/<int:prestation_id>/",
+        views.PrestationDetailView.as_view(),
+        name="prestation_detail",
+    ),
+    path(
+        "prestations/<int:prestation_id>/",
+        views.PrestationDetailView.as_view(),
+        name="prestation_detail",
+    ),
+    path("get-tarif/", views.GetTarifView.as_view(), name="get_tarif"),
 ]

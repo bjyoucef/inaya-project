@@ -27,8 +27,8 @@
       <select name="service" id="serviceFilter" class="form-select form-select-sm" onchange="this.form.submit()">
         <option value="all">Tous les services</option>
         {% for service in services %}
-          <option value="{{ service.service_name }}" {% if selected.service == service.service_name %}selected{% endif %}>
-            {{ service.service_name }}
+          <option value="{{ service.name }}" {% if selected.service == service.name %}selected{% endif %}>
+            {{ service.name }}
           </option>
         {% endfor %}
       </select>

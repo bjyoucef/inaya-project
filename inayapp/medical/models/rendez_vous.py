@@ -13,7 +13,7 @@ class RendezVous(models.Model):
     ]
 
     service = models.ForeignKey(
-        "medical.Services", on_delete=models.SET_NULL, null=True, related_name="appointments"
+        "medical.Service", on_delete=models.SET_NULL, null=True, related_name="appointments"
     )
 
     patient = models.ForeignKey(

@@ -14,7 +14,7 @@ from rh.models import Personnel, Planning
 
 from .forms import DechargeForm, PaymentForm
 from .models import Decharges, Payments
-from .utils.pdf import render_to_pdf
+from utils.pdf import render_to_pdf
 
 
 # decharge planning

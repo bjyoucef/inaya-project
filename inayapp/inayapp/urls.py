@@ -14,6 +14,7 @@ handler403 = custom_permission_denied_view
 
 
 urlpatterns = [
+    path("select2/", include("django_select2.urls")),
     path("update-theme/", update_theme, name="update_theme"),
     path("", include("accueil.urls")),
     path("admin/", admin.site.urls),
@@ -23,6 +24,8 @@ urlpatterns = [
     path("rh/", include("rh.urls")),
     path("finance/", include("finance.urls")),
     path("patients/", include("patients.urls")),
+    path("medecin/", include("medecin.urls")),
+    path("medical/", include(("medical.urls", "medical"), namespace="medical")),
 ]
 
 

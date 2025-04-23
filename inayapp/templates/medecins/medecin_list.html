@@ -1,0 +1,78 @@
+{% extends 'layout.html' %}
+{% load static %}
+
+{% block content %}
+<style>
+    .badge-success { background-color: #28a745; }
+    .badge-secondary { background-color: #6c757d; }
+    .btn-circle { width: 35px; height: 35px; padding: 6px 0; border-radius: 50%; }
+</style>
+
+<div class="container-fluid px-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800">
+            <i class="fas fa-user-md mr-2"></i>Gestion des Médecins
+        </h1>
+        <a href="{% url 'medecins:add' %}" class="btn btn-primary shadow-sm">
+            <i class="fas fa-plus-circle mr-2"></i>Nouveau Médecin
+        </a>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 bg-primary">
+            <h6 class="m-0 font-weight-bold text-white">Liste des médecins</h6>
+        </div>
+        
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="thead-dark">
+                        <tr>
+                            <th>Nom</th>
+                            <th>Spécialité</th>
+                            <th>Numéro d'ordre</th>
+                            <th>Disponibilité</th>
+                            <th class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for medecin in medecins %}
+                        <tr>
+                            <td class="font-weight-bold">{{ medecin.nom_complet }}</td>
+                            <td>{{ medecin.specialite }}</td>
+                            <td>{{ medecin.numero_ordre }}</td>
+                            <td>
+                                <span class="badge {% if medecin.disponible %}badge-success{% else %}badge-secondary{% endif %}">
+                                    {% if medecin.disponible %}Disponible{% else %}Indisponible{% endif %}
+                                </span>
+                            </td>
+                            <td class="text-center">
+                                <a href="{% url 'medecins:edit' medecin.pk %}" 
+                                   class="btn btn-sm btn-circle btn-warning"
+                                   title="Modifier">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="{% url 'medecins:delete' medecin.pk %}" 
+                                   class="btn btn-sm btn-circle btn-danger ml-2"
+                                   title="Supprimer">
+                                    <i class="fas fa-trash-alt"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center py-4">
+                                <div class="alert alert-warning">
+                                    <i class="fas fa-exclamation-circle mr-2"></i>
+                                    Aucun médecin trouvé
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

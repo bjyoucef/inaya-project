@@ -1,73 +1,79 @@
-<script>
+function initRow(row) {
+const acteSel = row.querySelector('.acte-select');
+const convSel = row.querySelector('.convention-select');
 
+// Configuration commune pour Choices
+const choicesConfig = {
+searchEnabled: true,
+removeItemButton: false,
+placeholderValue: null,
+shouldSort: false,
+itemSelectText: '',
+classNames: {
+containerInner: 'choices__inner',
+input: 'choices__input',
+}
+};
 
-    document.getElementById('validateRangeBtn').addEventListener('click', function () {
-        const dateRange = document.getElementById('daterangepicker').value;
-        if (!dateRange) {
-            showToast("Veuillez sélectionner une plage de dates.");
-            return;
-        }
+// Initialisation du select des actes
+const acteChoices = new Choices(acteSel, {
+...choicesConfig,
+choices: actesData.map(a => ({
+value: a.id,
+label: `${a.code} - ${a.libelle}`
+}))
+});
 
-        fetch('/rh/validate-presence-range/', {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': getCookie('csrftoken'),
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ daterangepicker: dateRange })
-        })
-            .then(response => {
-                if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
-                return response.json();
-            })
-            .then(data => {
-                if (data.success) {
-                    window.location.reload();
-                } else {
-                    showToast(data.message || "Erreur inconnue lors de la validation.");
-                }
-            })
-            .catch(error => {
-                console.error('Erreur:', error);
-                showToast("Erreur lors de la validation multiple du pointage.");
-            });
-    });
+// Initialisation du select des conventions
+const conventionChoices = new Choices(convSel, choicesConfig);
 
-    // Fonction pour afficher la modal et valider le pointage
-    window.openPointageModal = function (eventId) {
-        const modalEl = document.getElementById('pointageModal');
-        if (!modalEl) {
-            console.error("Modal de pointage introuvable.");
-            return;
-        }
-        const modal = new bootstrap.Modal(modalEl);
-        modal.show();
+// Stockage des instances Choices
+acteSel.choicesInstance = acteChoices;
+convSel.choicesInstance = conventionChoices;
 
-        document.getElementById('confirmPointageBtn').onclick = function () {
-            fetch(`/rh/validate-presence/${eventId}/`, {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': getCookie('csrftoken'),
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({})
-            })
-                .then(response => {
-                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                    return response.text().then(text => text ? JSON.parse(text) : {});
-                })
-                .then(data => {
-                    if (data.success) {
-                        window.location.reload();
-                    } else {
-                        showToast(data.message || "Erreur inconnue");
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    showToast("Erreur lors de la validation du pointage");
-                })
-                .finally(() => modal.hide());
-        };
-    };
+// Gestion du changement d'acte
+acteSel.addEventListener('change', () => {
+const a = actesData.find(x => x.id === acteSel.value);
+const newConventions = a?.conventions?.map(c => ({
+value: c.id,
+label: c.nom
+})) || [];
+
+// Mise à jour des conventions
+conventionChoices.setChoices([
+{value: '', label: 'Tarif de base'},
+...newConventions
+]);
+
+updateTarif(row);
+});
+
+// Gestion du changement de convention
+convSel.addEventListener('change', () => updateTarif(row));
+
+// Gestion de la suppression
+row.querySelector('.remove-acte').addEventListener('click', () => {
+// Destruction des instances Choices
+acteChoices.destroy();
+conventionChoices.destroy();
+row.remove();
+updateTotal();
+});
+}
+
+// Modification de la fonction de clonage pour conserver le template original
+document.getElementById('add-acte').onclick = () => {
+const template = document.querySelector('.acte-row:not([data-initialized])');
+const clone = template.cloneNode(true);
+clone.removeAttribute('data-initialized');
+document.getElementById('actes-container').appendChild(clone);
+initRow(clone);
+};
+
+// Initialisation des lignes existantes
+document.querySelectorAll('.acte-row').forEach(row => {
+row.setAttribute('data-initialized', true);
+initRow(row);
+});
 </script>
+{% endblock %}

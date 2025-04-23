@@ -1,10 +1,7 @@
+# medecin.models
 from django.db import models
 
-
-
 class Medecin(models.Model):
-    """Modèle pour gérer les médecins avec lien vers le personnel"""
-
     personnel = models.OneToOneField(
         "rh.Personnel",
         on_delete=models.CASCADE,
@@ -12,9 +9,8 @@ class Medecin(models.Model):
         verbose_name="Profil du personnel",
     )
 
-    # Utilisation de ManyToManyField pour permettre plusieurs services
     services = models.ManyToManyField(
-        'medical.Services',  # Référence string
+        "medical.Service",
         related_name='medecins'
     )
     specialite = models.CharField(max_length=100, verbose_name="Spécialité médicale")
@@ -36,7 +32,8 @@ class Medecin(models.Model):
 
     @property
     def nom_complet(self):
-        return f"{self.personnel.user.first_name} {self.personnel.user.last_name}"
+        u = self.personnel.user
+        return f"{u.first_name} {u.last_name}"
 
     def __str__(self):
         return f"Dr. {self.nom_complet} ({self.specialite})"

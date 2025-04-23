@@ -1,3 +1,4 @@
+# patient.models
 from django.db import models
 
 from rh.models import Personnel
@@ -62,6 +63,9 @@ class Patient(models.Model):
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Mis à jour le")
 
     is_active = models.BooleanField(default=True, verbose_name="Actif")    
+    @property
+    def nom_complet(self):
+        return f"{self.first_name} {self.last_name}"
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
@@ -186,8 +190,3 @@ class Antecedent(models.Model):
         verbose_name = "Antécédent Médical"
         verbose_name_plural = "Antécédents Médicaux"
         ordering = ["-date_decouverte"]
-
-
-
-
-

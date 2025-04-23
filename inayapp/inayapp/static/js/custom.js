@@ -13,34 +13,6 @@
 })(window.jQuery);
 
 
-
-
-// Bootstrap validation for the login form
-const loginForm = document.querySelector('#loginModal form');
-if (loginForm) {
-    loginForm.addEventListener('submit', function (event) {
-        if (!loginForm.checkValidity()) {
-            event.preventDefault();
-            event.stopPropagation();
-        }
-        loginForm.classList.add('was-validated');
-    });
-}
-
-// Toggle password visibility for the login modal
-const togglePassword = document.querySelector('#togglePassword');
-const passwordInput = document.querySelector('#loginModal #password');
-if (togglePassword && passwordInput) {
-    togglePassword.addEventListener('click', function () {
-        const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
-        passwordInput.setAttribute('type', type);
-
-        // Toggle icons to show/hide password
-        this.querySelector('i').classList.toggle('fa-eye');
-        this.querySelector('i').classList.toggle('fa-eye-slash');
-    });
-}
-
 // Handle microphone permission
 navigator.permissions.query({ name: 'microphone' }).then(function(permissionStatus) {
     if (permissionStatus.state === 'denied') {
