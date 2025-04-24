@@ -20,5 +20,15 @@ urlpatterns = [
         views.PrestationDetailView.as_view(),
         name="prestation_detail",
     ),
+    path(
+        "prestations/<int:prestation_id>/edit/",
+        views.PrestationUpdateView.as_view(),
+        name="prestation_update",
+    ),
+    path(
+        "prestations/<int:prestation_id>/delete/",
+        views.PrestationDeleteView.as_view(),
+        name="prestation_delete",
+    ),
     path("get-tarif/", views.GetTarifView.as_view(), name="get_tarif"),
 ]

@@ -1,18 +1,17 @@
-from datetime import date, datetime, time
-from decimal import Decimal
-from django.shortcuts import render, redirect, get_object_or_404
-from django.views import View
-from django.utils import timezone
 import json
+from datetime import date, datetime
+from decimal import Decimal, InvalidOperation
 
 from accueil.models import ConfigDate
-from medical.models.services import Service
-from utils.utils import get_date_range, services_autorises
-from medical.models import Acte, Prestation, PrestationActe
-from finance.models import TarifActe, TarifActeConvention, Convention
-from patients.models import Patient
-from medecin.models import Medecin
 from django.http import JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
+from django.views import View
+from finance.models import Convention, TarifActe, TarifActeConvention
+from medecin.models import Medecin
+from medical.models import Acte, Prestation, PrestationActe
+from patients.models import Patient
+from utils.utils import services_autorises
 
 
 class GetTarifView(View):
@@ -262,3 +261,212 @@ class PrestationDetailView(View):
             "medical/prestations/detail.html",
             {"prestation": prestation, "actes": prestation.actes_details.all()},
         )
+
+
+from django.views import View
+from django.shortcuts import render, get_object_or_404, redirect
+from django.urls import reverse
+from decimal import Decimal
+
+from medical.models import Prestation, PrestationActe, Acte
+from patients.models import Patient
+from medecin.models import Medecin
+from finance.models import TarifActe, TarifActeConvention
+from utils.utils import services_autorises
+
+
+class PrestationUpdateView(View):
+    def get(self, request, prestation_id):
+        prestation = get_object_or_404(Prestation, pk=prestation_id)
+        # Préparer les listes pour le formulaire
+        patients = Patient.objects.all()
+        medecins = Medecin.objects.all()
+        services = services_autorises(request.user)
+        actes_qs = Acte.objects.prefetch_related("conventions").filter(
+            service__id_service__in=services.values_list("id_service", flat=True)
+        )
+        # Construire une structure JSON similaire à la création pour le JS
+        actes_data = [
+            {
+                "id": acte.id,
+                "code": acte.code,
+                "libelle": acte.libelle,
+                "conventions": list(acte.conventions.all().values("id", "nom")),
+            }
+            for acte in actes_qs
+        ]
+        # Préparer les lignes existantes
+        lignes = []
+        for pa in prestation.actes_details.all():
+            lignes.append(
+                {
+                    "acte_id": pa.acte.id,
+                    "convention_id": pa.convention.id if pa.convention else "",
+                    "tarif": float(pa.tarif_conventionne),
+                }
+            )
+        return render(
+            request,
+            "medical/prestations/update.html",
+            {
+                "prestation": prestation,
+                "patients": patients,
+                "medecins": medecins,
+                "statut_choices": Prestation.STATUT_CHOICES,
+                "actes_json": json.dumps(actes_data),
+                "lignes": json.dumps(lignes),
+            },
+        )
+
+    def post(self, request, prestation_id):
+        prestation = get_object_or_404(Prestation, pk=prestation_id)
+        services = services_autorises(request.user)
+        errors = []
+        prestation_data = []
+        total = Decimal("0.00")
+
+        # Basic field validation
+        required_fields = {
+            "patient": "Patient requis",
+            "medecin": "Médecin requis",
+            "date_prestation": "Date de réalisation requise",
+            "statut": "Statut requis",
+        }
+        for field, msg in required_fields.items():
+            if not request.POST.get(field):
+                errors.append(msg)
+
+        # Process actes
+        acte_ids = request.POST.getlist("actes[]")
+        convention_ids = request.POST.getlist("conventions[]")
+        tarifs = request.POST.getlist("tarifs[]")
+        lignes = []
+
+        for idx in range(len(acte_ids)):
+            ligne = {
+                "acte_id": acte_ids[idx],
+                "convention_id": (
+                    convention_ids[idx] if idx < len(convention_ids) else ""
+                ),
+                "tarif": tarifs[idx] if idx < len(tarifs) else "0",
+            }
+            lignes.append(ligne)
+
+        # Validate each medical act line
+        for idx, ligne in enumerate(lignes):
+            line_errors = []
+            acte_pk = ligne["acte_id"]
+            convention_pk = ligne["convention_id"]
+            tarif_str = ligne["tarif"]
+
+            # Acte validation
+            acte = None
+            if acte_pk:
+                try:
+                    acte = Acte.objects.get(pk=acte_pk)
+                    if not acte.service.id_service in services.values_list(
+                        "id_service", flat=True
+                    ):
+                        line_errors.append("Acte non autorisé")
+                except Acte.DoesNotExist:
+                    line_errors.append("Acte invalide")
+            else:
+                line_errors.append("Acte non sélectionné")
+
+            # Convention validation
+            convention = None
+            if convention_pk:
+                try:
+                    convention = Convention.objects.get(pk=convention_pk)
+                    if acte and convention not in acte.conventions.all():
+                        line_errors.append("Convention non liée à l'acte")
+                except Convention.DoesNotExist:
+                    line_errors.append("Convention invalide")
+
+            # Tarif validation
+            try:
+                tarif = Decimal(tarif_str)
+                if tarif < Decimal("0"):
+                    line_errors.append("Tarif négatif")
+            except InvalidOperation:
+                line_errors.append("Tarif invalide")
+                tarif = Decimal("0")
+
+            if line_errors:
+                errors.extend([f"Ligne {idx+1}: {e}" for e in line_errors])
+            else:
+                prestation_data.append(
+                    {
+                        "acte": acte,
+                        "convention": convention,
+                        "tarif": tarif,
+                    }
+                )
+                total += tarif
+
+        if not acte_ids:
+            errors.append("Au moins un acte est requis")
+
+        if errors:
+            # Regenerate actes data for form
+            actes_qs = Acte.objects.prefetch_related("conventions").filter(
+                service__id_service__in=services.values_list("id_service", flat=True)
+            )
+            actes_data = [
+                {
+                    "id": acte.id,
+                    "code": acte.code,
+                    "libelle": acte.libelle,
+                    "conventions": list(acte.conventions.all().values("id", "nom")),
+                }
+                for acte in actes_qs
+            ]
+            return render(
+                request,
+                "medical/prestations/update.html",
+                {
+                    "errors": errors,
+                    "prestation": prestation,
+                    "patients": Patient.objects.all(),
+                    "medecins": Medecin.objects.all(),
+                    "statut_choices": Prestation.STATUT_CHOICES,
+                    "actes_json": json.dumps(actes_data),
+                    "lignes": json.dumps(lignes),
+                },
+            )
+
+        # Update prestation
+        prestation.patient_id = request.POST["patient"]
+        prestation.medecin_id = request.POST["medecin"]
+        prestation.date_prestation = request.POST["date_prestation"]
+        prestation.statut = request.POST["statut"]
+        prestation.observations = request.POST.get("observations", "")
+        prestation.prix_total = total
+        prestation.save()
+
+        # Update actes
+        prestation.actes_details.all().delete()
+        for data in prestation_data:
+            PrestationActe.objects.create(
+                prestation=prestation,
+                acte=data["acte"],
+                convention=data["convention"],
+                tarif_conventionne=data["tarif"],
+            )
+
+        return redirect("medical:prestation_detail", prestation_id=prestation.id)
+
+
+class PrestationDeleteView(View):
+    def get(self, request, prestation_id):
+        prestation = get_object_or_404(Prestation, pk=prestation_id)
+        return render(
+            request,
+            "medical/prestations/confirm_delete.html",
+            {"prestation": prestation},
+        )
+
+    def post(self, request, prestation_id):
+        prestation = get_object_or_404(Prestation, pk=prestation_id)
+        prestation.delete()
+        return redirect("medical:prestation_list")

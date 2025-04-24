@@ -1,0 +1,12 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container py-5">
+  <h2>Supprimer la prestation</h2>
+  <p>Êtes-vous sûr de vouloir supprimer la prestation du {{ prestation.date_prestation|date:"d/m/Y H:i" }} pour {{ prestation.patient.nom_complet }} ? Cette action est irréversible.</p>
+  <form method="post">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-danger">Oui, supprimer</button>
+    <a href="{% url 'medical:prestation_detail' prestation.id %}" class="btn btn-secondary">Annuler</a>
+  </form>
+</div>
+{% endblock %}

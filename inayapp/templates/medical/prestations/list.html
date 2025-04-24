@@ -129,10 +129,19 @@
                         </td>
                         <td class="text-end">{{ prestation.prix_total|floatformat:2 }} €</td>
                         <td>
-                            <a href="{% url 'medical:prestation_detail' prestation.id %}"
-                               class="btn btn-sm btn-outline-primary">
-                               <i class="fas fa-eye"></i>
-                            </a>
+              <div class="btn-group">
+<a href="{% url 'medical:prestation_detail' prestation.id %}" class="btn btn-sm btn-outline-primary" title="Détails">
+    <i class="fas fa-eye"></i>
+</a>
+<a href="{% url 'medical:prestation_update' prestation.id %}" class="btn btn-sm btn-outline-warning" title="Modifier">
+    <i class="fas fa-edit"></i>
+</a>
+<a href="{% url 'medical:prestation_delete' prestation.id %}" class="btn btn-sm btn-outline-danger" title="Supprimer">
+    <i class="fas fa-trash"></i>
+</a>
+
+              </div>
+
                         </td>
                     </tr>
                     {% empty %}

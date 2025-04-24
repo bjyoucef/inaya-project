@@ -1,0 +1,230 @@
+{% extends "layout.html" %}
+{% load tz static custom_filters %}
+{% block content %}
+
+<link rel="stylesheet" href="{% static 'css/choices.min.css' %}">
+
+<div class="container-lg">
+  <h1 class="mb-4">Édition de prestation médicale</h1>
+
+  {% if errors %}
+    <div class="alert alert-danger mb-4">
+      <h4 class="alert-heading">Erreurs de validation</h4>
+      <ul class="mb-0">
+        {% for e in errors %}
+          <li>{{ e }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+
+  <form method="post" action="{% url 'medical:prestation_update' prestation.id %}">
+    {% csrf_token %}
+
+    <!-- Informations générales -->
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-primary text-white">
+        <i class="bi bi-clipboard-pulse me-2"></i>Informations générales
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label for="patientSelect" class="form-label">Patient</label>
+<!-- Patient Select -->
+<select name="patient" id="patientSelect" class="form-select" required>
+  <option value="">Choisir un patient...</option>
+  {% for p in patients %}
+    <option value="{{ p.id }}" {% if p.id == prestation.patient_id %}selected{% endif %}>{{ p.nom_complet }}</option>
+  {% endfor %}
+</select>
+          </div>
+
+          <div class="col-md-6">
+            <label for="medecinSelect" class="form-label">Médecin</label>
+<!-- Medecin Select -->
+<select name="medecin" id="medecinSelect" class="form-select" required>
+  <option value="">Choisir un médecin...</option>
+  {% for m in medecins %}
+    <option value="{{ m.id }}" {% if m.id == prestation.medecin_id %}selected{% endif %}>{{ m.nom_complet }}</option>
+  {% endfor %}
+</select>
+          </div>
+
+          <div class="col-md-4">
+            <label for="dateInput" class="form-label">Date de réalisation</label>
+            <input type="datetime-local" name="date_prestation" id="dateInput" class="form-control"
+                   value="{{ prestation.date_prestation|localtime|date:'Y-m-d\\TH:i' }}" required>
+          </div>
+
+          <div class="col-md-4">
+            <label for="statutSelect" class="form-label">Statut</label>
+<!-- Statut Select -->
+<select name="statut" id="statutSelect" class="form-select" required>
+  {% for v,l in statut_choices %}
+    <option value="{{ v }}" {% if v == prestation.statut %}selected{% endif %}>{{ l }}</option>
+  {% endfor %}
+</select>
+          </div>
+
+          <div class="col-md-12">
+            <label for="observationsTextarea" class="form-label">Observations</label>
+            <textarea name="observations" id="observationsTextarea" class="form-control" rows="2"
+                      placeholder="Notes et observations...">{{ prestation.observations }}</textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Actes médicaux -->
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-primary text-white">
+        <i class="bi bi-heart-pulse me-2"></i>Actes médicaux
+      </div>
+      <div class="card-body">
+        <div id="actes-container" class="mb-4">
+          <div class="row g-3 mb-2 fw-bold">
+            <div class="col-md-5">Acte médical</div>
+            <div class="col-md-4">Convention</div>
+            <div class="col-md-2">Tarif</div>
+            <div class="col-md-1"></div>
+          </div>
+          <!-- Ligne modèle cachée -->
+          <div class="acte-row row g-3 mb-2 align-items-center">
+            <div class="col-md-5">
+              <select name="actes[]" class="form-control acte-select" required></select>
+            </div>
+            <div class="col-md-4">
+              <select name="conventions[]" class="form-control convention-select">
+                <option value="">Tarif de base</option>
+              </select>
+            </div>
+            <div class="col-md-2">
+              <div class="input-group">
+                <input type="text" name="tarifs[]" class="form-control tarif-input text-end" readonly>
+                <span class="input-group-text">€</span>
+              </div>
+            </div>
+            <div class="col-md-1">
+              <button type="button" class="btn btn-danger remove-acte w-100">
+                <i class="bi bi-trash"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+        <button type="button" id="add-acte" class="btn btn-outline-primary">
+          <i class="bi bi-plus-circle me-2"></i>Ajouter un acte
+        </button>
+        <div class="mt-4 p-3 bg-light rounded-3">
+          <h4 class="mb-0 text-end">
+            Total : <span id="total" class="text-primary">0.00</span> €
+          </h4>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-grid d-md-flex justify-content-md-end mt-4">
+      <button type="submit" class="btn btn-lg btn-primary">
+        <i class="bi bi-save me-2"></i>Enregistrer
+      </button>
+    </div>
+  </form>
+</div>
+
+<script src="{% static 'js/choices.min.js' %}"></script>
+
+<script>
+  // Contexte Django → JS
+  const actesData       = {{ actes_json|safe }};
+  const initialLignes   = {{ lignes|safe }};
+  const selectedPatient = "{{ prestation.patient_id }}";
+  const selectedMedecin = "{{ prestation.medecin_id }}";
+  const selectedDate    = "{{ prestation.date_prestation|localtime|date:'Y-m-d\\TH:i' }}";
+  const selectedStatut  = "{{ prestation.statut }}";
+</script>
+<!-- Pour charger correctement les observations avec JSON.parse -->
+{{ prestation.observations|json_script:"obs" }}
+
+<script>
+// Set values first
+document.getElementById('patientSelect').value = selectedPatient;
+document.getElementById('medecinSelect').value = selectedMedecin;
+
+// Then initialize Choices
+new Choices("#medecinSelect", { searchEnabled: true, removeItemButton: true });
+new Choices("#patientSelect", { searchEnabled: true, removeItemButton: true });
+
+  // Récupère et retourne le tarif via API
+  function updateTarif(row) {
+    const acteId = row.querySelector('.acte-select').value;
+    const convId = row.querySelector('.convention-select').value;
+    const tarifInput = row.querySelector('.tarif-input');
+    if (!acteId) { tarifInput.value = ''; updateTotal(); return; }
+    fetch(`/medical/get-tarif/?acte_id=${acteId}&convention_id=${convId}`)
+      .then(r => r.json()).then(json => {
+        tarifInput.value = json.tarif.toFixed(2);
+        updateTotal();
+      });
+  }
+
+  // Recalcule la somme des tarifs
+  function updateTotal() {
+    let sum = 0;
+    document.querySelectorAll('.tarif-input').forEach(i => sum += parseFloat(i.value) || 0);
+    document.getElementById('total').textContent = sum.toFixed(2);
+  }
+
+  // Initialise une ligne (remplissage actes & conventions + events)
+  function initRow(row) {
+    const acteSel = row.querySelector('.acte-select');
+    const convSel = row.querySelector('.convention-select');
+    // Remplir la liste des actes
+    acteSel.innerHTML = '<option value="">--</option>' +
+      actesData.map(a => `<option value="${a.id}">${a.code} – ${a.libelle}</option>`).join('');
+    acteSel.onchange = () => {
+      const a = actesData.find(x => x.id == acteSel.value);
+      convSel.innerHTML = '<option value="">Tarif de base</option>';
+      if (a) a.conventions.forEach(c =>
+        convSel.insertAdjacentHTML('beforeend', `<option value="${c.id}">${c.nom}</option>`)
+      );
+      updateTarif(row);
+    };
+    convSel.onchange = () => updateTarif(row);
+    row.querySelector('.remove-acte').onclick = () => { row.remove(); updateTotal(); };
+  }
+
+  // Pré-sélection des champs généraux
+  document.getElementById('patientSelect').value    = selectedPatient;
+  document.getElementById('medecinSelect').value    = selectedMedecin;
+  document.getElementById('dateInput').value        = selectedDate;
+  document.getElementById('statutSelect').value     = selectedStatut;
+  document.getElementById('observationsTextarea').value =
+    JSON.parse(document.getElementById('obs').textContent);
+
+  // Gestion des lignes d'actes existantes
+  const container   = document.getElementById('actes-container');
+  const templateRow = container.querySelector('.acte-row');
+  templateRow.remove();
+
+  initialLignes.forEach(data => {
+    const row = templateRow.cloneNode(true);
+    container.appendChild(row);
+    initRow(row);
+    // On met en place les valeurs puis on déclenche le calcul
+    row.querySelector('.acte-select').value = data.acte_id;
+    row.querySelector('.acte-select').dispatchEvent(new Event('change'));
+    row.querySelector('.convention-select').value = data.convention_id || "";
+    updateTarif(row);
+  });
+
+  updateTotal();
+
+  // Ajout dynamique d'une nouvelle ligne
+  document.getElementById('add-acte').onclick = () => {
+    const clone = templateRow.cloneNode(true);
+    clone.querySelectorAll('input, select').forEach(e => e.value = '');
+    container.appendChild(clone);
+    initRow(clone);
+  };
+</script>
+
+{% endblock %}
