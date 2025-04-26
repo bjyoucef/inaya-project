@@ -12,7 +12,7 @@ class MedecinListView(ListView):
     paginate_by = 20
 
     def get_queryset(self):
-        return Medecin.objects.all().order_by("personnel__user__last_name")
+        return Medecin.objects.all().order_by("personnel__nom_prenom")
 
 
 class MedecinCreateView(CreateView):
@@ -25,7 +25,7 @@ class MedecinCreateView(CreateView):
         kwargs = super().get_form_kwargs()
         kwargs["user_queryset"] = Personnel.objects.filter(
             profil_medecin__isnull=True, statut_activite=True
-        ).select_related("user")
+        )
         return kwargs
 
     def form_valid(self, form):
@@ -38,6 +38,7 @@ class MedecinCreateView(CreateView):
 
 
 class MedecinUpdateView(UpdateView):
+    model = Medecin
     form_class = MedecinForm
     template_name = "medecins/medecin_form.html"
     success_url = reverse_lazy("medecins:list")

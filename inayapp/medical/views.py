@@ -18,17 +18,13 @@ class GetTarifView(View):
     def get(self, request):
         acte_id = request.GET.get("acte_id")
         convention_id = request.GET.get("convention_id")
+        tarif = Decimal("0.00")
 
         try:
-            # On récupère l’acte
             acte = Acte.objects.get(pk=acte_id)
-
-            # Tarif par défaut
-            tarif = Decimal("0.00")
 
             if convention_id:
                 convention = Convention.objects.get(pk=convention_id)
-                # Tarif spécifique à la convention
                 tac = (
                     TarifActeConvention.objects.filter(acte=acte, convention=convention)
                     .order_by("-date_effective")
@@ -36,17 +32,22 @@ class GetTarifView(View):
                 )
                 if tac:
                     tarif = tac.tarif_acte.montant
+
             else:
-                # Tarif de base
-                ta = (
-                    TarifActe.objects.filter(acte=acte)
-                    .order_by("-date_effective")
-                    .first()
-                )
+                # d'abord le tarif explicite par défaut
+                ta = TarifActe.objects.filter(acte=acte, is_default=True).first()
+                if not ta:
+                    # sinon le plus récent
+                    ta = (
+                        TarifActe.objects.filter(acte=acte)
+                        .order_by("-date_effective")
+                        .first()
+                    )
                 if ta:
                     tarif = ta.montant
 
             return JsonResponse({"tarif": float(tarif)})
+
         except Acte.DoesNotExist:
             return JsonResponse({"error": "Acte introuvable"}, status=404)
         except Convention.DoesNotExist:
@@ -261,18 +262,6 @@ class PrestationDetailView(View):
             "medical/prestations/detail.html",
             {"prestation": prestation, "actes": prestation.actes_details.all()},
         )
-
-
-from django.views import View
-from django.shortcuts import render, get_object_or_404, redirect
-from django.urls import reverse
-from decimal import Decimal
-
-from medical.models import Prestation, PrestationActe, Acte
-from patients.models import Patient
-from medecin.models import Medecin
-from finance.models import TarifActe, TarifActeConvention
-from utils.utils import services_autorises
 
 
 class PrestationUpdateView(View):

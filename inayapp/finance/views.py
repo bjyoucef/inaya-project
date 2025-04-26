@@ -3,18 +3,81 @@ from decimal import Decimal
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
 from django.db import models, transaction
-from django.db.models import DecimalField, ExpressionWrapper, F, Sum, Value
-from django.db.models.functions import Coalesce
+from django.db.models import (Count, DecimalField, ExpressionWrapper, F, Q,
+                              Sum, Value)
+from django.db.models.functions import Coalesce, TruncDate
 from django.http import HttpResponse
+
 from django.shortcuts import get_object_or_404, redirect, render, reverse
 from django.utils import timezone
 from django.utils.dateparse import parse_date
+from medecin.models import Medecin
+from medical.models import PrestationActe
 from num2words import num2words
 from rh.models import Personnel, Planning
+from utils.pdf import render_to_pdf
 
 from .forms import DechargeForm, PaymentForm
 from .models import Decharges, Payments
-from utils.pdf import render_to_pdf
+
+
+# views.py
+def create_decharge_medecin(request, medecin_id):
+    medecin = get_object_or_404(Medecin, pk=medecin_id)
+
+    prestations_non_dechargees = (
+        PrestationActe.objects.filter(prestation__medecin=medecin)
+        .exclude(decharges__isnull=False)
+        .select_related("prestation", "acte", "convention", "prestation__patient")
+    )
+
+    if request.method == "POST":
+        # Création de la décharge
+        decharge = Decharges.objects.create(
+            name=request.POST.get("nom_decharge"),
+            amount=0,
+            date=request.POST.get("date_decharge"),
+            medecin=medecin,
+            id_created_par=request.user,
+        )
+
+        # Ajout des prestations et construction de la note
+        prestation_ids = request.POST.getlist("prestation_acte_ids")
+        prestations = PrestationActe.objects.filter(id__in=prestation_ids)
+        decharge.prestation_actes.set(prestations)
+
+        # Génération automatique de la note
+        note_content = [
+            f"Décharge médicale - Dr. {medecin.nom_complet}\n",
+            f"Date de création: {decharge.date}\n\n",
+            "Prestations incluses:\n",
+        ]
+
+        for prestation in prestations:
+            details = [
+                f"Date: {prestation.prestation.date_prestation.date()}",
+                f"Acte: {prestation.acte.libelle} ({prestation.acte.code})",
+                f"Patient: {prestation.prestation.patient.nom_complet}",
+                f"Convention: {prestation.convention.nom if prestation.convention else 'Non conventionné'}",
+                f"Honoraire: {prestation.honoraire_medecin} DA\n",
+            ]
+            note_content.append(" | ".join(details))
+
+        # Calcul et ajout du total
+        total = prestations.aggregate(total=Sum("honoraire_medecin"))["total"] or 0
+        note_content.append(f"\nTotal général: {total} DA")
+
+        decharge.note = "\n".join(note_content)
+        decharge.amount = total
+        decharge.save()
+
+        return redirect("decharge_list")
+
+    context = {
+        "medecin": medecin,
+        "prestations": prestations_non_dechargees,
+    }
+    return render(request, "finance/decharges/create_decharge_medecin.html", context)
 
 
 # decharge planning
@@ -87,9 +150,7 @@ def add_decharge_multiple(request):
                     service_name = (
                         p.id_service.service_name if p.id_service else "Inconnu"
                     )
-                    dossier = (
-                        f"{service_name} - {p.shift_date} - {p.shift} - {p.prix}"
-                    )
+                    dossier = f"{service_name} - {p.shift_date} - {p.shift} - {p.prix}"
                     if p.prix_acte and p.prix_acte != 0:
                         dossier += f" - Actes {p.prix_acte}"
                     dossiers_list.append(dossier)
@@ -152,20 +213,27 @@ def decharge_list(request):
 
 @login_required
 def decharge_settled(request):
-    decharges = ( Decharges.objects.annotate(
-        total_payments=Coalesce(
-            Sum("payments__payment", output_field=models.DecimalField()),
-            Value(0, output_field=models.DecimalField())
-    )).annotate(
-        balance=ExpressionWrapper(
-            F("amount") - F("total_payments"),
-            output_field=models.DecimalField(max_digits=10, decimal_places=2)
+    decharges = (
+        Decharges.objects.annotate(
+            total_payments=Coalesce(
+                Sum("payments__payment", output_field=models.DecimalField()),
+                Value(0, output_field=models.DecimalField()),
+            )
         )
-    ).filter(balance=0).order_by("-date"))
+        .annotate(
+            balance=ExpressionWrapper(
+                F("amount") - F("total_payments"),
+                output_field=models.DecimalField(max_digits=10, decimal_places=2),
+            )
+        )
+        .filter(balance=0)
+        .order_by("-date")
+    )
 
     return render(
         request, "finance/decharges/decharges_settled.html", {"decharges": decharges}
     )
+
 
 @login_required
 def decharge_detail(request, pk):
@@ -319,3 +387,128 @@ def print_decharge_view(request, decharge_id):
     }
 
     return render(request, "finance/decharges/decharge_pdf.html", context)
+
+
+def situation_medecins_list(request):
+    """Affiche la liste des médecins avec le total des honoraires et permet d'accéder à leur situation"""
+    medecins = Medecin.objects.annotate(
+        total_honoraires=Sum("prestations__actes_details__honoraire_medecin")
+    ).order_by("-total_honoraires")
+    total_general = medecins.aggregate(total=Sum("total_honoraires"))["total"] or 0
+    return render(
+        request,
+        "finance/medecins_situation_list.html",
+        {
+            "medecins": medecins,
+            "total_general": total_general,
+        },
+    )
+
+
+# views.py
+def situation_medecin(request, medecin_id):
+    medecin = get_object_or_404(Medecin, pk=medecin_id)
+
+    # Gestion des filtres
+    date_debut = request.GET.get("date_debut")
+    date_fin = request.GET.get("date_fin")
+
+    base_query = PrestationActe.objects.filter(prestation__medecin=medecin)
+    if date_debut and date_fin:
+        base_query = base_query.filter(
+            Q(prestation__date_prestation__date__gte=date_debut)
+            & Q(prestation__date_prestation__date__lte=date_fin)
+        )
+    # Statistiques globales
+    stats = {
+        "total_honoraires": base_query.aggregate(total=Sum("honoraire_medecin"))[
+            "total"
+        ]
+        or 0,
+        "total_patients": base_query.values("prestation__patient").distinct().count(),
+        "total_actes": base_query.values("acte").count() or 0,
+    }
+    # Préparation des données pour les graphiques
+    # Répartition par convention
+    conventions_data = (
+        base_query.values("convention__nom")
+        .annotate(total=Sum("honoraire_medecin"))
+        .order_by("-total")
+    )
+
+    # Top 10 des actes
+    actes_data = (
+        base_query.values("acte__libelle")
+        .annotate(total=Sum("honoraire_medecin"))
+        .order_by("-total")[:10]
+    )
+
+    # Évolution temporelle
+    evolution_data = (
+        base_query.annotate(date=TruncDate("prestation__date_prestation"))
+        .values("date")
+        .annotate(total=Sum("honoraire_medecin"))
+        .order_by("date")
+    )
+
+    # Détail des actes bruts
+    actes_details = base_query.values(
+        "prestation__patient_id",
+        "prestation__date_prestation",
+        "acte__libelle",
+        "convention__nom",
+        "honoraire_medecin",
+    )
+
+    # Agrégations
+    patients = (
+        base_query.values(
+            "prestation__patient_id",
+            "prestation__patient__last_name",
+            "prestation__patient__first_name",
+        )
+        .annotate(
+            total_honoraires=Sum("honoraire_medecin"),
+            nombre_actes=Count("id"),
+        )
+        .order_by("-total_honoraires")
+    )
+    # Conversion sécurisée des données
+    def safe_float(value):
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return 0.0
+
+    context = {
+        "medecin": medecin,
+        "convention_labels": [
+            c["convention__nom"] or "Non renseigné" for c in conventions_data
+        ],
+        "convention_values": [safe_float(c.get("total")) for c in conventions_data],
+        "acte_labels": [a["acte__libelle"] or "Acte inconnu" for a in actes_data],
+        "acte_values": [safe_float(a.get("total")) for a in actes_data],
+        "evolution_dates": [
+            e["date"].isoformat() for e in evolution_data if e.get("date")
+        ],
+        
+        
+        
+        "medecin": medecin,
+        "patients": patients,
+        "actes_details": actes_details,
+        "conventions_data": list(conventions_data),
+        "actes_data": list(actes_data),
+        "evolution_data": list(evolution_data),
+        "stats": stats,
+        # Conversion sécurisée avec gestion des None
+        "convention_labels": [
+            c["convention__nom"] or "Non renseigné" for c in conventions_data
+        ],
+        "evolution_totals": [safe_float(e.get("total")) for e in evolution_data],
+        "date_debut": date_debut,
+        "date_fin": date_fin,
+
+    }
+
+    return render(request, "finance/situation.html", context)

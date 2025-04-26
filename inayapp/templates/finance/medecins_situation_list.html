@@ -1,0 +1,79 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container-fluid py-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-10">
+      <div class="card shadow-sm rounded-2xl">
+        <div class="card-header bg-gradient-primary text-white d-flex justify-content-between align-items-center">
+          <h2 class="mb-0">Liste des médecins</h2>
+
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-hover mb-0">
+              <thead class="thead-light">
+                <tr>
+                  <th class="text-uppercase small fw-bold">Nom et Prénom</th>
+                  <th class="text-uppercase small fw-bold">Total Honoraires (DA)</th>
+                  <th class="text-uppercase small fw-bold">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for med in medecins %}
+                <tr>
+                  <td class="align-middle">{{ med.nom_complet }}</td>
+                  <td class="align-middle">
+                      {{ med.total_honoraires|default:0|floatformat:2 }}
+
+                  </td>
+                  <td class="align-middle">
+                    <a href="{% url 'situation_medecin' med.id %}" class="btn btn-sm btn-outline-primary">
+                      <i class="fas fa-chart-bar"></i> Voir situation
+                    </a>
+                    <!-- Dans votre template de liste -->
+
+        <a href="{% url 'create_decharge' med.id %}" class="btn btn-primary btn-sm">
+            Créer Décharge
+        </a>
+
+                  </td>
+                </tr>
+                {% empty %}
+                <tr>
+                  <td colspan="4" class="text-center py-4">
+                    <em>Aucun médecin disponible.</em>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+              <tfoot>
+  <tr>
+    <td colspan="2" class="text-right fw-bold">Total général :</td>
+    <td colspan="2" class="fw-bold">
+      {{ total_general|floatformat:2 }} DA
+    </td>
+  </tr>
+</tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- Modal -->
+<div class="modal fade" id="dechargeModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Nouvelle décharge</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="modalContent">
+                <!-- Le contenu sera chargé via AJAX -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -11,9 +11,6 @@ class DechargeForm(forms.ModelForm):
             "amount",
             "date",
             "note",
-            "id_doctor",
-            "id_doctor_kt",
-            "id_employe",
         ]
         widgets = {
             "date": forms.DateInput(attrs={"type": "date"}),

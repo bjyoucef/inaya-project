@@ -1,10 +1,12 @@
 # medical.models
+from decimal import ROUND_HALF_UP, Decimal
+
+from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.forms import ValidationError
 from django.utils import timezone
-
-from finance.models import TarifActeConvention
+from finance.models import HonorairesMedecin, TarifActe, TarifActeConvention
 
 
 class Acte(models.Model):
@@ -61,11 +63,15 @@ class Prestation(models.Model):
         max_digits=10,
         decimal_places=2,
         verbose_name="Coût total",
-        validators=[MinValueValidator(0)],
     )
-
+    honoraire_total = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        verbose_name="Honoraire médecin total",
+        null=True,
+        blank=True,
+    )
     observations = models.TextField(blank=True, verbose_name="Observations médicales")
-
 
     class Meta:
         verbose_name = "Prestation médicale"
@@ -77,10 +83,8 @@ class Prestation(models.Model):
             models.Index(fields=["patient"]),
         ]
 
-
     def __str__(self):
         return f"Prestation #{self.id} - {self.patient} ({self.date_prestation.date()})"
-
 
     @property
     def details_actes(self):
@@ -112,7 +116,15 @@ class PrestationActe(models.Model):
     tarif_conventionne = models.DecimalField(
         max_digits=10, decimal_places=2, verbose_name="Tarif conventionné"
     )
-
+    honoraire_medecin = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        verbose_name="Honoraire médecin",
+        validators=[
+            MinValueValidator(Decimal("0.00")),
+            MaxValueValidator(Decimal("99999999.99")),
+        ],
+    )
     commentaire = models.TextField(blank=True, verbose_name="Commentaire médical")
 
     class Meta:
@@ -126,9 +138,64 @@ class PrestationActe(models.Model):
     def save(self, *args, **kwargs):
         if not self.tarif_conventionne:
             self.tarif_conventionne = self._get_tarif_applicable()
+
+        if not self.honoraire_medecin:
+            self._calculate_honoraire_medecin()
         super().save(*args, **kwargs)
 
 
+
+    def _calculate_honoraire_medecin(self):
+        """
+        1) Tarif médecin spécifique
+        2) montant_honoraire_base depuis TarifActeConvention
+        3) montant_honoraire_base dans TarifActe (si pas de convention ou pas trouvé)
+        """
+        # 1️⃣ Tarif médecin spécifique
+        honoraire_config = HonorairesMedecin.objects.get_tarif_effectif(
+            medecin=self.prestation.medecin,
+            acte=self.acte,
+            convention=self.convention,
+            date_reference=self.prestation.date_prestation,
+        )
+        if honoraire_config:
+            self.honoraire_medecin = honoraire_config.montant
+            return
+
+        # 2️⃣ Honoraire de base acte-convention
+        if self.convention:
+            base_hon = (
+                TarifActeConvention.objects.filter(
+                    convention=self.convention,
+                    acte=self.acte,
+                    date_effective__lte=self.prestation.date_prestation,
+                )
+                .order_by("-date_effective")
+                .first()
+            )
+            if base_hon and base_hon.montant_honoraire_base > Decimal("0"):
+                self.honoraire_medecin = base_hon.montant_honoraire_base
+                return
+
+        # 3️⃣ Honoraire de base depuis le TarifActe (hors convention)
+        tarif_acte = (
+            TarifActe.objects.filter(
+                acte=self.acte,
+                date_effective__lte=self.prestation.date_prestation,
+            )
+            .order_by("-is_default", "-date_effective")
+            .first()
+        )
+        if tarif_acte and tarif_acte.montant_honoraire_base > Decimal("0"):
+            self.honoraire_medecin = tarif_acte.montant_honoraire_base
+
+    def clean(self):
+        """Validation des montants"""
+        if self.tarif_conventionne < Decimal('0'):
+            raise ValidationError("Le tarif ne peut pas être négatif")
+
+        if self.honoraire_medecin < Decimal('0'):
+            raise ValidationError("L'honoraire médecin ne peut pas être négatif")
 
     def _get_tarif_applicable(self):
         """Récupère le tarif selon la convention ou le tarif de base"""

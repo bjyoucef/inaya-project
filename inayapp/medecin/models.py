@@ -5,6 +5,8 @@ class Medecin(models.Model):
     personnel = models.OneToOneField(
         "rh.Personnel",
         on_delete=models.CASCADE,
+        null=True,
+        blank=True,
         related_name="profil_medecin",
         verbose_name="Profil du personnel",
     )
@@ -14,9 +16,11 @@ class Medecin(models.Model):
         related_name='medecins'
     )
     specialite = models.CharField(max_length=100, verbose_name="Spécialité médicale")
+
     numero_ordre = models.CharField(
         max_length=50, unique=True, verbose_name="Numéro d'ordre"
     )
+
     photo_profil = models.ImageField(
         upload_to="medecins/profiles/",
         null=True,
@@ -32,11 +36,25 @@ class Medecin(models.Model):
 
     @property
     def nom_complet(self):
-        u = self.personnel.user
-        return f"{u.first_name} {u.last_name}"
+        """
+        Retourne le nom complet à partir de l'utilisateur lié au Personnel.
+        Si aucun Personnel n'est encore associé, on renvoie une chaîne vide.
+        """
+        if not self.personnel or not getattr(self.personnel, "user", None):
+            return ""
+        p=self.personnel
+        nom_prenom = p.nom_prenom
+        if nom_prenom:
+            return nom_prenom
+        u = p.user
+        first_name = u.first_name
+        last_name = u.last_name
+        return f"{first_name} {last_name}"
 
     def __str__(self):
-        return f"Dr. {self.nom_complet} ({self.specialite})"
+        # Si nom_complet est vide, on affiche 'inconnu'
+        nom = self.nom_complet or "inconnu"
+        return f"Dr. {nom} ({self.specialite})"
 
     class Meta:
         verbose_name = "Médecin"

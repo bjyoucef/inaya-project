@@ -116,7 +116,7 @@
                 <tbody>
                     {% for prestation in prestations %}
                     <tr>
-                        <td>{{ prestation.date_prestation|date:"d/m/Y H:i" }}</td>
+                        <td>{{ prestation.date_prestation|date:"d/m/Y" }}</td>
                         <td>{{ prestation.patient.nom_complet }}</td>
                         <td>{{ prestation.medecin.nom_complet }}</td>
                         <td>

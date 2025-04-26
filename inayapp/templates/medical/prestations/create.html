@@ -51,11 +51,15 @@
       </select>
     </div>
 
-                    <div class="col-md-4">
-                        <label for="dateInput" class="form-label">Date de réalisation</label>
-                        <input type="datetime-local" name="date_prestation" id="dateInput" class="form-control"
-                            value="{{ now|localtime|date:'Y-m-d\\TH:i' }}" required>
-  </div>
+<div class="col-md-4">
+    <label for="dateInput" class="form-label">Date de réalisation</label>
+    <input type="date" 
+           name="date_prestation" 
+           id="dateInput" 
+           class="form-control"
+           value="{{ now|date:'Y-m-d' }}" 
+           required>
+</div>
 
                     <div class="col-md-4">
                         <label for="statutSelect" class="form-label">Statut</label>

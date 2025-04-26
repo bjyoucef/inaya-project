@@ -1,98 +1,79 @@
-from django.core.validators import MaxValueValidator, MinValueValidator
-from django.db import models
-from django.forms import ValidationError
-from django.utils import timezone
-from finance.models import TarifActeConvention
+# views.py
+from django.shortcuts import render, get_object_or_404
+from django.db.models import Sum, Count, Q, Avg
+from django.db.models.functions import TruncDate
+from .models import Medecin, PrestationActe
 
 
-class Acte(models.Model):
-    code = models.CharField(max_length=20, unique=True)
-    libelle = models.CharField(max_length=255)
-    description = models.TextField(blank=True, null=True)
-    service = models.ForeignKey(
-        "Service", on_delete=models.PROTECT, related_name="actes"
-    )
+def situation_medecin(request, medecin_id):
+    medecin = get_object_or_404(Medecin, pk=medecin_id)
 
-    def __str__(self):
-        return f"{self.code} – {self.libelle}"
+    # Gestion des filtres
+    date_debut = request.GET.get("date_debut")
+    date_fin = request.GET.get("date_fin")
 
-    class Meta:
-        verbose_name = "Acte"
-        verbose_name_plural = "Actes"
-
-
-class Prestation(models.Model):
-    STATUT_CHOICES = [
-        ("PLANIFIE", "Planifié"),
-        ("REALISE", "Réalisé"),
-        ("FACTURE", "Facturé"),
-        ("PARTIELLEMENT_REMBOURSE", "Partiellement remboursé"),
-        ("ANNULE", "Annulé"),
-    ]
-    patient = models.ForeignKey(
-        "patients.Patient", on_delete=models.PROTECT, related_name="prestations"
-    )
-    medecin = models.ForeignKey(
-        "medecin.Medecin", on_delete=models.PROTECT, related_name="prestations"
-    )
-    actes = models.ManyToManyField(
-        "Acte", through="PrestationActe", related_name="prestations"
-    )
-    date_prestation = models.DateTimeField(default=timezone.now)
-    date_facturation = models.DateTimeField(null=True, blank=True)
-    convention = models.ForeignKey(
-        "finance.Convention", on_delete=models.SET_NULL, null=True, blank=True
-    )
-    statut = models.CharField(max_length=25, choices=STATUT_CHOICES, default="PLANIFIE")
-    prix_total = models.DecimalField(
-        max_digits=10, decimal_places=2, validators=[MinValueValidator(0)]
-    )
-    prise_en_charge = models.DecimalField(
-        max_digits=10, decimal_places=2, default=0, validators=[MinValueValidator(0)]
-    )
-    taux_remboursement = models.DecimalField(
-        max_digits=5,
-        decimal_places=2,
-        default=100,
-        validators=[MinValueValidator(0), MaxValueValidator(100)],
-    )
-    reste_a_charge = models.DecimalField(
-        max_digits=10, decimal_places=2, editable=False
-    )
-
-    def __str__(self):
-        return f"Prestation #{self.id} – {self.patient}"
-
-    def save(self, *args, **kwargs):
-        # recalcul des montants
-        total = sum(
-            pa.tarif_conventionne * pa.quantite for pa in self.prestationacte_set.all()
+    base_query = PrestationActe.objects.filter(prestation__medecin=medecin)
+    if date_debut and date_fin:
+        base_query = base_query.filter(
+            Q(prestation__date_prestation__date__gte=date_debut)
+            & Q(prestation__date_prestation__date__lte=date_fin)
         )
-        self.prix_total = total
-        remb = (total * self.taux_remboursement) / 100
-        self.prise_en_charge = min(remb, total)
-        self.reste_a_charge = total - self.prise_en_charge
-        super().save(*args, **kwargs)
 
-    def clean(self):
-        if self.prise_en_charge > self.prix_total:
-            raise ValidationError("La prise en charge ne peut excéder le coût total")
+    # Statistiques globales
+    stats = {
+        "total_honoraires": base_query.aggregate(total=Sum("honoraire_medecin"))[
+            "total"
+        ]
+        or 0,
+        "total_patients": base_query.values("prestation__patient").distinct().count(),
+        "moyenne_par_patient": base_query.aggregate(avg=Avg("honoraire_medecin"))["avg"]
+        or 0,
+    }
 
-
-class PrestationActe(models.Model):
-    prestation = models.ForeignKey(
-        Prestation, on_delete=models.CASCADE, related_name="actes_details"
+    # Préparation des données pour les graphiques
+    conventions_data = (
+        base_query.values("convention__nom")
+        .annotate(total=Sum("honoraire_medecin"))
+        .order_by("-total")
     )
-    acte = models.ForeignKey(
-        Acte, on_delete=models.PROTECT, related_name="prestations_liees"
+
+    actes_data = (
+        base_query.values("acte__libelle")
+        .annotate(total=Sum("honoraire_medecin"))
+        .order_by("-total")[:10]
     )
-    tarif_conventionne = models.DecimalField(max_digits=10, decimal_places=2)
-    quantite = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1)])
-    remboursable = models.BooleanField(default=True)
-    commentaire = models.TextField(blank=True)
 
-    class Meta:
-        unique_together = ("prestation", "acte")
+    evolution_data = (
+        base_query.annotate(date=TruncDate("prestation__date_prestation"))
+        .values("date")
+        .annotate(total=Sum("honoraire_medecin"))
+        .order_by("date")
+    )
 
-    def __str__(self):
-        return f"{self.acte} ×{self.quantite}"
+    # Conversion sécurisée des données
+    def safe_float(value):
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return 0.0
+
+    context = {
+        "medecin": medecin,
+        "convention_labels": [
+            c["convention__nom"] or "Non renseigné" for c in conventions_data
+        ],
+        "convention_values": [safe_float(c.get("total")) for c in conventions_data],
+        "acte_labels": [a["acte__libelle"] or "Acte inconnu" for a in actes_data],
+        "acte_values": [safe_float(a.get("total")) for a in actes_data],
+        "evolution_dates": [
+            e["date"].isoformat() for e in evolution_data if e.get("date")
+        ],
+        "evolution_totals": [safe_float(e.get("total")) for e in evolution_data],
+        "date_debut": date_debut,
+        "date_fin": date_fin,
+        "total_honoraires": safe_float(stats["total_honoraires"]),
+        "total_patients": stats["total_patients"],
+        "moyenne_par_patient": safe_float(stats["moyenne_par_patient"]),
+    }
+
+    return render(request, "finance/situation.html", context)

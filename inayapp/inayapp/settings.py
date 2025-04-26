@@ -1,3 +1,4 @@
+from decimal import Decimal
 import os
 from pathlib import Path
 
@@ -29,12 +30,14 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    'django.contrib.humanize',
+    
     "maintenance_mode",
     "filer",
     "easy_thumbnails",
     "mptt",
     "django_ckeditor_5",
-
+    "simple_history",
 ]
 INSTALLED_APPS += [
     "accueil",
@@ -44,7 +47,7 @@ INSTALLED_APPS += [
     "documents",
     "finance",
     "patients",
-    "medecin",
+    "medecin.apps.MedecinConfig",
     "medical.apps.MedicalConfig",
 ]
 THUMBNAIL_HIGH_RESOLUTION = True
@@ -178,89 +181,92 @@ LOGOUT_REDIRECT_URL = '/'
 
 
 JAZZMIN_SETTINGS = {
-    
+
     # Titre du site qui apparaît dans l'onglet du navigateur
     "site_title": "Administration de INAYA APP",
-    
+
     # En-tête de la page d'administration
     "site_header": "Administration de INAYA APP",
-    
+
     # Marque affichée dans la barre latérale et dans l'en-tête
     "site_brand": "INAYA APP",
-    
+
     # Chemin vers le logo affiché dans la barre latérale (relatif au dossier static)
     "site_logo": "images/logo.png",
-    
+
     # Classes CSS à appliquer au logo (par exemple, pour arrondir le logo)
     "site_logo_classes": "img-circle",
-    
+
     # Chemin vers l'icône du site
     "site_icon": "icon/favicon.ico",
-    
+
     # Message de bienvenue affiché sur la page d'accueil de l'administration
     "welcome_sign": "Bienvenue sur l'administration INAYA APP",
-    
+
     # Texte de copyright affiché en bas de la page
     "copyright": "© 2025 INAYA APP",
-    
+
     # Modèle utilisé par la barre de recherche en haut de la page
     "search_model": "auth.User",
-    
+
     # (Optionnel) Attribut pour afficher l'avatar de l'utilisateur ; laisser à None si non utilisé
     "user_avatar": None,
-    
+
     # Liens affichés dans le menu supérieur (top menu)
     "topmenu_links": [
         {"name": "App Home", "url": "home"},
         {"model": "auth.user"},
         {"app": "auth"},
     ],
-    
+
     # Liens dans le menu utilisateur (menu déroulant en haut à droite)
     "usermenu_links": [
         {"name": "Home", "url": "home"},
         {"model": "auth.user"}
     ],
-    
+
     # Afficher ou non la barre latérale
     "show_sidebar": True,
-    
+
     # Déployer ou réduire la navigation par défaut
     "navigation_expanded": True,
-    
+
     # Liste des applications à masquer dans la navigation
     "hide_apps": [],
-    
+
     # Liste des modèles à masquer dans la navigation
     "hide_models": [],
-    
+
     # Ordre des applications (les applications non listées seront affichées en dernier)
     "order_with_respect_to": ["auth", "sites"],
-    
+
     # Icône par défaut pour les parents de la navigation (utilise FontAwesome)
     "default_icon_parents": "fas fa-chevron-circle-right",
-    
+
     # Icône par défaut pour les enfants de la navigation
     "default_icon_children": "fas fa-circle",
-    
+
     # Active les modales pour les relations (pour un chargement plus fluide)
     "related_modal_active": True,
-    
+
     # Chemin vers un fichier CSS personnalisé (optionnel)
     "custom_css": "css/custom_jazzmin.css",
-    
+
     # Chemin vers un fichier JS personnalisé (optionnel)
     "custom_js": None,
-    
+
     # Afficher ou non l'outil de configuration de l'interface utilisateur
     "show_ui_builder": False,
-    
+
     # Format par défaut pour les formulaires de changement (ex. "horizontal_tabs", "vertical_tabs", "collapsible")
     "changeform_format": "horizontal_tabs",
-    
+
     # Surcharges spécifiques pour certains modèles
     "changeform_format_overrides": {
         "auth.user": "collapsible",
         "auth.group": "vertical_tabs",
     },
 }
+
+
+PLOTLY_OFFLINE_CONFIG = {"show_link": False, "link_text": "", "displaylogo": False}
