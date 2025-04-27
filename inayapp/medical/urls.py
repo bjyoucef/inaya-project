@@ -1,7 +1,7 @@
 from django.urls import path
 from . import views
 
-app_name = "medical"  # ou le nom de votre app
+app_name = "medical"
 
 urlpatterns = [
     path(

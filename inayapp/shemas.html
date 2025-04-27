@@ -29,6 +29,7 @@ TA["TarifActe"] --> ACT["Acte"]
 CV["Convention"] --> ACT
 CV -- through --> TC["TarifActeConvention"]
 TC --> TA & CV
+
 SVC --> ACT
 PRSN["Prestation"] --> ACT & P["Patient"] & MD["Medecin"]
 PRSN -- through --> PA["PrestationActe"]
@@ -81,7 +82,7 @@ SAR:::entity
 LRQ:::entity
 C:::entity
 D:::entity
-classDef entity fill:#f9f,stroke:#333,stroke-width:1px
+classDef entity fill:#f9f,stroke:#333,stroke-width:2px
 
     </div>
 

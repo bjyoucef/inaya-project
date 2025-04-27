@@ -49,16 +49,24 @@ def has_permission(user, permission_codename):
 
 @register.simple_tag(takes_context=True)
 def group_is_active(context, group):
-    """
-    Retourne True si l'un des items du groupe est actif (route correspondante)
-    et que l'utilisateur a la permission requise.
-    """
     request = context["request"]
     user = request.user
+    current_path = request.path.rstrip("/")
     for item in group.items.all():
-        # Vérifier permission puis comparer la route
-        if (
-            item.permission is None or user.has_perm(item.permission)
-        ) and request.path == item.route:
+        # Check if user has permission for the item
+        if item.permission and not user.has_perm(item.permission):
+            continue
+        item_route = item.route.rstrip("/")
+        # Check if current path matches or is a subpath of the item's route
+        if current_path == item_route or current_path.startswith(item_route + "/"):
             return True
     return False
+
+
+# Add this new template tag
+@register.simple_tag(takes_context=True)
+def item_is_active(context, item):
+    request = context["request"]
+    current_path = request.path.rstrip("/")
+    item_route = item.route.rstrip("/")
+    return current_path == item_route or current_path.startswith(item_route + "/")

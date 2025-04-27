@@ -1,33 +1,34 @@
-{% load static %} 
+{% load static %}
 {% load permissions_tags %}
 
 <!DOCTYPE html>
 <html lang="fr" data-bs-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <meta name="description" content="Inaya - Application de gestion médicale" />
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <meta name="description" content="Inaya - Application de gestion médicale">
+    <title>INAYA | {{ title|default:'Gestion Médicale' }}</title>
+    <link rel="icon" type="image/x-icon" href="{% static 'icon/favicon.ico' %}" />
+    <link href="{% static 'css/bootstrap.min.css' %}" rel="stylesheet" />
+    <link href="{% static 'css/bootstrap-icons.min.css' %}" rel="stylesheet" />
+    <link href="{% static 'fontawesomefree/css/all.min.css' %}" rel="stylesheet" type="text/css" />
+    <link href="{% static 'css/styles.css' %}" rel="stylesheet" />
+    <link href="{% static 'css/toastify.css' %}" rel="stylesheet" />
+    <link href="{% static 'css/choices.min.css' %}" rel="stylesheet" />
+  </head>
 
-    <title>INAYA | {{ title|default:"Gestion Médicale" }}</title>
-    <link rel="icon" type="image/x-icon" href="{% static 'icon/favicon.ico' %}">
-    <link href="{% static 'css/bootstrap.min.css' %}" rel="stylesheet">
-    <link href="{% static 'css/bootstrap-icons.min.css' %}" rel="stylesheet">
-    <link href="{% static 'fontawesomefree/css/all.min.css' %}" rel="stylesheet" type="text/css">
-    <link href="{% static 'css/styles.css' %}" rel="stylesheet">
-    <link href="{% static 'css/toastify.css' %}" rel="stylesheet">
-    <link href="{% static 'css/choices.min.css' %}" rel="stylesheet">
-</head>
-
-<body class="d-flex flex-column">
+  <body class="d-flex flex-column">
     <!-- Preloader -->
     <div id="js-preloader" class="js-preloader" role="status" aria-label="Chargement">
-    <div class="preloader-inner">
+      <div class="preloader-inner">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 841.9 500">
-            <style>
-                .st0 { fill: #7a6ad8; }
-            </style>
-            <path class="st0" d="M401.2,37.2c7.4-10.2,14.5-20.3,21.8-30.1c0.7-1,2.7-1,4.2-1.4c14.8,26.9,29.2,53.4,43.9,79.8
+          <style>
+            .st0 {
+              fill: #7a6ad8;
+            }
+          </style>
+          <path class="st0" d="M401.2,37.2c7.4-10.2,14.5-20.3,21.8-30.1c0.7-1,2.7-1,4.2-1.4c14.8,26.9,29.2,53.4,43.9,79.8
 	c8.7,15.7,18.6,30.9,24.1,48.2c4.1,13,5.4,26.2,4,40c-1.4,14.8-5,28.6-12.4,41.4c-3.3,5.7-7.3,11.1-11.6,16.1
 	c-6.6,7.6-13.6,15-20.9,21.9c-9.9,9.4-20.3,18.2-30.3,27.5c-16.6,15.4-27.2,34.6-33.8,55.9c-3.2,10.1-5.5,20.8-5.9,31.3
 	c-0.5,15.5,4,30.1,13.7,42.9c-0.7-5-1.8-10-2.2-15.1c-0.5-7.9-1-15.9-0.8-23.8c0.2-7.3,1.1-14.7,1.9-22c1.7-15.6,8.2-29.3,16.9-42.1
@@ -49,166 +50,143 @@
 	C601,222.6,604.2,213.6,609.5,205 M551,271.5c9.5-6.3,18.9-12.7,25.6-22.2c-3.2,1.6-5.7,3.9-8.5,6c-21,16.3-45,26-70.7,31.6
 	c-22.7,4.9-42.6,14.2-57,33.1c-7.3,9.6-14.1,19.8-15.5,32.2c-1.4,11.5-2.6,23.1-2.9,34.7c-0.3,12.2,0.4,24.5,0.9,36.7
 	c0.2,5,1.2,10.1,1.8,15.1c0.5,0.1,0.9,0.2,1.4,0.3c0.9-1.5,2.1-2.9,2.7-4.6c5.1-14.6,5.3-30,7-45.1c1.4-12,2.2-24,4.1-35.9
-	c2-12.4,8.2-23.2,17-31.9c11.8-11.6,26.9-18.1,41.9-24.5C516.6,289.6,534.3,282.5,551,271.5z"/>
-            <path class="st0" d="M185.9,157c-3.9-11-8.2-21.5-7.9-33.1c0-1.6,0.8-4.4,1.6-4.6c1.7-0.3,4,0.3,5.4,1.4c3.9,3.1,7.2,6.8,11.1,9.8
+	c2-12.4,8.2-23.2,17-31.9c11.8-11.6,26.9-18.1,41.9-24.5C516.6,289.6,534.3,282.5,551,271.5z" />
+          <path class="st0" d="M185.9,157c-3.9-11-8.2-21.5-7.9-33.1c0-1.6,0.8-4.4,1.6-4.6c1.7-0.3,4,0.3,5.4,1.4c3.9,3.1,7.2,6.8,11.1,9.8
 	c9.7,7.3,18.9,15.7,29.6,21.1c22.2,11.1,45.3,20.3,67.9,30.7c16.1,7.5,32.9,13.9,47.4,24.7c16.6,12.3,29,28,37,47
 	c3.6,8.5,5.9,17.2,5.1,26.5c-1.8,19.2-16.4,34.4-34.9,33.2c-9.1-0.6-18.2-4-26.9-7.1c-17.1-6.3-32.4-16.1-46-28.1
 	c-13.6-12.1-26.2-25.4-38.8-38.5c-13.1-13.6-23.4-29.4-32.6-45.8C197.2,182.3,191.9,169.7,185.9,157 M328,219.5
 	c-7.6-4.8-14.9-10.2-22.9-14.3c-8.8-4.5-18.6-7.2-27.2-11.9c-22.5-12.5-44.5-25.7-66.8-38.5c-3.8-2.2-7.7-4.1-11.5-6.2
 	c-0.3,0.4-0.6,0.7-0.9,1.1c4,7.2,7.9,14.6,12.1,21.7c7.4,12.8,14.5,25.7,22.4,38.2c13.7,21.7,28.6,42.6,48.8,58.8
 	c7.5,6,15.4,12.3,24.1,15.9c13.9,5.7,28.5,9.4,43,13.6c3.2,0.9,7.2,1.2,10.3,0.1c7.6-2.7,14.1-16.6,10.7-24
-	c-4.3-9.4-9.5-18.5-15.4-27C347.7,236.5,339.1,227.2,328,219.5z"/>
-            <path class="st0" d="M402.2,201.6c5.9,11.6,15,19.8,25.1,27.5c-5.5,1.3-13.2-0.8-19.7-5c-15.3-10-26-24-30.1-41.5
-	c-6.3-26.7-0.2-50.8,21-69.3c6.3-5.5,14.8-8.7,22.4-12.7c1.3-0.7,3-0.5,5.4-0.8C393.2,128.3,386,162.1,402.2,201.6z"/>
+	c-4.3-9.4-9.5-18.5-15.4-27C347.7,236.5,339.1,227.2,328,219.5z" />
+          <path class="st0" d="M402.2,201.6c5.9,11.6,15,19.8,25.1,27.5c-5.5,1.3-13.2-0.8-19.7-5c-15.3-10-26-24-30.1-41.5
+	c-6.3-26.7-0.2-50.8,21-69.3c6.3-5.5,14.8-8.7,22.4-12.7c1.3-0.7,3-0.5,5.4-0.8C393.2,128.3,386,162.1,402.2,201.6z" />
         </svg>
         <div class="dots" aria-hidden="true">
                 {% for i in "1234567" %}<span class="dot"></span>{% endfor %}
         </div>
+      </div>
     </div>
-</div>
 
-<!-- Header with login/logout -->
-<header class="header sticky-top py-2 shadow-sm" style="background-color: #7a6ad8;">
-    <nav class="container-fluid d-flex justify-content-between align-items-center">
-            <a href="{% url 'home' %}" class="brand-logo d-flex align-items-center gap-2 text-decoration-none">
-                <img src="{% static 'icon/logo_inaya.svg' %}" alt="Accueil" width="40" height="40">
-                <span class="text-white fs-5 fw-semibold">INAYA</span>
-            </a>
-            {% if user.is_authenticated %}
-            <div class="dropdown">
-        <button id="userDropdown" class="btn btn-transparent text-white dropdown-toggle d-flex align-items-center gap-2"
-                        type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Menu utilisateur">
-                        <i class="fas fa-user-circle fs-5"></i>
-                        <span class="d-none d-md-inline">{{ user.first_name }} {{ user.last_name }}</span>
-                </button>
+    <!-- Header with login/logout -->
+    <header class="header sticky-top py-2 shadow-sm" style="background-color: #7a6ad8;">
+      <nav class="container-fluid d-flex justify-content-between align-items-center">
+        <a href="{% url 'home' %}" class="brand-logo d-flex align-items-center gap-2 text-decoration-none">
+          <img src="{% static 'icon/logo_inaya.svg' %}" alt="Accueil" width="40" height="40" />
+          <span class="text-white fs-5 fw-semibold">INAYA</span>
+        </a>
+        {% if user.is_authenticated %}
+          <div class="dropdown">
+            <button id="userDropdown" class="btn btn-transparent text-white dropdown-toggle d-flex align-items-center gap-2" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Menu utilisateur">
+              <i class="fas fa-user-circle fs-5"></i>
+              <span class="d-none d-md-inline">{{ user.first_name }} {{ user.last_name }}</span>
+            </button>
 
-        <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="userDropdown"
-            style="min-width: 200px; z-index: 1030;">
-            <li>
-                <a class="dropdown-item d-flex align-items-center gap-2" href="{% url 'admin:index' %}">
-                    <i class="fas fa-cog"></i> Administration
-                </a>
-            </li>
-                    <li>
-                <hr class="dropdown-divider m-0">
-                    </li>
-                    <li>
+            <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="userDropdown" style="min-width: 200px; z-index: 1030;">
+              <li>
+                <a class="dropdown-item d-flex align-items-center gap-2" href="{% url 'admin:index' %}"><i class="fas fa-cog"></i> Administration</a>
+              </li>
+              <li>
+                <hr class="dropdown-divider m-0" />
+              </li>
+              <li>
                 <form method="post" action="{% url 'admin:logout' %}">
-                            {% csrf_token %}
-                    <button type="submit" class="dropdown-item d-flex align-items-center gap-2 text-danger"
-                        aria-label="Déconnexion">
-                        <i class="fas fa-sign-out-alt"></i> Déconnexion
-                            </button>
-                        </form>
-                    </li>
-                </ul>
-        </div>
+                  {% csrf_token %}
+                  <button type="submit" class="dropdown-item d-flex align-items-center gap-2 text-danger" aria-label="Déconnexion"><i class="fas fa-sign-out-alt"></i> Déconnexion</button>
+                </form>
+              </li>
+            </ul>
+          </div>
         {% else %}
-            <a href="{% url 'admin:login' %}" class="btn btn-outline-light">
-                    <i class="fas fa-sign-in-alt me-2"></i>Connexion
-            </a>
+          <a href="{% url 'admin:login' %}" class="btn btn-outline-light"><i class="fas fa-sign-in-alt me-2"></i>Connexion</a>
         {% endif %}
         <div class="theme-switcher end">
-    <button type="button" 
-            class="btn btn-link text-white" 
-            id="themeToggle"
-            aria-label="Changer le thème"
-            data-bs-toggle="tooltip"
-            data-bs-placement="bottom"
-            title="Thème clair/sombre">
-        <i class="fas fa-adjust"></i>
-    </button>
-</div>
-    </nav>
-</header>
+          <button type="button" class="btn btn-link text-white" id="themeToggle" aria-label="Changer le thème" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Thème clair/sombre"><i class="fas fa-adjust"></i></button>
+        </div>
+      </nav>
+    </header>
 
     <!-- Main Content -->
-<div class="container-fluid flex-grow-1">
-    <div class="row flex-grow-0">
-
-
+    <div class="container-fluid flex-grow-1">
+      <div class="row flex-grow-0">
 <aside class="sidebar col-lg-2 d-flex flex-column">
-  <nav class="sidebar-nav flex-grow-1 sticky-top">
-    <ul class="nav flex-column">
-      {% for group in menu_groups %}
-        {% has_permission request.user group.permission as can_view_group %}
-        {% if can_view_group %}
+    <nav class="sidebar-nav flex-grow-1 sticky-top">
+        <ul class="nav flex-column">
+            {% for group in menu_groups %}
+                {% has_permission request.user group.permission as can_view_group %}
+                {% if can_view_group %}
+                    {% group_is_active group as is_active_group %}
 
-          {% group_is_active group as is_active %}
-
-          <li class="nav-item">
-<a 
-  class="nav-link dropdown-toggle nav-group-toggle d-flex align-items-center mb-2 mt-2 rounded-3 text-white bg-gradient border border-white border-opacity-25 shadow-sm"
-  data-bs-toggle="collapse"
-  href="#menu-{{ group.id }}"
-  role="button"
-  aria-expanded="{{ is_active|yesno:'true,false' }}"
->
-  <i class="{{ group.icon }} fs-5"></i>
-  <span class="flex-grow-1 d-flex justify-content-center">{{ group.name }}</span>
-</a>
-
-
-            <div class="collapse {% if is_active %}show{% endif %}" id="menu-{{ group.id }}">
-              <ul class="nav flex-column">
-                {% for item in group.items.all %}
-                  {% has_permission request.user item.permission as can_view_item %}
-                  {% if can_view_item %}
                     <li class="nav-item">
-                      <a href="{{ item.route }}"
-                         class="nav-link d-flex align-items-center gap-2 py-2 px-4 text-white{% if request.path == item.route %} active{% endif %}"
-                         aria-current="{% if request.path == item.route %}page{% endif %}">
-                        <i class="{{ item.icon }}"></i>
-                        {{ item.label }}
-                        {% include 'partials/menu-badges.html' with item=item %}
-                      </a>
+                        <a class="nav-link dropdown-toggle nav-group-toggle d-flex align-items-center mb-2 mt-2 rounded-3 text-white bg-gradient border border-white border-opacity-25 shadow-sm"
+                           data-bs-toggle="collapse"
+                           href="#menu-{{ group.id }}"
+                           role="button"
+                           aria-expanded="{{ is_active_group|yesno:'true,false' }}">
+                            <i class="{{ group.icon }} fs-5"></i>
+                            <span class="flex-grow-1 d-flex justify-content-center">{{ group.name }}</span>
+                        </a>
+
+                        <div class="collapse {% if is_active_group %}show{% endif %}" id="menu-{{ group.id }}">
+                            <ul class="nav flex-column">
+                                {% for item in group.items.all %}
+                                    {% has_permission request.user item.permission as can_view_item %}
+                                    {% if can_view_item %}
+                                        {% item_is_active item as is_active_item %}
+                                        <li class="nav-item">
+                                            <a href="{{ item.route }}"
+                                               class="nav-link d-flex align-items-center gap-2 py-2 px-4 text-white{% if is_active_item %} active{% endif %}"
+                                               aria-current="{% if is_active_item %}page{% endif %}">
+                                                <i class="{{ item.icon }}"></i>
+                                                {{ item.label }}
+                                                {% include 'partials/menu-badges.html' with item=item %}
+                                            </a>
+                                        </li>
+                                    {% endif %}
+                                {% endfor %}
+                            </ul>
+                        </div>
                     </li>
-                  {% endif %}
-                {% endfor %}
-              </ul>
-            </div>
-          </li>
-        {% endif %}
-      {% endfor %}
-    </ul>
-  </nav>
+                {% endif %}
+            {% endfor %}
+        </ul>
+    </nav>
 </aside>
 
-
-            <!-- Content Area -->
-            <main class="col-lg-10">
-                <div class="container-fluid py-4 px-3">
-                {% block content %}{% endblock %}
-            </div>
+        <!-- Content Area -->
+        <main class="col-lg-10">
+          <div class="container-fluid py-4 px-3">
+            {% block content %}
+            {% endblock %}
+          </div>
         </main>
+      </div>
     </div>
-</div>
-<!-- Bon ordre à garder -->
-<script src="{% static 'js/jquery-3.7.1.min.js' %}"></script>
-<script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
-<script src="{% static 'js/toastify-js.js' %}"></script>
-<script src="{% static 'js/custom.js' %}"></script>
+    <!-- Bon ordre à garder -->
+    <script src="{% static 'js/jquery-3.7.1.min.js' %}"></script>
+    <script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
+    <script src="{% static 'js/toastify-js.js' %}"></script>
+    <script src="{% static 'js/custom.js' %}"></script>
 
-{% if messages %}
-{% for message in messages %}
+    {% if messages %}
+      {% for message in messages %}
+        <script>
+          Toastify({
+            text: '{{ message|escapejs }}',
+            duration: 5000,
+            gravity: 'bottom',
+            position: 'right',
+            style: {
+              background: '{{ message.bg_color }}',
+              borderRadius: '20px'
+            },
+            close: true
+          }).showToast()
+        </script>
+      {% endfor %}
+    {% endif %}
+
     <script>
-    Toastify({
-        text: "{{ message|escapejs }}",
-        duration: 5000,
-        gravity: "bottom",
-        position: "right",
-        style: {
-            background: "{{ message.bg_color }}",
-            borderRadius: "20px",
-        },
-        close: true,
-    }).showToast();
-    </script>
-{% endfor %}
-{% endif %}
-
-
-<script>
 document.addEventListener('DOMContentLoaded', function() {
     const getStoredTheme = () => localStorage.getItem('theme');
     const setStoredTheme = theme => localStorage.setItem('theme', theme);
@@ -266,7 +244,5 @@ document.addEventListener('DOMContentLoaded', function() {
 
 });
 </script>
-
-
-</body>
+  </body>
 </html>

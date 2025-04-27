@@ -15,10 +15,12 @@ class Medecin(models.Model):
         "medical.Service",
         related_name='medecins'
     )
-    specialite = models.CharField(max_length=100, verbose_name="Spécialité médicale")
+    specialite = models.CharField(
+        max_length=100, null=True, blank=True, verbose_name="Spécialité médicale"
+    )
 
     numero_ordre = models.CharField(
-        max_length=50, unique=True, verbose_name="Numéro d'ordre"
+        max_length=50, unique=True, null=True, blank=True, verbose_name="Numéro d'ordre"
     )
 
     photo_profil = models.ImageField(

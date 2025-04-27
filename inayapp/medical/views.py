@@ -2,6 +2,8 @@ import json
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 
+from django.forms import ValidationError
+
 from accueil.models import ConfigDate
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -99,6 +101,7 @@ class PrestationCreateView(View):
         acte_ids = request.POST.getlist("actes[]")
         convention_ids = request.POST.getlist("conventions[]")
         tarifs = request.POST.getlist("tarifs[]")
+        convention_accordee_values = request.POST.getlist("convention_accordee[]")
 
         errors = []
         prestation_data = []
@@ -114,18 +117,25 @@ class PrestationCreateView(View):
         for idx, acte_pk in enumerate(acte_ids):
             try:
                 acte = Acte.objects.get(pk=acte_pk)
-                conv = (
-                    Convention.objects.get(pk=convention_ids[idx])
-                    if convention_ids[idx]
-                    else None
-                )
+                conv = None
+                convention_accordee = None
+                
+                if convention_ids[idx]:
+                    conv = Convention.objects.get(pk=convention_ids[idx])
+                    if idx >= len(convention_accordee_values):
+                        raise ValidationError(f"Statut manquant pour la convention de l'acte {acte.code}")
+            
+                    convention_accordee = convention_accordee_values[idx] == 'oui'
+                    
                 tarif = Decimal(tarifs[idx] or "0")
+                    
                 total += tarif
                 prestation_data.append(
                     {
                         "acte": acte,
                         "convention": conv,
                         "tarif": tarif,
+                        "convention_accordee": convention_accordee,
                     }
                 )
             except Exception as e:
@@ -157,6 +167,7 @@ class PrestationCreateView(View):
                     prestation=prestation,
                     acte=d["acte"],
                     convention=d["convention"],
+                    convention_accordee=d["convention_accordee"],
                     tarif_conventionne=d["tarif"],
                 )
             return redirect("medical:prestation_detail", prestation_id=prestation.id)

@@ -1,5 +1,5 @@
 # medical.models
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import Decimal
 
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
@@ -89,7 +89,7 @@ class Prestation(models.Model):
     @property
     def details_actes(self):
         return "\n".join(
-            f"{pa.acte} ({pa.tarif_conventionne}€)"
+            f"{pa.acte} ({pa.tarif_conventionne}DA)"
             for pa in self.prestationacte_set.all()
         )
 
@@ -116,6 +116,12 @@ class PrestationActe(models.Model):
     tarif_conventionne = models.DecimalField(
         max_digits=10, decimal_places=2, verbose_name="Tarif conventionné"
     )
+    convention_accordee = models.BooleanField(
+        null=True,
+        blank=True,
+        verbose_name="Statut Convention",
+        help_text="Uniquement si une convention est sélectionnée",
+    )
     honoraire_medecin = models.DecimalField(
         max_digits=10,
         decimal_places=2,
@@ -130,7 +136,6 @@ class PrestationActe(models.Model):
     class Meta:
         verbose_name = "Détail d'acte"
         verbose_name_plural = "Détails des actes"
-        unique_together = ("prestation", "acte")
 
     def __str__(self):
         return f"{self.acte} - {self.prestation}"
@@ -142,8 +147,6 @@ class PrestationActe(models.Model):
         if not self.honoraire_medecin:
             self._calculate_honoraire_medecin()
         super().save(*args, **kwargs)
-
-
 
     def _calculate_honoraire_medecin(self):
         """

@@ -89,6 +89,7 @@
                                     <th>Code</th>
                                     <th>Acte médical</th>
                                     <th>Convention</th>
+                                    <th>Accord</th>
                                     <th class="text-end">Tarif</th>
                                 </tr>
                             </thead>
@@ -101,6 +102,17 @@
                                         <span class="badge bg-info">
                                             {{ acte.convention.nom|default:"Tarif de base" }}
                                         </span>
+                                    </td>
+                                    <td>
+                                        {% if acte.convention_accordee %}
+                                        <span class="badge bg-success">
+                                            Accordé
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-danger">
+                                            Non Accordé
+                                        </span>
+                                        {% endif %}
                                     </td>
                                     <td class="text-end">{{ acte.tarif_conventionne }} DA</td>
                                 </tr>

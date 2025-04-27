@@ -13,13 +13,15 @@ urlpatterns = [
         views.create_decharge_medecin,
         name="create_decharge",
     ),
-    path("", views.decharge_list, name="decharge_list"),
-    path("reglees/", views.decharge_settled, name="decharge_settled"),
-    path("create/", views.decharge_create, name="decharge_create"),
-    path("<int:pk>/", views.decharge_detail, name="decharge_detail"),
-    path("<int:pk>/edit/", views.decharge_edit, name="decharge_edit"),
-    path("<int:pk>/delete/", views.decharge_delete, name="decharge_delete"),
-    path("payment/<int:pk>/delete/", views.payment_delete, name="payment_delete"),
+    path("decharge/", views.decharge_list, name="decharge_list"),
+    path("decharge/reglees/", views.decharge_settled, name="decharge_settled"),
+    path("decharge/create/", views.decharge_create, name="decharge_create"),
+    path("decharge/<int:pk>/", views.decharge_detail, name="decharge_detail"),
+    path("decharge/<int:pk>/edit/", views.decharge_edit, name="decharge_edit"),
+    path("decharge/<int:pk>/delete/", views.decharge_delete, name="decharge_delete"),
+    path(
+        "decharge/payment/<int:pk>/delete/", views.payment_delete, name="payment_delete"
+    ),
     path(
         "decharges/<int:decharge_id>/export/",
         views.export_decharge_pdf,
@@ -31,7 +33,7 @@ urlpatterns = [
         name="print_decharge",
     ),
     path(
-        "situation-medecin-list/",
+        "situation-medecin/",
         views.situation_medecins_list,
         name="situation_medecins_list",
     ),

@@ -1,0 +1,110 @@
+<!-- situation_medecins_list.html -->
+{% extends "layout.html" %}
+{% block content %}
+<div class="container-fluid py-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-12">
+      <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+          <h2 class="mb-0">Situation des Médecins</h2>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle">
+              <thead class="table-light">
+                <tr>
+                  <th>Médecin</th>
+                  <th>Honoraires</th>
+                  <th>Décharges</th>
+                  <th>Paiements</th>
+                  <th>Reste (Payé)</th>
+                  <th>Reste (Décharge)</th>
+                  <th>Décharges impayées</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for med in medecins %}
+                <tr>
+                  <td>{{ med.nom_complet }}</td>
+                  <td>{{ med.total_honoraires|floatformat:2 }} DA</td>
+                  <td>{{ med.total_decharges|floatformat:2 }} DA</td>
+                  <td>{{ med.total_paiements|floatformat:2 }} DA</td>
+                  <td class="{% if med.reste_avec_decharge > 0 %}text-danger{% else %}text-success{% endif %}">
+                    {{ med.reste_avec_decharge|floatformat:2 }} DA
+                  </td>
+                  <td class="{% if med.reste_sans_decharge > 0 %}text-danger{% else %}text-success{% endif %}">
+                    {{ med.reste_sans_decharge|floatformat:2 }} DA
+                  </td>
+                  <td>
+                    <button class="btn btn-sm {% if med.count_non_regle > 0 %}btn-warning{% else %}btn-secondary{% endif %}"
+                            type="button"
+                            data-bs-toggle="collapse"
+                            data-bs-target="#details{{ med.id }}">
+                      {{ med.count_non_regle }} ({{ med.total_non_regle|floatformat:2 }} DA)
+                    </button>
+                  </td>
+                  <td>
+                    <a href="{% url 'situation_medecin' med.id %}" class="btn btn-sm btn-info">
+                      <i class="fas fa-eye"></i>
+                    </a>
+                                        <a
+                      href="{% url 'create_decharge' med.id %}"
+                      class="btn btn-primary btn-sm"
+                    >
+                      Créer Décharge
+                    </a>
+                  </td>
+                </tr>
+                <tr class="collapse" id="details{{ med.id }}">
+                  <td colspan="8">
+                    <div class="ps-5 pe-5">
+                      <table class="table table-sm table-bordered">
+                        <thead>
+                          <tr>
+                            <th>Date Décharge</th>
+                            <th>Montant Initial</th>
+                            <th>Paiements</th>
+                            <th>Reste</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {% for d in med.decharges_non_reglees %}
+                          <tr>
+                            <td>{{ d.date|date:"d/m/Y" }}</td>
+                            <td>{{ d.amount|floatformat:2 }} DA</td>
+                            <td>{{ d.total_paie|floatformat:2 }} DA</td>
+                            <td class="text-danger">{{ d.solde|floatformat:2 }} DA</td>
+                          </tr>
+                          {% empty %}
+                          <tr>
+                            <td colspan="5" class="text-center">Aucune décharge impayée</td>
+                          </tr>
+                          {% endfor %}
+                        </tbody>
+                      </table>
+                    </div>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+              <tfoot class="table-group-divider">
+                <tr>
+                  <th>Total Général</th>
+                  <th>{{ global_honoraires|floatformat:2 }} DA</th>
+                  <th>{{ global_decharges|floatformat:2 }} DA</th>
+                  <th>{{ global_paiements|floatformat:2 }} DA</th>
+                  <th>{{ global_reste_avec|floatformat:2 }} DA</th>
+                  <th>{{ global_reste_sans|floatformat:2 }} DA</th>
+                  <th class="text-danger">{{ global_non_regle|floatformat:2 }} DA</th>
+                  <th></th>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,187 @@
+<!-- finance/templates/finance/honoraires_list.html -->
+
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">Gestion des honoraires médecins</h2>
+    
+    <!-- Formulaire de filtrage -->
+    <form method="get" class="mb-4">
+        <div class="row g-3">
+            <!-- Select Médecin -->
+            <div class="col-md-3">
+                <label class="form-label">Médecin</label>
+                <select name="medecin" class="form-select">
+                    <option value="">Tous</option>
+                    {% for m in medecins %}
+                    <option value="{{ m.id }}" 
+                        {% if filter_values.medecin == m.id|stringformat:"s" %}selected{% endif %}>
+                        {{ m.nom_complet }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <!-- Select Acte -->
+            <div class="col-md-3">
+                <label class="form-label">Acte médical</label>
+                <select name="acte" class="form-select">
+                    <option value="">Tous</option>
+                    {% for a in actes %}
+                    <option value="{{ a.id }}" 
+                        {% if filter_values.acte == a.id|stringformat:"s" %}selected{% endif %}>
+                        {{ a.code }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <!-- Select Convention -->
+            <div class="col-md-3">
+                <label class="form-label">Convention</label>
+                <select name="convention" class="form-select">
+                    <option value="">Toutes</option>
+                    {% for c in conventions %}
+                    <option value="{{ c.id }}" 
+                        {% if filter_values.convention == c.id|stringformat:"s" %}selected{% endif %}>
+                        {{ c.nom }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <!-- Dates -->
+            <div class="col-md-3">
+                <label class="form-label">Date de début</label>
+                <input type="date" name="start_date" 
+                    value="{{ filter_values.start_date }}" 
+                    class="form-control">
+            </div>
+            
+            <div class="col-md-3">
+                <label class="form-label">Date de fin</label>
+                <input type="date" name="end_date" 
+                    value="{{ filter_values.end_date }}" 
+                    class="form-control">
+            </div>
+            
+            <!-- Recherche -->
+            <div class="col-md-3">
+                <label class="form-label">Recherche</label>
+                <input type="text" name="search" 
+                    value="{{ filter_values.search }}" 
+                    class="form-control" 
+                    placeholder="Nom, code acte...">
+            </div>
+            
+            <!-- Boutons -->
+            <div class="col-md-3 align-self-end">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-filter"></i> Filtrer
+                </button>
+                <a href="?" class="btn btn-secondary">
+                    <i class="bi bi-x-circle"></i> Effacer
+                </a>
+            </div>
+        </div>
+    </form>
+
+    <!-- Résultats -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between">
+            <span>{{ paginator.count }} résultat(s)</span>
+            <a href="{% url 'admin:finance_honorairesmedecin_add' %}" 
+               class="btn btn-success btn-sm">
+                <i class="bi bi-plus-circle"></i> Ajouter
+            </a>
+        </div>
+        
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <!-- En-têtes du tableau -->
+                <thead class="table-light">
+                    <tr>
+                        <th>Médecin</th>
+                        <th>Acte</th>
+                        <th>Convention</th>
+                        <th>Montant</th>
+                        <th>Date effet</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                
+                <!-- Corps du tableau -->
+                <tbody>
+                    {% for honoraire in honoraires %}
+                    <tr>
+                        <td>{{ honoraire.medecin.nom_complet }}</td>
+                        <td>{{ honoraire.acte.code }}</td>
+                        <td>{{ honoraire.convention.nom|default:"-" }}</td>
+                        <td>{{ honoraire.montant }} €</td>
+                        <td>{{ honoraire.date_effective|date:"d/m/Y" }}</td>
+                        <td>
+                            <!-- Boutons d'action -->
+                            <a href="{% url 'admin:finance_honorairesmedecin_change' honoraire.id %}" 
+                               class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <a href="{% url 'admin:finance_honorairesmedecin_delete' honoraire.id %}" 
+                               class="btn btn-sm btn-outline-danger">
+                                <i class="bi bi-trash"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center">Aucun résultat trouvé</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if is_paginated %}
+        <div class="card-footer">
+            <nav aria-label="Page navigation">
+                <ul class="pagination justify-content-center mb-0">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" 
+                           href="?page={{ page_obj.previous_page_number }}{% if query_string %}&{{ query_string }}{% endif %}">
+                            Précédent
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ num }}</span>
+                    </li>
+                    {% else %}
+                    <li class="page-item">
+                        <a class="page-link" 
+                           href="?page={{ num }}{% if query_string %}&{{ query_string }}{% endif %}">
+                            {{ num }}
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% endfor %}
+                    
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" 
+                           href="?page={{ page_obj.next_page_number }}{% if query_string %}&{{ query_string }}{% endif %}">
+                            Suivant
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
