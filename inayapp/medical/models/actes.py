@@ -213,3 +213,4 @@ class PrestationActe(models.Model):
             if tarif:
                 return tarif.tarif_acte.montant
         return self.acte.tarifs.latest().montant
+

@@ -1,0 +1,351 @@
+{% extends "layout.html" %}
+{% load app_filters %}
+{% block content %}
+<style>
+    :root {
+        --primary-color: #4A90E2;
+        --success-color: #50D2A0;
+        --warning-color: #FFC107;
+        --danger-color: #FF6B6B;
+        --light-bg: #F8F9FA;
+    }
+
+    .filter-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .status-badge {
+        font-size: 0.85rem;
+        padding: 0.35rem 0.7rem;
+        border-radius: 20px;
+        font-weight: 500;
+    }
+
+    .data-table {
+        border-collapse: separate;
+        border-spacing: 0 8px;
+        background: transparent;
+    }
+
+    .data-table thead {
+        background: var(--light-bg);
+        border-radius: 8px;
+    }
+
+    .data-table th {
+        border: none;
+        font-weight: 600;
+        color: #6C757D;
+        padding: 1rem 1.5rem;
+    }
+
+    .data-table td {
+        background: white;
+        padding: 1rem 1.5rem;
+        vertical-align: middle;
+        border-top: 1px solid #F1F3F5;
+        border-bottom: 1px solid #F1F3F5;
+    }
+
+    .data-table tr:first-child td {
+        border-top: 2px solid #F1F3F5;
+    }
+
+    .data-table tr:hover td {
+        background: #F8F9FA;
+        cursor: pointer;
+    }
+
+    .action-btn {
+        width: 32px;
+        height: 32px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        transition: all 0.2s;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .stat-number {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: var(--primary-color);
+    }
+
+    @media (max-width: 768px) {
+        .filter-card .row > div {
+            margin-bottom: 1rem;
+        }
+        
+        .data-table td {
+            white-space: nowrap;
+        }
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="h4 mb-0">Gestion des conventions</h2>
+        <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-download me-2"></i>Exporter
+            </button>
+        </div>
+    </div>
+
+    <!-- Statistiques rapides -->
+<div class="row g-3 mb-4">
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="stat-card">
+            <div class="text-muted small mb-2">Total conventions</div>
+            <div class="stat-number" id="total-conventions">{{ prestation_actes|length }}</div>
+        </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="stat-card">
+            <div class="text-muted small mb-2">En attente</div>
+            <div class="stat-number text-warning" id="en-attente">{{ prestation_actes|filter_attr:"convention_accordee:None"|length }}</div>
+        </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="stat-card">
+            <div class="text-muted small mb-2">Accordées</div>
+            <div class="stat-number text-success" id="accorde">{{ prestation_actes|filter_attr:"convention_accordee:True"|length }}</div>
+        </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="stat-card">
+            <div class="text-muted small mb-2">Refusées</div>
+            <div class="stat-number text-danger" id="refuse">{{ prestation_actes|filter_attr:"convention_accordee:False"|length }}</div>
+        </div>
+    </div>
+</div>
+
+    <!-- Filtres -->
+    <div class="filter-card">
+        <form method="get">
+            <div class="row g-3 align-items-end">
+                <div class="col-12 col-md-6 col-lg-3">
+                    <label class="form-label small text-muted mb-1">Statut</label>
+                    <select class="form-select" name="status">
+                        <option value="">Tous les statuts</option>
+                        <option value="en_attente" {% if current_status == 'en_attente' %}selected{% endif %}>
+                            En attente
+                        </option>
+                        <option value="accorde" {% if current_status == 'accorde' %}selected{% endif %}>
+                            Accordé
+                        </option>
+                        <option value="non_accorde" {% if current_status == 'non_accorde' %}selected{% endif %}>
+                            Non accordé
+                        </option>
+                    </select>
+                </div>
+
+                <div class="col-12 col-md-6 col-lg-3">
+                    <label class="form-label small text-muted mb-1">Médecin</label>
+                    <select class="form-select" name="medecin">
+                        <option value="">Tous les médecins</option>
+                        {% for medecin in medecins %}
+                        <option value="{{ medecin.id }}" {% if current_medecin == medecin.id|stringformat:"s" %}selected{% endif %}>
+                            {{ medecin.nom_complet }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-12 col-md-6 col-lg-3">
+                    <label class="form-label small text-muted mb-1">Date</label>
+                    <div class="input-group">
+                        <input type="date" class="form-control" name="date_from" value="{{ current_date_from }}">
+                        <span class="input-group-text">à</span>
+                        <input type="date" class="form-control" name="date_to" value="{{ current_date_to }}">
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-6 col-lg-3 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-funnel me-2"></i>Filtrer
+                    </button>
+                    <a href="{% url 'gestion_convention_accorde' %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-clockwise"></i>
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Tableau -->
+    <div class="table-responsive rounded-3">
+        <table class="table data-table">
+            <thead>
+                <tr>
+                    <th>Patient</th>
+                    <th>Acte médical</th>
+                    <th>Convention</th>
+                    <th class="text-end">Tarif</th>
+                    <th>Statut</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for pa in prestation_actes %}
+                <tr>
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <div class="me-2">
+                                <i class="bi bi-person-circle text-muted"></i>
+                            </div>
+                            <div>
+                                <div class="fw-500">{{ pa.prestation.patient }}</div>
+                                <small class="text-muted">{{ pa.prestation.date_prestation|date:"d/m/Y" }}</small>
+                            </div>
+                        </div>
+                    </td>
+                    <td>{{ pa.acte.libelle }}</td>
+                    <td>{{ pa.convention.nom|default:"-" }}</td>
+                    <td class="text-end">{{ pa.tarif_conventionne }} DA</td>
+                    <td>
+                        {% if pa.convention_accordee is None %}
+                        <span class="status-badge bg-warning bg-opacity-10 text-warning">
+                            <i class="bi bi-clock-history me-1"></i>En attente
+                        </span>
+                        {% elif pa.convention_accordee %}
+                        <span class="status-badge bg-success bg-opacity-10 text-success">
+                            <i class="bi bi-check-circle me-1"></i>Accordé
+                        </span>
+                        {% else %}
+                        <span class="status-badge bg-danger bg-opacity-10 text-danger">
+                            <i class="bi bi-x-circle me-1"></i>Refusé
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+<div class="d-flex gap-2 justify-content-end">
+    <a href="{% url 'update_convention_status' pa.pk %}?action=approve" 
+       class="action-btn btn-success {% if pa.convention_accordee %}disabled{% endif %}"
+       data-bs-toggle="tooltip" 
+       title="Approuver"
+       data-action="approve">
+        <i class="bi bi-check-lg"></i>
+    </a>
+    <a href="{% url 'update_convention_status' pa.pk %}?action=reject" 
+       class="action-btn btn-danger {% if pa.convention_accordee == False %}disabled{% endif %}"
+       data-bs-toggle="tooltip" 
+       title="Refuser"
+       data-action="reject">
+        <i class="bi bi-x-lg"></i>
+    </a>
+    <a href="{% url 'update_convention_status' pa.pk %}?action=reset" 
+       class="action-btn btn-secondary {% if pa.convention_accordee is None %}disabled{% endif %}"
+       data-bs-toggle="tooltip" 
+       title="Réinitialiser"
+       data-action="reset">
+        <i class="bi bi-arrow-repeat"></i>
+    </a>
+</div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center py-4">
+                        <div class="py-5 text-muted">
+                            <i class="bi bi-inbox fs-1"></i>
+                            <div class="mt-2">Aucune convention trouvée</div>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    var tooltipList = tooltipTriggerList.map(function(tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl)
+    })
+
+    // Gestion des clics AJAX
+        document.querySelectorAll('.action-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.preventDefault()
+            
+            if(btn.classList.contains('disabled')) return
+            
+            const url = btn.getAttribute('href')
+            
+            try {
+                const response = await fetch(url, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                
+                const data = await response.json()
+                
+                if(data.status === 'error') {
+                    alert(data.message)
+                    return
+                }
+                
+                // Mise à jour du statut
+                const statusBadge = btn.closest('tr').querySelector('.status-badge')
+                const actionButtons = btn.closest('.d-flex').querySelectorAll('.action-btn')
+                
+                switch(data.new_status) {
+                    case true:
+                        statusBadge.innerHTML = `
+                            <i class="bi bi-check-circle me-1"></i>Accordé
+                        `
+                        statusBadge.className = 'status-badge bg-success bg-opacity-10 text-success'
+                        break;
+                    case false:
+                        statusBadge.innerHTML = `
+                            <i class="bi bi-x-circle me-1"></i>Refusé
+                        `
+                        statusBadge.className = 'status-badge bg-danger bg-opacity-10 text-danger'
+                        break;
+                    default:
+                        statusBadge.innerHTML = `
+                            <i class="bi bi-clock-history me-1"></i>En attente
+                        `
+                        statusBadge.className = 'status-badge bg-warning bg-opacity-10 text-warning'
+                }
+                
+                // Mise à jour des boutons
+                actionButtons.forEach(button => {
+                    button.classList.remove('disabled')
+                    if(button === btn) button.classList.add('disabled')
+                })
+                
+                // Mise à jour des statistiques
+document.getElementById('total-conventions').textContent = data.stats.total
+document.getElementById('en-attente').textContent = data.stats.en_attente
+document.getElementById('accorde').textContent = data.stats.accorde
+document.getElementById('refuse').textContent = data.stats.refuse
+                
+            } catch (error) {
+                console.error('Erreur:', error)
+                alert('Une erreur est survenue')
+            }
+        })
+    })
+})
+</script>
+{% endblock %}

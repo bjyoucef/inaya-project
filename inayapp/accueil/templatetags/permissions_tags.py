@@ -70,3 +70,4 @@ def item_is_active(context, item):
     current_path = request.path.rstrip("/")
     item_route = item.route.rstrip("/")
     return current_path == item_route or current_path.startswith(item_route + "/")
+

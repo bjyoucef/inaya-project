@@ -104,14 +104,24 @@
                                         </span>
                                     </td>
                                     <td>
-                                        {% if acte.convention_accordee %}
-                                        <span class="badge bg-success">
-                                            Accordé
-                                        </span>
+                                        {% if acte.convention %}
+                        {% if acte.convention_accordee is None %}
+                        <span class="status-badge bg-warning bg-opacity-10 text-warning">
+                            <i class="bi bi-us me-1"></i>En attente
+                        </span>
+                        {% elif acte.convention_accordee %}
+                        <span class="status-badge bg-success bg-opacity-10 text-success">
+                            <i class="bi bi-check-circle me-1"></i>Accordé
+                        </span>
+                        {% else %}
+                        <span class="status-badge bg-danger bg-opacity-10 text-danger">
+                            <i class="bi bi-x-circle me-1"></i>Refusé
+                        </span>
+                        {% endif %}
                                         {% else %}
-                                        <span class="badge bg-danger">
-                                            Non Accordé
-                                        </span>
+                        <span class="status-badge bg-primary bg-opacity-10 text-primary">
+                            <i class="bi bi-cash me-1"></i>Payante
+                        </span>
                                         {% endif %}
                                     </td>
                                     <td class="text-end">{{ acte.tarif_conventionne }} DA</td>

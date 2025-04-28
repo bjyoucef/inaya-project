@@ -31,4 +31,5 @@ urlpatterns = [
         name="prestation_delete",
     ),
     path("get-tarif/", views.GetTarifView.as_view(), name="get_tarif"),
+
 ]

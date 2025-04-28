@@ -9,7 +9,7 @@ urlpatterns = [
         name="add_decharge_multiple",
     ),
     path(
-        "medecin/<int:medecin_id>/create-decharge/",
+        "situation-medecin/<int:medecin_id>/create-decharge/",
         views.create_decharge_medecin,
         name="create_decharge",
     ),
@@ -41,5 +41,15 @@ urlpatterns = [
         "situation-medecin/<int:medecin_id>/",
         views.situation_medecin,
         name="situation_medecin",
+    ),
+    path(
+        "conventions-status/",
+        views.gestion_convention_accorde,
+        name="gestion_convention_accorde",
+    ),
+    path(
+        "conventions-status/<int:pk>/update/",
+        views.update_convention_status,
+        name="update_convention_status",
     ),
 ]

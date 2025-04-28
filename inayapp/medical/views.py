@@ -470,3 +470,6 @@ class PrestationDeleteView(View):
         prestation = get_object_or_404(Prestation, pk=prestation_id)
         prestation.delete()
         return redirect("medical:prestation_list")
+
+
+

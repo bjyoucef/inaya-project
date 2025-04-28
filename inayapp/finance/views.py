@@ -9,7 +9,7 @@ from django.db import models, transaction
 from django.db.models import (Count, DecimalField, ExpressionWrapper, F,
                               OuterRef, Prefetch, Q, Subquery, Sum, Value)
 from django.db.models.functions import Coalesce, TruncDate
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render, reverse
 from django.utils import timezone
 from django.utils.dateparse import parse_date
@@ -17,6 +17,7 @@ from finance.models import Decharges, Payments
 from medecin.models import Medecin
 from medical.models import PrestationActe
 from num2words import num2words
+from patients.models import Patient
 from rh.models import Personnel, Planning
 from utils.pdf import render_to_pdf
 
@@ -600,3 +601,121 @@ def create_decharge_medecin(request, medecin_id):
         "prestations": prestations_non_dechargees,
     }
     return render(request, "finance/decharges/create_decharge_medecin.html", context)
+
+
+@login_required
+def gestion_convention_accorde(request):
+    # Base queryset
+    prestation_actes = PrestationActe.objects.filter(
+        convention__isnull=False
+    ).select_related("prestation", "acte", "convention")
+
+    # Filters
+    status = request.GET.get("status")
+    date_from = request.GET.get("date_from")
+    date_to = request.GET.get("date_to")
+    medecin_id = request.GET.get("medecin")
+    patient_id = request.GET.get("patient")
+
+    # Apply filters
+    if status == "en_attente":
+        prestation_actes = prestation_actes.filter(convention_accordee__isnull=True)
+    elif status == "accorde":
+        prestation_actes = prestation_actes.filter(convention_accordee=True)
+    elif status == "non_accorde":
+        prestation_actes = prestation_actes.filter(convention_accordee=False)
+
+    if date_from and date_to:
+        prestation_actes = prestation_actes.filter(
+            prestation__date_prestation__range=[date_from, date_to]  # Changé ici
+        )
+    elif date_from:
+        prestation_actes = prestation_actes.filter(
+            prestation__date_prestation__gte=date_from
+        )  # Changé ici
+    elif date_to:
+        prestation_actes = prestation_actes.filter(
+            prestation__date_prestation__lte=date_to
+        )  # Changé ici
+
+    if medecin_id:
+        prestation_actes = prestation_actes.filter(prestation__medecin_id=medecin_id)
+
+    if patient_id:
+        prestation_actes = prestation_actes.filter(prestation__patient_id=patient_id)
+
+    # Get distinct medecins and patients for filters
+    medecins = Medecin.objects.filter(
+        prestations__actes_details__convention__isnull=False  # Changé ici
+    ).distinct()
+
+    patients = Patient.objects.filter(
+        prestations__actes_details__convention__isnull=False  # Changé ici
+    ).distinct()
+    context = {
+        "prestation_actes": prestation_actes,
+        "medecins": medecins,
+        "patients": patients,
+        "current_status": status,
+        "current_date_from": date_from,
+        "current_date_to": date_to,
+        "current_medecin": medecin_id,
+        "current_patient": patient_id,
+    }
+    return render(
+        request, "finance/gestion_convention_accorde.html", context
+    )
+
+
+@login_required
+def update_convention_status(request, pk):
+    if not request.user.has_perm("medical.change_prestationacte"):
+        return JsonResponse({"error": "Permission refusée"}, status=403)
+
+    prestation_acte = get_object_or_404(PrestationActe, pk=pk)
+    action = request.GET.get("action")
+
+    response_data = {
+        "status": "success",
+        "new_status": None,
+        "message": "",
+        "stats": {},
+    }
+
+    try:
+        if action == "approve":
+            prestation_acte.convention_accordee = True
+            response_data["message"] = (
+                f"Convention {prestation_acte.convention} approuvée"
+            )
+        elif action == "reject":
+            prestation_acte.convention_accordee = False
+            response_data["message"] = (
+                f"Convention {prestation_acte.convention} refusée"
+            )
+        elif action == "reset":
+            prestation_acte.convention_accordee = None
+            response_data["message"] = "Statut convention réinitialisé"
+        else:
+            raise ValueError("Action invalide")
+
+        prestation_acte.save()
+        response_data["new_status"] = prestation_acte.convention_accordee
+
+        # Mise à jour des stats
+        qs = PrestationActe.objects.filter(convention__isnull=False)
+        response_data["stats"] = {
+            "total": qs.count(),
+            "en_attente": qs.filter(convention_accordee__isnull=True).count(),
+            "accorde": qs.filter(convention_accordee=True).count(),
+            "refuse": qs.filter(convention_accordee=False).count(),
+        }
+
+    except Exception as e:
+        response_data = {"status": "error", "message": str(e)}
+
+    return (
+        JsonResponse(response_data)
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest"
+        else redirect("gestion_convention_accorde")
+    )

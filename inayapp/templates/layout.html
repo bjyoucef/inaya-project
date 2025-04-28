@@ -199,7 +199,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const applyTheme = (theme) => {
         document.documentElement.setAttribute('data-bs-theme', theme);
         const btn = document.querySelector('#themeToggle');
-        btn.innerHTML = theme === 'dark' ? 
+          btn.innerHTML = theme === 'dark' ? 
             '<i class="fas fa-sun"></i>' : 
             '<i class="fas fa-moon"></i>';
         
