@@ -20,9 +20,6 @@ logger = logging.getLogger(__name__)
 
 @login_required
 def salary_advance_create(request):
-    """
-    Traite la demande d'avance sur salaire.
-    """
     if request.method == "POST":
         personnel = request.user.personnel
         amount = request.POST.get("amount")
@@ -161,7 +158,7 @@ def dashboard(request):
         "selected_employee": employee_id,
         "selected_status": status_filter,  # Pour pré-sélectionner l'option dans le template
     }
-    return render(request, "rh/dashboard.html", context)
+    return render(request, "dashboard_rh.html", context)
 
 
 @permission_required("rh.process_salaryadvance_request", raise_exception=True)

@@ -1,0 +1,149 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container mt-5">
+    <div class="card shadow-lg">
+        <div class="card-header bg-primary text-white">
+            <h2 class="mb-0">Détails du Fournisseur</h2>
+        </div>
+        
+        <div class="card-body">
+            <!-- Navigation tabs -->
+            <ul class="nav nav-tabs mb-4">
+                <li class="nav-item">
+                    <a class="nav-link active" data-bs-toggle="tab" href="#infos">Informations</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-bs-toggle="tab" href="#paiements">Historique Paiements</a>
+                </li>
+            </ul>
+
+            <!-- Tab content -->
+            <div class="tab-content">
+                <!-- Informations Tab -->
+                <div class="tab-pane active" id="infos">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <dl class="row">
+                                <dt class="col-sm-4">Code:</dt>
+                                <dd class="col-sm-8">{{ fournisseur.code_fournisseur }}</dd>
+                                
+                                <dt class="col-sm-4">Raison Sociale:</dt>
+                                <dd class="col-sm-8">{{ fournisseur.raison_sociale }}</dd>
+                                
+                                <dt class="col-sm-4">Forme Juridique:</dt>
+                                <dd class="col-sm-8">{{ fournisseur.get_forme_juridique_display }}</dd>
+                            </dl>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <dl class="row">
+                                <dt class="col-sm-4">Crédit:</dt>
+                                <dd class="col-sm-8">
+                                    <span class="badge bg-success">{{ fournisseur.limite_credit }} €</span> limite<br>
+                                    <span class="badge bg-primary">{{ fournisseur.solde }} €</span> utilisé
+                                </dd>
+                                
+                                <dt class="col-sm-4">Statut:</dt>
+                                <dd class="col-sm-8">
+                                    <span class="badge bg-{% if fournisseur.statut == 'ACTIF' %}success{% else %}warning{% endif %}">
+                                        {{ fournisseur.get_statut_display }}
+                                    </span>
+                                </dd>
+                            </dl>
+                        </div>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col-md-6">
+                            <h5>Coordonnées</h5>
+                            <dl class="row">
+                                <dt class="col-sm-4">Adresse:</dt>
+                                <dd class="col-sm-8">{{ fournisseur.adresse }}</dd>
+                                
+                                <dt class="col-sm-4">Ville:</dt>
+                                <dd class="col-sm-8">{{ fournisseur.ville }}</dd>
+                                
+                                <dt class="col-sm-4">Téléphone:</dt>
+                                <dd class="col-sm-8">{{ fournisseur.telephone }}</dd>
+                                
+                                <dt class="col-sm-4">Email:</dt>
+                                <dd class="col-sm-8">{{ fournisseur.email }}</dd>
+                            </dl>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <h5>Conditions Commerciales</h5>
+                            <dl class="row">
+                                <dt class="col-sm-6">Mode Paiement Préféré:</dt>
+                                <dd class="col-sm-6">{{ fournisseur.get_mode_paiement_prefere_display }}</dd>
+                                
+                                <dt class="col-sm-6">Délai Paiement:</dt>
+                                <dd class="col-sm-6">{{ fournisseur.conditions_paiement }} jours</dd>
+                                
+                                <dt class="col-sm-6">Date Création:</dt>
+                                <dd class="col-sm-6">{{ fournisseur.date_creation|date:"d/m/Y" }}</dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Paiements Tab -->
+                <div class="tab-pane" id="paiements">
+                    <div class="d-flex justify-content-end mb-3">
+                        <a href="{% url 'pharmacies:creer_paiement' fournisseur.pk %}" 
+                           class="btn btn-sm btn-success">
+                            <i class="bi bi-plus-circle"></i> Nouveau Paiement
+                        </a>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Montant</th>
+                                    <th>Mode</th>
+                                    <th>Statut</th>
+                                    <th>Référence</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for paiement in paiements %}
+                                <tr>
+                                    <td>{{ paiement.date_paiement|date:"d/m/Y" }}</td>
+                                    <td>{{ paiement.montant }} €</td>
+                                    <td>{{ paiement.get_mode_paiement_display }}</td>
+                                    <td>
+                                        <span class="badge bg-{% if paiement.statut == 'COMPLETE' %}success{% else %}warning{% endif %}">
+                                            {{ paiement.get_statut_display }}
+                                        </span>
+                                    </td>
+                                    <td>{{ paiement.reference|default:"-" }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted">
+                                        Aucun paiement enregistré
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-4 d-flex justify-content-between">
+                <a href="{% url 'pharmacies:liste' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Retour
+                </a>
+                <div class="btn-group">
+                    <a href="{% url 'pharmacies:modifier' fournisseur.pk %}" class="btn btn-primary">
+                        <i class="bi bi-pencil"></i> Modifier
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

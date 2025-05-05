@@ -1,0 +1,249 @@
+{% extends "layout.html" %}
+{% block content %}
+<style>
+    /* Styles repris de la page conventions */
+    .filter-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .data-table {
+        border-collapse: separate;
+        border-spacing: 0 8px;
+        background: transparent;
+    }
+
+    .data-table thead {
+        background: var(--light-bg);
+        border-radius: 8px;
+    }
+
+    .data-table th {
+        border: none;
+        font-weight: 600;
+        color: #6C757D;
+        padding: 1rem 1.5rem;
+    }
+
+    .data-table td {
+        background: white;
+        padding: 1rem 1.5rem;
+        vertical-align: middle;
+        border-top: 1px solid #F1F3F5;
+        border-bottom: 1px solid #F1F3F5;
+    }
+
+    .data-table tr:first-child td {
+        border-top: 2px solid #F1F3F5;
+    }
+
+    .data-table tr:hover td {
+        background: #F8F9FA;
+        cursor: pointer;
+    }
+
+    .action-btn {
+        width: 32px;
+        height: 32px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        transition: all 0.2s;
+    }
+
+    @media (max-width: 768px) {
+        .filter-card .row > div {
+            margin-bottom: 1rem;
+        }
+        
+        .data-table td {
+            white-space: nowrap;
+        }
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="h4 mb-0">Gestion des honoraires médecins</h2>
+        <a href="{% url 'admin:finance_honorairesmedecin_add' %}" 
+           class="btn btn-sm btn-primary">
+            <i class="bi bi-plus-circle me-2"></i>Ajouter
+        </a>
+    </div>
+
+    <!-- Filtres -->
+    <div class="filter-card">
+        <form method="get">
+            <div class="row g-3 align-items-end">
+                <div class="col-12 col-md-6 col-lg-3">
+                    <label class="form-label small text-muted mb-1">Médecin</label>
+                    <select name="medecin" class="form-select">
+                        <option value="">Tous</option>
+                        {% for m in medecins %}
+                        <option value="{{ m.id }}" {% if filter_values.medecin == m.id|stringformat:"s" %}selected{% endif %}>
+                            {{ m.nom_complet }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-12 col-md-6 col-lg-3">
+                    <label class="form-label small text-muted mb-1">Acte médical</label>
+                    <select name="acte" class="form-select">
+                        <option value="">Tous</option>
+                        {% for a in actes %}
+                        <option value="{{ a.id }}" {% if filter_values.acte == a.id|stringformat:"s" %}selected{% endif %}>
+                            {{ a.code }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-12 col-md-6 col-lg-3">
+                    <label class="form-label small text-muted mb-1">Convention</label>
+                    <select name="convention" class="form-select">
+                        <option value="">Toutes</option>
+                        {% for c in conventions %}
+                        <option value="{{ c.id }}" {% if filter_values.convention == c.id|stringformat:"s" %}selected{% endif %}>
+                            {{ c.nom }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-12 col-md-6 col-lg-3">
+                    <label class="form-label small text-muted mb-1">Date</label>
+                    <div class="input-group">
+                        <input type="date" class="form-control" name="start_date" value="{{ filter_values.start_date }}">
+                        <span class="input-group-text">à</span>
+                        <input type="date" class="form-control" name="end_date" value="{{ filter_values.end_date }}">
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-6 col-lg-3">
+                    <label class="form-label small text-muted mb-1">Recherche</label>
+                    <input type="text" name="search" 
+                           value="{{ filter_values.search }}" 
+                           class="form-control" 
+                           placeholder="Nom, code acte...">
+                </div>
+
+                <div class="col-12 col-md-6 col-lg-3 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-funnel me-2"></i>Filtrer
+                    </button>
+                    <a href="?" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-clockwise"></i>
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Tableau -->
+    <div class="table-responsive rounded-3">
+        <table class="table data-table">
+            <thead>
+                <tr>
+                    <th>Médecin</th>
+                    <th>Acte</th>
+                    <th>Convention</th>
+                    <th class="text-end">Montant</th>
+                    <th>Date effet</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for honoraire in honoraires %}
+                <tr>
+                    <td>{{ honoraire.medecin.nom_complet }}</td>
+                    <td>{{ honoraire.acte.code }}</td>
+                    <td>{{ honoraire.convention.nom|default:"-" }}</td>
+                    <td class="text-end">{{ honoraire.montant }} €</td>
+                    <td>{{ honoraire.date_effective|date:"d/m/Y" }}</td>
+                    <td class="text-end">
+                        <div class="d-flex gap-2 justify-content-end">
+                            <a href="{% url 'admin:finance_honorairesmedecin_change' honoraire.id %}" 
+                               class="action-btn btn-outline-primary"
+                               data-bs-toggle="tooltip" 
+                               title="Modifier">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <a href="{% url 'admin:finance_honorairesmedecin_delete' honoraire.id %}" 
+                               class="action-btn btn-outline-danger"
+                               data-bs-toggle="tooltip" 
+                               title="Supprimer">
+                                <i class="bi bi-trash"></i>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center py-4">
+                        <div class="py-5 text-muted">
+                            <i class="bi bi-inbox fs-1"></i>
+                            <div class="mt-2">Aucun honoraire trouvé</div>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if is_paginated %}
+    <nav class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" 
+                   href="?page={{ page_obj.previous_page_number }}{% if query_string %}&{{ query_string }}{% endif %}">
+                    <i class="bi bi-chevron-left"></i>
+                </a>
+            </li>
+            {% endif %}
+            
+            {% for num in page_obj.paginator.page_range %}
+            {% if page_obj.number == num %}
+            <li class="page-item active">
+                <span class="page-link">{{ num }}</span>
+            </li>
+            {% else %}
+            <li class="page-item">
+                <a class="page-link" 
+                   href="?page={{ num }}{% if query_string %}&{{ query_string }}{% endif %}">
+                    {{ num }}
+                </a>
+            </li>
+            {% endif %}
+            {% endfor %}
+            
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" 
+                   href="?page={{ page_obj.next_page_number }}{% if query_string %}&{{ query_string }}{% endif %}">
+                    <i class="bi bi-chevron-right"></i>
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Activation des tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    var tooltipList = tooltipTriggerList.map(function(tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl)
+    })
+})
+</script>
+{% endblock %}

@@ -1,0 +1,120 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container mt-5">
+    <div class="card shadow-lg">
+        <div class="card-header bg-primary text-white">
+            <h2 class="mb-0">
+                {% if object %}Modifier{% else %}Créer{% endif %} un Fournisseur
+            </h2>
+        </div>
+        
+        <div class="card-body">
+            <form method="post" class="needs-validation" novalidate>
+                {% csrf_token %}
+                
+                <div class="row g-3">
+                    <!-- Section Informations de base -->
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Code Fournisseur</label>
+                            {{ form.code_fournisseur }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Raison Sociale</label>
+                            {{ form.raison_sociale }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Forme Juridique</label>
+                            {{ form.forme_juridique }}
+                        </div>
+                    </div>
+
+                    <!-- Section Contact -->
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Email</label>
+                            {{ form.email }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Téléphone</label>
+                            {{ form.telephone }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Domaine d'Activité</label>
+                            {{ form.domaine_activite }}
+                        </div>
+                    </div>
+
+                    <!-- Section Adresse -->
+                    <div class="col-12">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Adresse</label>
+                                    {{ form.adresse }}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Ville</label>
+                                    {{ form.ville }}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Pays</label>
+                                    {{ form.pays }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section Financière -->
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Conditions de Paiement (jours)</label>
+                            {{ form.conditions_paiement }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Limite de Crédit (€)</label>
+                            {{ form.limite_credit }}
+                        </div>
+                    </div>
+
+                    <!-- Section Statut -->
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Mode de Paiement Préféré</label>
+                            {{ form.mode_paiement_prefere }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Statut</label>
+                            {{ form.statut }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-footer bg-light mt-4">
+                    <div class="d-flex justify-content-between">
+                        <a href="{% if object %}{% url 'pharmacies:detail' object.pk %}{% else %}{% url 'pharmacies:liste' %}{% endif %}" 
+                           class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left"></i> Annuler
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save"></i> Enregistrer
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

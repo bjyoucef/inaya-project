@@ -2,9 +2,8 @@ import json
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 
-from django.forms import ValidationError
-
 from accueil.models import ConfigDate
+from django.db import transaction
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -12,7 +11,9 @@ from django.views import View
 from finance.models import Convention, TarifActe, TarifActeConvention
 from medecin.models import Medecin
 from medical.models import Acte, Prestation, PrestationActe
+from medical.models.actes import ActeProduit
 from patients.models import Patient
+from pharmacies.models import ConsommationProduit, Produit
 from utils.utils import services_autorises
 
 
@@ -58,20 +59,41 @@ class GetTarifView(View):
             return JsonResponse({"error": str(e)}, status=400)
 
 
+class GetActeProduitsView(View):
+    def get(self, request, acte_id):
+        acte = get_object_or_404(Acte, id=acte_id)
+        produits = acte.produits_defaut.select_related("produit").all()
+        data = [
+            {
+                "id": ap.produit.id,
+                "nom": ap.produit.nom,
+                "code": ap.produit.code_produit,
+                "quantite_defaut": ap.quantite_defaut,
+                "prix_vente": float(ap.produit.prix_vente),
+            }
+            for ap in produits
+        ]
+        print(data)
+        return JsonResponse({"produits": data})
+
+
 class PrestationCreateView(View):
     def get(self, request):
+        from pharmacies.models import Produit
+
         patients = Patient.objects.all()
         medecins = Medecin.objects.all()
+        
+        # Récupère tous les produits actifs pour initialiser le JS
+        all_prods = Produit.objects.filter(est_actif=True)
 
-        # 1. Récupérer la liste des services autorisés
-        # --- Services autorisés
+        # Services autorisés par l'utilisateur
         services = services_autorises(request.user)
-        service_ids = services.values_list("id_service", flat=True)
+        service_ids = list(services.values_list("id", flat=True))
 
         actes = Acte.objects.prefetch_related("conventions").filter(
-            service__id_service__in=service_ids
+            service__id__in=service_ids
         )
-
         actes_data = [
             {
                 "id": acte.id,
@@ -81,108 +103,155 @@ class PrestationCreateView(View):
             }
             for acte in actes
         ]
-        return render(
-            request,
-            "medical/prestations/create.html",
-            {
-                "patients": patients,
-                "medecins": medecins,
-                "statut_choices": Prestation.STATUT_CHOICES,
-                "actes_json": json.dumps(actes_data),
-            },
-        )
 
+        # Prépare le contexte
+        context = {
+            "patients": patients,
+            "medecins": medecins,
+            "statut_choices": Prestation.STATUT_CHOICES,
+            "actes_json": json.dumps(actes_data),
+            "now": timezone.localdate(),
+            # Pour la gestion dynamique des produits
+            "all_produits": all_prods,
+            "all_produits_json": json.dumps([
+                { **prod, "prix_vente": float(prod["prix_vente"]) }
+                for prod in all_prods.values("id", "code_produit", "nom", "prix_vente")
+            ]),
+        }
+
+        return render(request, "prestations/create.html", context)
+
+    @transaction.atomic
     def post(self, request):
+        errors = []
+        # Champs obligatoires
         patient_id = request.POST.get("patient")
         medecin_id = request.POST.get("medecin")
-        date_prestation = request.POST.get("date_prestation")
+        date_str = request.POST.get("date_prestation")
         statut = request.POST.get("statut")
-        observations = request.POST.get("observations", "")
+        observations = request.POST.get("observations", "").strip()
+
         acte_ids = request.POST.getlist("actes[]")
         convention_ids = request.POST.getlist("conventions[]")
         tarifs = request.POST.getlist("tarifs[]")
-        convention_accordee_values = request.POST.getlist("convention_accordee[]")
+        conv_ok_vals = request.POST.getlist("convention_accordee[]")
 
-        errors = []
-        prestation_data = []
-        total = Decimal("0.00")
-
-        if not (patient_id and medecin_id and date_prestation and statut):
+        if not (patient_id and medecin_id and date_str and statut):
             errors.append("Tous les champs obligatoires doivent être remplis.")
-
         if not acte_ids:
             errors.append("Au moins un acte doit être sélectionné.")
 
-        # Validation des lignes d’acte
+        # Conversion de la date
+        try:
+            date_prest = timezone.datetime.strptime(date_str, "%Y-%m-%d").date()
+        except (ValueError, TypeError):
+            errors.append("Format de date invalide.")
+
+        prestation_data = []
+        conso_data = []
+        total = Decimal("0.00")
+
+        # Validation des actes
         for idx, acte_pk in enumerate(acte_ids):
             try:
                 acte = Acte.objects.get(pk=acte_pk)
                 conv = None
-                convention_accordee = None
-                
-                if convention_ids[idx]:
+                conv_ok = False
+                if convention_ids and convention_ids[idx]:
                     conv = Convention.objects.get(pk=convention_ids[idx])
-                    if idx >= len(convention_accordee_values):
-                        raise ValidationError(f"Statut manquant pour la convention de l'acte {acte.code}")
-            
-                    convention_accordee = convention_accordee_values[idx] == 'oui'
-                    
+                    conv_ok = conv_ok_vals[idx] == "oui"
+
                 tarif = Decimal(tarifs[idx] or "0")
-                    
                 total += tarif
                 prestation_data.append(
                     {
                         "acte": acte,
                         "convention": conv,
                         "tarif": tarif,
-                        "convention_accordee": convention_accordee,
+                        "convention_accordee": conv_ok,
                     }
                 )
+
+                # Récupération des consommations par acte
+                prod_field = f"actes[{idx}][produits][]"
+                qty_field = f"actes[{idx}][quantites_reelles][]"
+                for pid, qty in zip(
+                    request.POST.getlist(prod_field), request.POST.getlist(qty_field)
+                ):
+                    conso_data.append(
+                        {
+                            "idx": idx,
+                            "produit_id": pid,
+                            "quantite_reelle": qty,
+                        }
+                    )
+
+            except Acte.DoesNotExist:
+                errors.append(f"Acte invalide à la ligne {idx+1}.")
+            except InvalidOperation:
+                errors.append(f"Tarif invalide à la ligne {idx+1}.")
             except Exception as e:
-                errors.append(f"Ligne {idx+1} : {e}")
+                errors.append(f"Erreur ligne {idx+1} : {e}")
 
         if errors:
             return render(
                 request,
-                "medical/prestations/create.html",
+                "prestations/create.html",
                 {
                     "errors": errors,
                     "patients": Patient.objects.all(),
                     "medecins": Medecin.objects.all(),
                     "statut_choices": Prestation.STATUT_CHOICES,
+                    "actes_json": json.dumps(prestation_data),
+                    "now": timezone.localdate(),
                 },
             )
 
-        try:
-            prestation = Prestation.objects.create(
-                patient_id=patient_id,
-                medecin_id=medecin_id,
-                date_prestation=date_prestation,
-                statut=statut,
-                observations=observations,
-                prix_total=total,
+        # Création de la prestation
+        prestation = Prestation.objects.create(
+            patient_id=patient_id,
+            medecin_id=medecin_id,
+            date_prestation=date_prest,
+            statut=statut,
+            observations=observations,
+            prix_total=total,
+        )
+
+        # Création des PrestationActe et consommations
+        for idx, d in enumerate(prestation_data):
+            pa = PrestationActe.objects.create(
+                prestation=prestation,
+                acte=d["acte"],
+                convention=d["convention"],
+                convention_accordee=d["convention_accordee"],
+                tarif_conventionne=d["tarif"],
             )
-            for d in prestation_data:
-                PrestationActe.objects.create(
-                    prestation=prestation,
-                    acte=d["acte"],
-                    convention=d["convention"],
-                    convention_accordee=d["convention_accordee"],
-                    tarif_conventionne=d["tarif"],
+            for c in [c for c in conso_data if c["idx"] == idx]:
+                if not c["produit_id"] or int(c["quantite_reelle"]) <= 0:
+                    continue
+                prod = get_object_or_404(Produit, id=c["produit_id"])
+                # On tente de récupérer l'ActeProduit, sinon on passe à 0
+                try:
+                    acte_produit = ActeProduit.objects.get(
+                        acte=d["acte"],
+                        produit=prod
+                    )
+                    qte_defaut = acte_produit.quantite_defaut
+                except ActeProduit.DoesNotExist:
+                    qte_defaut = 0
+
+                ConsommationProduit.objects.create(
+                    prestation_acte=pa,
+                    produit=prod,
+                    quantite_defaut=qte_defaut,
+                    quantite_reelle=int(c["quantite_reelle"]),
+                    prix_unitaire=prod.prix_vente,
                 )
-            return redirect("medical:prestation_detail", prestation_id=prestation.id)
-        except Exception as e:
-            errors.append(f"Erreur lors de la création : {e}")
-            return render(
-                request,
-                "medical/prestations/create.html",
-                {
-                    "errors": errors,
-                    "patients": Patient.objects.all(),
-                    "medecins": Medecin.objects.all(),
-                    "statut_choices": Prestation.STATUT_CHOICES,
-                },
-            )
+
+        # Mise à jour du stock
+        # prestation.update_stock()
+
+        return redirect("medical:prestation_detail", prestation_id=prestation.id)
 
 
 class PrestationListView(View):
@@ -205,11 +274,11 @@ class PrestationListView(View):
 
         # --- Services autorisés
         services = services_autorises(request.user)
-        service_ids = services.values_list("id_service", flat=True)
-        
+        service_ids = services.values_list("id", flat=True)
+
         # --- Filtrage dynamique
         prestations = (
-            Prestation.objects.filter(actes__service__id_service__in=service_ids)
+            Prestation.objects.filter(actes__service__id__in=service_ids)
             .select_related("patient", "medecin")
             .prefetch_related("actes_details__acte")
             .order_by("-date_prestation")
@@ -221,7 +290,7 @@ class PrestationListView(View):
             "status": ("statut", None),
             "medecin": ("medecin_id", int),
             "patient": ("patient_id", int),
-            "service": ("actes__service__id_service", int),
+            "service": ("actes__service__id", int),
         }
 
         for param, (field, caster) in filtres.items():
@@ -262,16 +331,25 @@ class PrestationListView(View):
             "start_date": start_date,
             "end_date": end_date,
         }
-        return render(request, "medical/prestations/list.html", context)
+        return render(request, "prestations/list.html", context)
 
 
 class PrestationDetailView(View):
     def get(self, request, prestation_id):
         prestation = get_object_or_404(Prestation, pk=prestation_id)
+
+        # Récupération des actes avec leurs consommations
+        actes = prestation.actes_details.select_related(
+            "acte", "convention"
+        ).prefetch_related("consommations__produit")
+
         return render(
             request,
-            "medical/prestations/detail.html",
-            {"prestation": prestation, "actes": prestation.actes_details.all()},
+            "prestations/detail.html",
+            {
+                "prestation": prestation,
+                "actes": actes,
+            },
         )
 
 
@@ -283,7 +361,7 @@ class PrestationUpdateView(View):
         medecins = Medecin.objects.all()
         services = services_autorises(request.user)
         actes_qs = Acte.objects.prefetch_related("conventions").filter(
-            service__id_service__in=services.values_list("id_service", flat=True)
+            service__id__in=services.values_list("id", flat=True)
         )
         # Construire une structure JSON similaire à la création pour le JS
         actes_data = [
@@ -307,7 +385,7 @@ class PrestationUpdateView(View):
             )
         return render(
             request,
-            "medical/prestations/update.html",
+            "prestations/update.html",
             {
                 "prestation": prestation,
                 "patients": patients,
@@ -364,8 +442,8 @@ class PrestationUpdateView(View):
             if acte_pk:
                 try:
                     acte = Acte.objects.get(pk=acte_pk)
-                    if not acte.service.id_service in services.values_list(
-                        "id_service", flat=True
+                    if not acte.service.id in services.values_list(
+                        "id", flat=True
                     ):
                         line_errors.append("Acte non autorisé")
                 except Acte.DoesNotExist:
@@ -410,7 +488,7 @@ class PrestationUpdateView(View):
         if errors:
             # Regenerate actes data for form
             actes_qs = Acte.objects.prefetch_related("conventions").filter(
-                service__id_service__in=services.values_list("id_service", flat=True)
+                service__id__in=services.values_list("id", flat=True)
             )
             actes_data = [
                 {
@@ -423,7 +501,7 @@ class PrestationUpdateView(View):
             ]
             return render(
                 request,
-                "medical/prestations/update.html",
+                "prestations/update.html",
                 {
                     "errors": errors,
                     "prestation": prestation,
@@ -462,7 +540,7 @@ class PrestationDeleteView(View):
         prestation = get_object_or_404(Prestation, pk=prestation_id)
         return render(
             request,
-            "medical/prestations/confirm_delete.html",
+            "prestations/confirm_delete.html",
             {"prestation": prestation},
         )
 
@@ -470,6 +548,3 @@ class PrestationDeleteView(View):
         prestation = get_object_or_404(Prestation, pk=prestation_id)
         prestation.delete()
         return redirect("medical:prestation_list")
-
-
-

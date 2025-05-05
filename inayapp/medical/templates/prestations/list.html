@@ -1,0 +1,563 @@
+{% extends "layout.html" %}
+{% load static %}
+{% load custom_filters %}
+{% block content %}
+
+
+
+<link rel="stylesheet" href="{% static 'css/choices.min.css' %}">
+<link rel="stylesheet" href="{% static 'css/daterangepicker.css' %}">
+
+<div class="container-fluid py-1">
+    <h1 class="mb-4">Liste des prestations</h1>
+
+    <!-- Section Filtres -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-3">
+            <form method="get" class="flex-grow-1 ms-md-3">
+
+                <div class="row g-2 g-md-3 align-items-end">
+                    <!-- Filtre Statut -->
+                    <div class="col-12 col-md">
+                        <label class="form-label small text-muted mb-1">Statut</label>
+                        <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+                            <option value="">Tous les statuts</option>
+                            {% for value, label in prestation.STATUT_CHOICES %}
+                            <option value="{{ value }}" {% if request.GET.status == value %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Sélecteur de services -->
+                    <div class="col-12 col-md">
+                        <label class="form-label small text-muted mb-1">Services</label>
+                        <select name="service" class="form-select form-select-sm" id="serviceFilter" onchange="this.form.submit()">
+                            <option value="">Tous les Services</option>
+                            {% for service in services %}
+                            <option value="{{ service.id }}" {% if request.GET.service == service.id|stringformat:"s" %}selected{% endif %}>
+                                {{ service.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Sélecteur de medecin -->
+                    <div class="col-12 col-md">
+                        <label class="form-label small text-muted mb-1">Médecin</label>
+                        <select name="medecin" class="form-select form-select-sm" id="medecinFilter" onchange="this.form.submit()">
+                            <option value="">Tous les médecins</option>
+                            {% for medecin in medecins %}
+                            <option value="{{ medecin.id }}" {% if request.GET.medecin == medecin.id|stringformat:"s" %}selected{% endif %}>
+                                {{ medecin.nom_complet }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Sélecteur de patient -->
+                    <div class="col-12 col-md">
+                        <label class="form-label small text-muted mb-1">Patient</label>
+                        <select name="patient" class="form-select form-select-sm" id="patientFilter" onchange="this.form.submit()">
+                            <option value="">Tous les patients</option>
+                            {% for patient in patients %}
+                            <option value="{{ patient.id }}" {% if request.GET.patient == patient.id|stringformat:"s" %}selected{% endif %}>
+                                {{ patient.nom_complet }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+        <!-- Sélecteur de période -->
+        <div class="col-12 col-md">
+            <label class="form-label small text-muted mb-1">Période</label>
+            <div class="input-group input-group-sm">
+                <span class="input-group-text bg-transparent border-end-0">
+                    <i class="bi bi-calendar-range text-primary"></i>
+                </span>
+                        <input type="text" name="daterangepicker" id="daterangepicker"
+                            class="form-control date-range-input" placeholder="Choisir une plage de dates">
+            </div>
+        </div>
+                <!-- Bouton mobile -->
+                <div class="col-12 d-md-none">
+                                                <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-sm btn-primary w-100">
+                            <i class="bi bi-funnel me-2"></i>Appliquer
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <!-- Bouton d'ajout et tableau -->
+    <div class="d-flex justify-content-between mb-3">
+        <a href="{% url 'medical:prestation_create' %}" class="btn btn-success">
+            <i class="fas fa-plus me-2"></i>Nouvelle prestation
+        </a>
+    </div>
+
+    <div class=" shadow">
+        <div class="p-0">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Date</th>
+                        <th>Patient</th>
+                        <th>Médecin</th>
+                        <th>Statut</th>
+                        <th class="text-end">Montant</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for prestation in prestations %}
+                    <tr>
+                        <td>{{ prestation.date_prestation|date:"d/m/Y" }}</td>
+                        <td>{{ prestation.patient.nom_complet }}</td>
+                        <td>{{ prestation.medecin.nom_complet }}</td>
+                        <td>
+                            <span class="badge
+                                {% if prestation.statut == 'realise' %}bg-success
+                                {% elif prestation.statut == 'annule' %}bg-danger
+                                {% else %}bg-secondary{% endif %}">
+                                {{ prestation.get_statut_display }}
+                            </span>
+                        </td>
+                        <td class="text-end">{{ prestation.prix_total|floatformat:2 }} €</td>
+                        <td>
+              <div class="btn-group">
+<a href="{% url 'medical:prestation_detail' prestation.id %}" class="btn btn-sm btn-outline-primary" title="Détails">
+    <i class="fas fa-eye"></i>
+</a>
+<a href="{% url 'medical:prestation_update' prestation.id %}" class="btn btn-sm btn-outline-warning" title="Modifier">
+    <i class="fas fa-edit"></i>
+</a>
+<a href="{% url 'medical:prestation_delete' prestation.id %}" class="btn btn-sm btn-outline-danger" title="Supprimer">
+    <i class="fas fa-trash"></i>
+</a>
+
+              </div>
+
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+              <td colspan="5" class="text-center py-4">
+                <i class="fas fa-inbox fa-2x text-muted mb-2"></i>
+                <p class="text-muted">Aucune prestation trouvée</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Scripts -->
+<script src="{% static 'js/jquery-3.7.1.min.js' %}"></script>
+<script src="{% static 'js/moment.min.js' %}"></script>
+<script src="{% static 'js/daterangepicker.min.js' %}"></script>
+<script src="{% static 'js/choices.min.js' %}"></script>
+
+
+
+<script>
+        // Initialisation des selects
+    new Choices("#serviceFilter", {
+        searchEnabled: true,
+        removeItemButton: true,
+        placeholder: true
+    });
+    new Choices("#medecinFilter", {
+        searchEnabled: true,
+        removeItemButton: true,
+        placeholder: true
+    });
+
+    new Choices("#patientFilter", {
+        searchEnabled: true,
+        removeItemButton: true,
+        placeholder: true
+    });
+    // Récupération des dates depuis le contexte (les dates sont déjà au format "YYYY-MM-DD")
+const startDateTemplate = "{{ start_date|date:'Y-m-d' }}";
+const endDateTemplate   = "{{ end_date  |date:'Y-m-d' }}";
+
+    console.log("Start date:", startDateTemplate);
+    console.log("End date:", endDateTemplate);
+
+    // Création des objets moment avec le format spécifié
+    let start = moment(startDateTemplate, "YYYY-MM-DD");
+    let end = moment(endDateTemplate, "YYYY-MM-DD");
+
+    console.log("Moment start:", start.format());
+    console.log("Moment end:", end.format());
+
+    const updateInput = (start, end) => {
+        $("#daterangepicker").val(start.format("YYYY-MM-DD") + " - " + end.format("YYYY-MM-DD"));
+    };
+
+    $("#daterangepicker").daterangepicker({
+        startDate: start,
+        endDate: end,
+            autoUpdateInput: true,
+            locale: {
+            format: "YYYY-MM-DD",
+            separator: " - ",
+            applyLabel: "Appliquer",
+            cancelLabel: "Annuler",
+            fromLabel: "De",
+            toLabel: "À",
+            customRangeLabel: "Personnalisée",
+            weekLabel: "S",
+            daysOfWeek: ["Di", "Lu", "Ma", "Me", "Je", "Ve", "Sa"],
+                monthNames: [
+                "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
+                "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
+            ],
+            firstDay: 1
+            },
+            ranges: {
+            "Aujourd'hui": [moment(), moment()],
+            "Hier": [moment().subtract(1, "days"), moment().subtract(1, "days")],
+            "7 derniers jours": [moment().subtract(6, "days"), moment()],
+            "30 derniers jours": [moment().subtract(29, "days"), moment()],
+            "Ce mois-ci": [moment().startOf("month"), moment().endOf("month")],
+            "Le mois dernier": [moment().subtract(1, "month").startOf("month"), moment().subtract(1, "month").endOf("month")]
+            }
+        });
+
+    $('#daterangepicker').on('apply.daterangepicker', function (ev, picker) {
+        const medecinId = $('#medecinFilter').val();
+        const patientId = $('#patientFilter').val();
+        // Construction de l'URL en utilisant une template literal
+        let url = `{% url 'medical:prestation_list' %}?start_date=${picker.startDate.format('YYYY-MM-DD')}&end_date=${picker.endDate.format('YYYY-MM-DD')}`;
+        if (medecinId) {
+            url += `&medecin=${medecinId}`;
+        }        
+        if (patientId) {
+            url += `&patient=${patientId}`;
+        }
+        window.location.href = url;
+        });
+
+    // Mise à jour initiale du champ
+    if ("{{ request.GET.start_date }}" && "{{ request.GET.end_date }}") {
+        $('#daterangepicker').val("{{ request.GET.start_date }} - {{ request.GET.end_date }}");
+    } else {
+        updateInput(start, end);
+    }
+</script>
+
+
+<style>
+  /* Styles personnalisés */
+  .avatar-sm {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+  }
+
+  .status-badge {
+    min-width: 80px;
+    padding: 0.5em 0.8em;
+    font-size: 0.85rem;
+  }
+
+  .bg-PEN {
+    background-color: #ffc107 !important;
+  }
+  .bg-APP {
+    background-color: #198754 !important;
+  }
+  .bg-REJ {
+    background-color: #dc3545 !important;
+  }
+
+  .timeline {
+    border-left: 3px solid #eee;
+    padding-left: 1.5rem;
+  }
+
+  .timeline-item {
+    position: relative;
+    margin-bottom: 1.5rem;
+  }
+
+  .timeline-marker {
+    position: absolute;
+    left: -1.68rem;
+    top: 0;
+    width: 1rem;
+    height: 1rem;
+    border-radius: 50%;
+    background: #666;
+  }
+
+    #loader {
+    height: 100px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.spinner-border {
+    width: 3rem;
+    height: 3rem;
+}
+
+        table { border-collapse: collapse; width: 100%; margin-bottom: 30px; }
+        th, td { border: 1px solid #ddd; padding: 8px; }
+        th { background: #f4f4f4; }
+
+
+    :root {
+        --primary: #7a6ad8;
+        --secondary: #f8f9fa;
+        --success: #4caf50;
+        --warning: #ffc107;
+        --danger: #dc3545;
+    }
+
+    .choices__inner {
+        min-height: 38px;
+        padding: 4px 8px;
+        border: 1px solid #dee2e6 !important;
+        border-radius: 0.375rem;
+        background-color: white;
+    }
+
+    .choices__list--dropdown {
+        border: 1px solid #dee2e6;
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        z-index: 1060 !important;
+    }
+
+    .form-control-sm,
+    .form-select-sm {
+        height: 38px;
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+    }
+
+    /* Conteneur principal */
+    .daterangepicker {
+        font-family: Arial, sans-serif;
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        border-radius: 0.375rem;
+    }
+
+    /* Zones des calendriers */
+    .daterangepicker .drp-calendar {
+        border: none;
+        padding: 10px;
+    }
+
+    /* En-têtes des calendriers */
+    .daterangepicker .drp-calendar thead th {
+        font-weight: 600;
+        color: #495057;
+        padding: 5px;
+        background-color: #e9ecef;
+        border: none;
+    }
+
+    /* Tableau du calendrier */
+    .daterangepicker .calendar-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .daterangepicker .calendar-table td {
+        text-align: center;
+        padding: 8px;
+        border: 1px solid #dee2e6;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+
+    /* Date active sélectionnée */
+    .daterangepicker .calendar-table td.active,
+    .daterangepicker .calendar-table td.active:hover {
+        background-color: #7a6ad8;
+        color: #fff;
+        border-color: #007bff;
+    }
+
+    /* Section des plages prédéfinies */
+    .daterangepicker .ranges {
+        background-color: rgb(247, 249, 255);
+        border-right: 1px solid #7a6ad8;
+        padding: 10px;
+        font-size: 0.875rem;
+    }
+
+    /* Boutons d'action */
+    .daterangepicker .applyBtn,
+    .daterangepicker .cancelBtn {
+        background-color: #7a6ad8;
+        color: #fff;
+        border: none;
+        padding: 5px 15px;
+        border-radius: 0.375rem;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        font-size: 0.875rem;
+    }
+
+    .daterangepicker .applyBtn:hover,
+    .daterangepicker .cancelBtn:hover {
+        background-color: #0056b3;
+    }
+
+    .badge-pill {
+        border-radius: 2rem;
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+    }
+
+    .choices__list--dropdown .choices__item--selectable {
+        padding-right: 1rem;
+    }
+
+    .daterangepicker td.active,
+    .daterangepicker td.active:hover {
+        background-color: var(--primary) !important;
+    }
+
+    /* Style spécifique pour les boutons de sync */
+    .sync-btn {
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        padding: 0.5rem 1.25rem;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .sync-btn:hover {
+        background: rgba(255, 255, 255, 0.1);
+        border-color: white;
+        transform: translateY(-2px);
+    }
+
+    .sync-btn.loading {
+        padding-right: 2.5rem;
+        opacity: 0.7;
+        pointer-events: none;
+    }
+
+    .sync-btn.loading::after {
+        content: "";
+        position: absolute;
+        right: 1rem;
+        top: 50%;
+        width: 1rem;
+        height: 1rem;
+        border: 2px solid transparent;
+        border-top-color: currentColor;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        transform: translateY(-50%);
+    }
+
+    @keyframes spin {
+        0% {
+            transform: translateY(-50%) rotate(0deg);
+        }
+
+        100% {
+            transform: translateY(-50%) rotate(360deg);
+        }
+    }
+
+    /* Toast de notification */
+    .sync-toast {
+        position: fixed;
+        bottom: 1rem;
+        right: 1rem;
+        background: var(--primary);
+        color: white;
+        padding: 1rem 1.5rem;
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow);
+        display: none;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .sync-toast.visible {
+        display: flex;
+        animation: slideIn 0.3s ease-out;
+    }
+
+    @keyframes slideIn {
+        from {
+            transform: translateX(100%);
+        }
+
+        to {
+            transform: translateX(0);
+        }
+    }
+
+    .report-header {
+        background: linear-gradient(135deg, #6a5acd 0%, #483d8b 100%);
+        padding: 1.5rem;
+        border-radius: 1rem;
+    }
+
+    .header-top {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .btn-sync {
+        padding: 0.5rem 1.25rem;
+        border-width: 2px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .btn-sync:hover {
+        background: rgba(255, 255, 255, 0.15);
+        transform: translateY(-1px);
+    }
+
+
+    .filter-select {
+        padding: 0.625rem 1.25rem;
+        border-radius: 2rem;
+        border: 1px solid #e0e0e0;
+    }
+
+    .date-range-input {
+        padding: 0.625rem 1.25rem;
+        border-radius: 0 2rem 2rem 0;
+        border-left: 0;
+    }
+
+    @media (max-width: 768px) {
+        .report-header {
+            padding: 1rem;
+            border-radius: 0.75rem;
+        }
+
+        .header-top {
+            flex-direction: column;
+            align-items: stretch;
+        }
+    }
+</style>
+{% endblock content %}

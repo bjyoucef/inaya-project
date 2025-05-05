@@ -1,0 +1,61 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Gestion des Fournisseurs</h2>
+        <a href="{% url 'pharmacies:creer' %}" class="btn btn-success">
+            <i class="bi bi-plus-circle"></i> Nouveau Fournisseur
+        </a>
+    </div>
+
+    <div class="card shadow">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Code</th>
+                            <th>Raison Sociale</th>
+                            <th>Contact</th>
+                            <th>Crédit</th>
+                            <th>Statut</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for f in fournisseurs %}
+                        <tr>
+                            <td>{{ f.code_fournisseur }}</td>
+                            <td>{{ f.raison_sociale }}</td>
+                            <td>
+                                <div>{{ f.telephone }}</div>
+                                <small class="text-muted">{{ f.email }}</small>
+                            </td>
+                            <td>
+                                <div>Limite: {{ f.limite_credit }} €</div>
+                                <div>Solde: {{ f.solde }} €</div>
+                            </td>
+                            <td>
+                                <span class="badge bg-{% if f.statut == 'ACTIF' %}success{% elif f.statut == 'SUSPENDU' %}warning{% else %}secondary{% endif %}">
+                                    {{ f.get_statut_display }}
+                                </span>
+                            </td>
+                            <td class="text-end">
+                                <div class="btn-group">
+                                    <a href="{% url 'pharmacies:detail' f.pk %}" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    <a href="{% url 'pharmacies:modifier' f.pk %}" class="btn btn-sm btn-outline-secondary">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

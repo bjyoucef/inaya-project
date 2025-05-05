@@ -10,57 +10,79 @@
 </head>
 <body>
     <div class="mermaid">
-graph TD
-%% Accueil Models
-User -->|1:1| Theme
-User -->|1:N| ConfigDate
-MenuGroup -->|1:N| MenuItems
-Contacts
+erDiagram
+PRODUIT {
+id INT PK
+nom VARCHAR
+code_produit VARCHAR
+code_barres VARCHAR
+type_produit VARCHAR
+prix_achat DECIMAL
+prix_vente DECIMAL
+description TEXT
+est_actif BOOLEAN
+}
+SERVICE {
+id INT PK
+nom VARCHAR
+}
+STOCK {
+id INT PK
+produit_id INT FK
+service_id INT FK
+quantite INT
+date_peremption DATE
+numero_lot VARCHAR
+date_ajout DATETIME
+}
+TRANSFERT {
+id INT PK
+produit_id INT FK
+service_origine_id INT FK
+service_destination_id INT FK
+responsable_id INT FK
+quantite_transferee INT
+date_transfert DATETIME
+date_peremption DATE
+numero_lot VARCHAR
+}
+ACHAT {
+id INT PK
+produit_id INT FK
+fournisseur VARCHAR
+quantite_achetee INT
+prix_unitaire DECIMAL
+date_achat DATETIME
+numero_lot VARCHAR
+date_peremption DATE
+}
+PRESTATION_ACTE {
+id INT PK
+}
+CONSOMMATION_PRODUIT {
+id INT PK
+prestation_acte_id INT FK
+produit_id INT FK
+quantite_defaut INT
+quantite_reelle INT
+prix_unitaire DECIMAL
+montant_solde DECIMAL
+date_consommation DATETIME
+}
+PERSONNEL {
+id INT PK
+}
 
-%% Documents
-Documents --> FilerFileField
-
-%% Finance Models
-Decharges -->|1:N| Payments
-Tarif --> Poste
-Tarif --> Services
-Tarif --> Shift
-
-%% Helpdesk Models
-Helpdesk
-
-%% Medical Models
-Medecin -->|1:1| Personnel
-Medecin -->|M:N| Services
-RendezVous --> Medecin
-RendezVous --> Patient
-RendezVous --> Services
-Patient -->|1:1| DossierMedical
-DossierMedical -->|1:N| Antecedent
-Services -->|1:N| Personnel
-
-%% RH Models
-Personnel -->|M:1| Poste
-Personnel -->|M:1| Services
-Personnel -->|1:1| User
-Planning --> Services
-Planning --> Personnel
-Planning --> Shift
-Poste
-Shift
-HonorairesActe --> Services
-PointagesActes --> HonorairesActe
-PointagesActes --> Planning
-
-%% Anviz Models
-AnvizConfiguration
-Employee -->|1:N| Attendance
-
-%% HR Requests
-SalaryAdvanceRequest --> Personnel
-LeaveRequest --> Personnel
-
-classDef default fill:#f9f,stroke:#333;
+%% Relations
+PRODUIT ||--o{ STOCK : contient
+SERVICE ||--o{ STOCK : appartient_à
+PRODUIT ||--o{ TRANSFERT : transfère
+SERVICE ||--o{ TRANSFERT : transferts_sortants
+SERVICE ||--o{ TRANSFERT : transferts_entrants
+PERSONNEL ||--o{ TRANSFERT : responsable
+PRODUIT ||--o{ ACHAT : achète
+PRESTATION_ACTE ||--o{ CONSOMMATION_PRODUIT : génère
+PRODUIT ||--o{ CONSOMMATION_PRODUIT : concerne
 
     </div>
 

@@ -5,7 +5,7 @@ from .models import Patient
 
 class PatientListView(ListView):
     model = Patient
-    template_name = "patients/patient_list.html"
+    template_name = "patient_list.html"
     context_object_name = "patients"
     paginate_by = 20  # ajustez selon vos besoins
 
@@ -15,7 +15,7 @@ class PatientListView(ListView):
 
 class PatientCreateView(CreateView):
     model = Patient
-    template_name = "patients/patient_form.html"
+    template_name = "patient_form.html"
     fields = [
         "first_name",
         "last_name",
@@ -38,7 +38,7 @@ class PatientCreateView(CreateView):
 
 class PatientUpdateView(UpdateView):
     model = Patient
-    template_name = "patients/patient_form.html"
+    template_name = "patient_form.html"
     fields = PatientCreateView.fields
     success_url = reverse_lazy("patients:list")
 
@@ -49,7 +49,7 @@ class PatientUpdateView(UpdateView):
 
 class PatientDeleteView(DeleteView):
     model = Patient
-    template_name = "patients/patient_confirm_delete.html"
+    template_name = "patient_confirm_delete.html"
     success_url = reverse_lazy("patients:list")
 
     def delete(self, request, *args, **kwargs):

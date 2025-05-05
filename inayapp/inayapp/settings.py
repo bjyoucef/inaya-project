@@ -23,6 +23,7 @@ ALLOWED_HOSTS = []
 INSTALLED_APPS = [
     "jazzmin",
     "fontawesomefree",
+    "nested_admin",
     "widget_tweaks",
     "django.contrib.admin",
     "django.contrib.auth",
@@ -30,8 +31,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    'django.contrib.humanize',
-    
+    "django.contrib.humanize",
     "maintenance_mode",
     "filer",
     "easy_thumbnails",
@@ -49,7 +49,9 @@ INSTALLED_APPS += [
     "patients",
     "medecin.apps.MedecinConfig",
     "medical.apps.MedicalConfig",
+    "pharmacies",
 ]
+
 THUMBNAIL_HIGH_RESOLUTION = True
 THUMBNAIL_PROCESSORS = (
     'easy_thumbnails.processors.colorspace',
@@ -94,6 +96,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "accueil.context_processors.get_menu_groups",
                 "accueil.context_processors.get_menu_items",
+                "accueil.context_processors.navbar_context",
                 "accueil.context_processors.notification",
             ],
         },
@@ -121,7 +124,7 @@ X_FRAME_OPTIONS = 'ALLOWALL'
 DATABASES = {
     "default": {
         'ENGINE': 'django.db.backends.mysql',  # Django utilise mysqlclient pour MariaDB
-        'NAME': 'inaya',
+        'NAME': 'nvb',
         'USER': 'root',
         'PASSWORD': '@Dmin1548@',
         'HOST': '127.0.0.1',
@@ -181,92 +184,92 @@ LOGOUT_REDIRECT_URL = '/'
 
 
 JAZZMIN_SETTINGS = {
-
     # Titre du site qui apparaît dans l'onglet du navigateur
-    "site_title": "Administration de INAYA APP",
-
+    "site_title": "INAYA APP",
     # En-tête de la page d'administration
-    "site_header": "Administration de INAYA APP",
-
+    "site_header": "INAYA APP",
     # Marque affichée dans la barre latérale et dans l'en-tête
     "site_brand": "INAYA APP",
-
     # Chemin vers le logo affiché dans la barre latérale (relatif au dossier static)
-    "site_logo": "images/logo.png",
-
-    # Classes CSS à appliquer au logo (par exemple, pour arrondir le logo)
-    "site_logo_classes": "img-circle",
+    "site_logo": "\icon\logo_inaya.svg",
 
     # Chemin vers l'icône du site
     "site_icon": "icon/favicon.ico",
-
     # Message de bienvenue affiché sur la page d'accueil de l'administration
     "welcome_sign": "Bienvenue sur l'administration INAYA APP",
-
     # Texte de copyright affiché en bas de la page
     "copyright": "© 2025 INAYA APP",
-
     # Modèle utilisé par la barre de recherche en haut de la page
     "search_model": "auth.User",
-
     # (Optionnel) Attribut pour afficher l'avatar de l'utilisateur ; laisser à None si non utilisé
     "user_avatar": None,
-
     # Liens affichés dans le menu supérieur (top menu)
     "topmenu_links": [
         {"name": "App Home", "url": "home"},
         {"model": "auth.user"},
         {"app": "auth"},
     ],
-
     # Liens dans le menu utilisateur (menu déroulant en haut à droite)
-    "usermenu_links": [
-        {"name": "Home", "url": "home"},
-        {"model": "auth.user"}
-    ],
-
+    "usermenu_links": [{"name": "Home", "url": "home"}, {"model": "auth.user"}],
     # Afficher ou non la barre latérale
     "show_sidebar": True,
-
     # Déployer ou réduire la navigation par défaut
     "navigation_expanded": True,
-
     # Liste des applications à masquer dans la navigation
     "hide_apps": [],
-
     # Liste des modèles à masquer dans la navigation
     "hide_models": [],
-
     # Ordre des applications (les applications non listées seront affichées en dernier)
     "order_with_respect_to": ["auth", "sites"],
-
     # Icône par défaut pour les parents de la navigation (utilise FontAwesome)
     "default_icon_parents": "fas fa-chevron-circle-right",
-
     # Icône par défaut pour les enfants de la navigation
     "default_icon_children": "fas fa-circle",
-
     # Active les modales pour les relations (pour un chargement plus fluide)
     "related_modal_active": True,
-
     # Chemin vers un fichier CSS personnalisé (optionnel)
     "custom_css": "css/custom_jazzmin.css",
-
     # Chemin vers un fichier JS personnalisé (optionnel)
     "custom_js": None,
-
     # Afficher ou non l'outil de configuration de l'interface utilisateur
-    "show_ui_builder": False,
-
+    "show_ui_builder": True,
     # Format par défaut pour les formulaires de changement (ex. "horizontal_tabs", "vertical_tabs", "collapsible")
     "changeform_format": "horizontal_tabs",
-
     # Surcharges spécifiques pour certains modèles
     "changeform_format_overrides": {
-        "auth.user": "collapsible",
-        "auth.group": "vertical_tabs",
+        "auth.user": "horizontal_tabs",
     },
 }
-
-
+JAZZMIN_UI_TWEAKS = {
+    "navbar_small_text": True,
+    "footer_small_text": True,
+    "body_small_text": False,
+    "brand_small_text": True,
+    "brand_colour": False,
+    "accent": "accent-indigo",
+    "navbar": "navbar-white navbar-light",
+    "no_navbar_border": True,
+    "navbar_fixed": True,
+    "layout_boxed": False,
+    "footer_fixed": True,
+    "sidebar_fixed": True,
+    "sidebar": "sidebar-dark-indigo",
+    "sidebar_nav_small_text": True,
+    "sidebar_disable_expand": False,
+    "sidebar_nav_child_indent": True,
+    "sidebar_nav_compact_style": True,
+    "sidebar_nav_legacy_style": True,
+    "sidebar_nav_flat_style": True,
+    "theme": "default",
+    "dark_mode_theme": None,
+    "button_classes": {
+        "primary": "btn-outline-primary",
+        "secondary": "btn-outline-secondary",
+        "info": "btn-outline-info",
+        "warning": "btn-outline-warning",
+        "danger": "btn-outline-danger",
+        "success": "btn-outline-success",
+    },
+    "actions_sticky_top": True,
+}
 PLOTLY_OFFLINE_CONFIG = {"show_link": False, "link_text": "", "displaylogo": False}

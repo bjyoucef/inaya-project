@@ -17,7 +17,6 @@ class Helpdesk(models.Model):
     
     class Meta:
         managed = True
-        db_table = 'helpdesk'
         permissions = (
             ("ACCES_AU_DEPARTEMENT_IT", "Accès au département IT"),
             ("ACCES_AU_DEPARTEMENT_TECHNIQUE", "Accès au département Technique"),

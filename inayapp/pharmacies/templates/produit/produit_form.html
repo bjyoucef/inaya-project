@@ -1,0 +1,56 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container mt-5">
+    <div class="card shadow-lg">
+        <div class="card-header bg-primary text-white">
+            <h2 class="mb-0">
+                {% if object %}Modifier{% else %}Créer{% endif %} un produit
+            </h2>
+        </div>
+        
+        <div class="card-body">
+            <form method="post" class="needs-validation" novalidate>
+                {% csrf_token %}
+                
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        {% include 'includes/form_field.html' with field=form.nom %}
+                        {% include 'includes/form_field.html' with field=form.code_produit %}
+                        {% include 'includes/form_field.html' with field=form.code_barres %}
+                        {% include 'includes/form_field.html' with field=form.type_produit %}
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="row">
+                            <div class="col-md-6">
+                                {% include 'includes/form_field.html' with field=form.prix_achat %}
+                            </div>
+                            <div class="col-md-6">
+                                {% include 'includes/form_field.html' with field=form.prix_vente %}
+                            </div>
+                        </div>
+                        {% include 'includes/form_field.html' with field=form.description %}
+                        
+                        <div class="form-check form-switch mt-3">
+                            {{ form.est_actif }}
+                            <label class="form-check-label" for="{{ form.est_actif.id_for_label }}">
+                                Produit actif
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between mt-4">
+                    <a href="{% if object %}{% url 'pharmacies:produit_detail' object.pk %}{% else %}{% url 'pharmacies:produit_list' %}{% endif %}" 
+                       class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Annuler
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save"></i> Enregistrer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

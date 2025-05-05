@@ -206,42 +206,6 @@ body {
     }
 }
 
-
-/* Dans styles.css */
-.sidebar {
-    transition: all 0.3s;
-    min-height: calc(100vh - 80px);
-}
-
-.sidebar-menu .dropdown-menu {
-    position: relative !important;
-    transform: none !important;
-    border: none;
-    background-color: rgba(255, 255, 255, 0.1);
-    margin-left: 1rem;
-}
-
-.sidebar-menu .dropdown-item {
-    color: #fff;
-    border-radius: 0.5rem;
-}
-
-.sidebar-menu .dropdown-item.active {
-    background-color: #7a6ad8;
-}
-
-@media (max-width: 768px) {
-    .sidebar {
-        width: 100% !important;
-        position: static;
-    }
-
-    .dropdown-menu {
-        width: 100%;
-    }
-}
-
-
 /* ---------------------------------------------
    Services Style
 --------------------------------------------- */
@@ -610,6 +574,165 @@ calendar {
     border: 1px solid #003d80;
 }
 
+
+.fc-toolbar-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.fc-event {
+    font-size: 0.85em;
+    padding: 2px 5px;
+    border-radius: 3px;
+    margin: 1px;
+}
+
+.choices__inner {
+    min-height: 38px;
+    padding: 4px 8px;
+    border: 1px solid #dee2e6 !important;
+    border-radius: 0.375rem;
+    background-color: white;
+}
+
+.choices__list--dropdown {
+    border: 1px solid #dee2e6;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    z-index: 1060 !important;
+}
+
+.form-control-sm,
+.form-select-sm {
+    height: 38px;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+.week-end-style {
+    background-color: #dbcffb;
+    /* Jaune clair */
+    color: #000;
+    /* Texte noir */
+}
+
+@media (max-width: 768px) {
+    .week-end-style {
+        background-color: #dbcffb !important;
+        /* Jaune clair */
+        color: #000 !important;
+        /* Texte noir */
+    }
+}
+
+:root {
+    --fc-small-font-size: .85em;
+    --fc-page-bg-color: #fff;
+    --fc-neutral-bg-color: rgba(208, 208, 208, 0.3);
+    --fc-neutral-text-color: #808080;
+    --fc-border-color: #ddd;
+
+    --fc-button-text-color: #fff;
+    --fc-button-bg-color: #7a6ad8;
+    --fc-button-border-color: #3b0087;
+    --fc-button-hover-bg-color: #3b0087;
+    --fc-button-hover-border-color: #3b0087;
+    --fc-button-active-bg-color: #3b0087;
+    --fc-button-active-border-color: #3b0087;
+
+    --fc-event-bg-color: #3788d8;
+    --fc-event-border-color: #3788d8;
+    --fc-event-text-color: #fff;
+    --fc-event-selected-overlay-color: rgba(0, 0, 0, 0.25);
+
+    --fc-more-link-bg-color: #d0d0d0;
+    --fc-more-link-text-color: inherit;
+
+    --fc-event-resizer-thickness: 7px;
+    --fc-event-resizer-dot-total-width: 8px;
+    --fc-event-resizer-dot-border-width: 1px;
+
+    --fc-non-business-color: rgba(215, 215, 215, 0.3);
+    --fc-bg-event-color: rgb(143, 223, 130);
+    --fc-bg-event-opacity: 0.3;
+    --fc-highlight-color: rgba(188, 232, 241, 0.3);
+    --fc-today-bg-color: #8d6eff;
+    --fc-now-indicator-color: red;
+}
+
+
+/* Conteneur principal */
+.daterangepicker {
+    font-family: Arial, sans-serif;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    border-radius: 0.375rem;
+}
+
+/* Zones des calendriers */
+.daterangepicker .drp-calendar {
+    border: none;
+    padding: 10px;
+}
+
+/* En-têtes des calendriers */
+.daterangepicker .drp-calendar thead th {
+    font-weight: 600;
+    color: #495057;
+    padding: 5px;
+    background-color: #e9ecef;
+    border: none;
+}
+
+/* Tableau du calendrier */
+.daterangepicker .calendar-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.daterangepicker .calendar-table td {
+    text-align: center;
+    padding: 8px;
+    border: 1px solid #dee2e6;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+/* Date active sélectionnée */
+.daterangepicker .calendar-table td.active,
+.daterangepicker .calendar-table td.active:hover {
+    background-color: #7a6ad8;
+    color: #fff;
+    border-color: #007bff;
+}
+
+/* Section des plages prédéfinies */
+.daterangepicker .ranges {
+    background-color: rgb(247, 249, 255);
+    border-right: 1px solid #7a6ad8;
+    padding: 10px;
+    font-size: 0.875rem;
+}
+
+/* Boutons d'action */
+.daterangepicker .applyBtn,
+.daterangepicker .cancelBtn {
+    background-color: #7a6ad8;
+    color: #fff;
+    border: none;
+    padding: 5px 15px;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    font-size: 0.875rem;
+}
+
+.daterangepicker .applyBtn:hover,
+.daterangepicker .cancelBtn:hover {
+    background-color: #0056b3;
+}
+
+
 .table-title {
     background-color: #f8f9fa;
     text-align: center;
@@ -881,6 +1004,7 @@ calendar {
     }
 
 
+
     .center {
         display: block;
         margin-left: auto;
@@ -888,168 +1012,3 @@ calendar {
         width: 50%;
     }
 }
-
-/* Transition fluide */
-html {
-    transition: background-color 0.3s, color 0.3s;
-}
-
-/* Thème sombre étendu */
-[data-bs-theme="dark"] {
-    --bs-body-bg: #1a1a1a;
-    --bs-body-color: #e0e0e0;
-    --bs-border-color: #404040;
-    --bs-primary: #6354b8;
-    --bs-primary-rgb: 99, 84, 184;
-    --bs-link-color: #7a6ad8;
-}
-
-[data-bs-theme="dark"] .card {
-    background-color: #2d2d2d;
-    border-color: rgba(255, 255, 255, 0.125);
-}
-
-[data-bs-theme="dark"] .table {
-    --bs-table-bg: #2d2d2d;
-    --bs-table-striped-bg: #383838;
-    --bs-table-hover-bg: #404040;
-}
-
-[data-bs-theme="dark"] .dropdown-menu {
-    --bs-dropdown-bg: #2d2d2d;
-    --bs-dropdown-link-color: #e0e0e0;
-}
-
-[data-bs-theme="dark"] .modal-content {
-    background-color: #2d2d2d;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-/* Correction du contraste */
-[data-bs-theme="dark"] .text-dark {
-    color: #e0e0e0 !important;
-}
-
-.dropdown-menu {
-    z-index: 1030 !important;
-    /* Doit être supérieur au header (1020) */
-}
-
-.navbar .dropdown-menu {
-    position: absolute !important;
-    transform: none !important;
-}
-
-/* Sidebar sombre */
-.sidebar {
-    background-color: #7a6ad8;
-    /* ton violet actuel */
-}
-
-.sidebar .nav-link {
-    color: #ffffff;
-    /* texte toujours blanc */
-}
-
-.sidebar .nav-link:hover,
-.sidebar .nav-link:focus {
-    color: #f0f0f0;
-    /* légère nuance au survol */
-}
-
-.sidebar .nav-link.active {
-    background-color: #5b4db7;
-    /* violet plus sombre pour l’actif */
-    color: #ffffff;
-    /* texte toujours blanc */
-}
-
-
-.fc-toolbar-title {
-    font-size: 1.25em;
-}
-
-.fc-daygrid-day-number {
-    font-size: 0.9em;
-}
-
-.fc-timegrid-axis {
-    font-size: 0.8em;
-}
-
-.modal-body p {
-    margin-bottom: 0.5rem;
-}
-
-
-/* 1. Style unifié pour toggles ET items */
-.sidebar .nav-link {
-    background-color: #7a6ad8;
-    /* violet de base */
-    color: #ffffff;
-    /* texte blanc */
-    border-radius: 0;
-    /* coins carrés */
-    margin: 0;
-    /* pas d’espacement externe */
-    padding: 0.75rem 1rem;
-    /* ajustez si besoin */
-    transition: background-color .2s ease;
-}
-
-/* hover/focus */
-.sidebar .nav-link:hover,
-.sidebar .nav-link:focus {
-    background-color: #5b4db7;
-    /* violet un peu plus foncé */
-    color: #ffffff;
-}
-
-/* 2. Items actifs : légère nuance pour distinguer */
-.sidebar .nav-link.active {
-    background-color: #493a9e;
-    /* violet encore plus sombre */
-    color: #ffffff;
-}
-
-/* 3. Effet « déferlante » sur l’ouverture */
-.sidebar .collapse .nav-item {
-    overflow: hidden;
-}
-
-/* on cible le lien lui‑même pour l’animation */
-.sidebar .collapse .nav-link {
-    opacity: 0;
-    transform: translateX(-10px);
-    transition: opacity .3s ease, transform .3s ease;
-}
-
-/* quand le groupe est ouvert, on anime chaque item avec un petit delay */
-.sidebar .collapse.show .nav-item:nth-child(1) .nav-link {
-    transition-delay: 0.05s;
-}
-
-.sidebar .collapse.show .nav-item:nth-child(2) .nav-link {
-    transition-delay: 0.10s;
-}
-
-.sidebar .collapse.show .nav-item:nth-child(3) .nav-link {
-    transition-delay: 0.15s;
-}
-
-.sidebar .collapse.show .nav-item:nth-child(4) .nav-link {
-    transition-delay: 0.20s;
-}
-
-.sidebar .collapse.show .nav-item:nth-child(5) .nav-link {
-    transition-delay: 0.25s;
-}
-
-/* ajoutez autant de lignes que nécessaire selon votre nombre max d’items */
-
-.sidebar .collapse.show .nav-link {
-    opacity: 1;
-    transform: translateX(0);
-}
-
-

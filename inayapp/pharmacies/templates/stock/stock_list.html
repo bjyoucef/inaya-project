@@ -1,0 +1,96 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">Gestion des stocks</h2>
+        <a href="{% url 'pharmacies:stock_create' %}" class="btn btn-success">
+            <i class="bi bi-plus-circle"></i> Ajouter un stock
+        </a>
+    </div>
+
+    <div class="table-responsive rounded-3 shadow">
+        <table class="table table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th scope="col">Produit</th>
+                    <th scope="col" class="text-center">Service</th>
+                    <th scope="col" class="text-center">Quantité</th>
+                    <th scope="col" class="text-center">Expiration</th>
+                    <th scope="col">Lot</th>
+                    <th scope="col" class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in stocks %}
+                <tr>
+                    <td>
+                        <div class="fw-bold">{{ s.produit.nom }}</div>
+                        <small class="text-muted">{{ s.produit.code_produit }}</small>
+                    </td>
+                    <td class="text-center">
+                        <span class="badge bg-primary">{{ s.service }}</span>
+                    </td>
+                    <td class="text-center fw-bold {% if s.quantite < 10 %}text-danger{% endif %}">
+                        {{ s.quantite }}
+                    </td>
+                    <td class="text-center">
+                        {% if s.date_peremption %}
+                            <span class="{% if s.is_expired %}text-danger{% else %}text-success{% endif %}">
+                                {{ s.date_peremption|date:"d/m/Y" }}
+                            </span>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>
+                        <code>{{ s.numero_lot|default:"N/A" }}</code>
+                    </td>
+                    <td class="text-end">
+                        <div class="btn-group">
+                            <a href="#" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            <a href="#" class="btn btn-sm btn-outline-secondary">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <a href="#" class="btn btn-sm btn-outline-danger">
+                                <i class="bi bi-trash"></i>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if is_paginated %}
+    <nav class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}">
+                    <i class="bi bi-chevron-left"></i>
+                </a>
+            </li>
+            {% endif %}
+            
+            {% for num in page_obj.paginator.page_range %}
+            <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+            </li>
+            {% endfor %}
+            
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}">
+                    <i class="bi bi-chevron-right"></i>
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+{% endblock %}

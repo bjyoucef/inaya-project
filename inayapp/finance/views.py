@@ -93,7 +93,7 @@ def add_decharge_multiple(request):
                 # Construction des informations de dossiers pour chaque planning filtré
                 for p in plannings.select_related("id_service", "employee"):
                     service_name = (
-                        p.id_service.service_name if p.id_service else "Inconnu"
+                        p.id_service.name if p.id_service else "Inconnu"
                     )
                     dossier = f"{service_name} - {p.shift_date} - {p.shift} - {p.prix}"
                     if p.prix_acte and p.prix_acte != 0:
@@ -152,7 +152,7 @@ def decharge_list(request):
     )
 
     return render(
-        request, "finance/decharges/decharges_list.html", {"decharges": decharges}
+        request, "decharges/decharges_list.html", {"decharges": decharges}
     )
 
 
@@ -176,7 +176,7 @@ def decharge_settled(request):
     )
 
     return render(
-        request, "finance/decharges/decharges_settled.html", {"decharges": decharges}
+        request, "decharges/decharges_settled.html", {"decharges": decharges}
     )
 
 
@@ -211,7 +211,7 @@ def decharge_detail(request, pk):
 
     return render(
         request,
-        "finance/decharges/decharges_detail.html",
+        "decharges/decharges_detail.html",
         {
             "decharge": decharge,
             "payments": payments,
@@ -234,7 +234,7 @@ def decharge_create(request):
             return redirect("decharge_list")
     else:
         form = DechargeForm()
-    return render(request, "finance/decharges/decharges_form.html", {"form": form})
+    return render(request, "decharges/decharges_form.html", {"form": form})
 
 
 @login_required
@@ -248,7 +248,7 @@ def decharge_edit(request, pk):
             return redirect("decharge_list")
     else:
         form = DechargeForm(instance=decharge)
-    return render(request, "finance/decharges/decharges_form.html", {"form": form})
+    return render(request, "decharges/decharges_form.html", {"form": form})
 
 
 @login_required
@@ -266,7 +266,7 @@ def decharge_delete(request, pk):
         return redirect("decharge_list")
     return render(
         request,
-        "finance/decharges/decharges_confirm_delete.html",
+        "decharges/decharges_confirm_delete.html",
         {"decharge": decharge},
     )
 
@@ -281,7 +281,7 @@ def payment_delete(request, pk):
         return redirect("decharge_detail", pk=decharge_pk)
     return render(
         request,
-        "finance/decharges/decharges_confirm_payment_delete.html",
+        "decharges/decharges_confirm_payment_delete.html",
         {"payment": payment},
     )
 
@@ -301,7 +301,7 @@ def export_decharge_pdf(request, decharge_id):
         "dossiers": decharge.note.split("\n") if decharge.note else [],
     }
 
-    pdf_response = render_to_pdf("finance/decharges/decharge_pdf.html", context)
+    pdf_response = render_to_pdf("decharges/decharge_pdf.html", context)
     if pdf_response:
         decharge.time_export_decharge_pdf = timezone.now()
         decharge.id_export_par = request.user
@@ -331,7 +331,7 @@ def print_decharge_view(request, decharge_id):
         "dossiers": decharge.note.split("\n") if decharge.note else [],
     }
 
-    return render(request, "finance/decharges/decharge_pdf.html", context)
+    return render(request, "decharges/decharge_pdf.html", context)
 
 
 def situation_medecins_list(request):
@@ -431,7 +431,7 @@ def situation_medecins_list(request):
 
     return render(
         request,
-        'finance/situation_medecins_list.html',
+        'situation_medecins_list.html',
         {
             'medecins': medecins,
             **totals
@@ -542,7 +542,7 @@ def situation_medecin(request, medecin_id):
         "date_fin": date_fin,
     }
 
-    return render(request, "finance/situation.html", context)
+    return render(request, "situation.html", context)
 
 
 def create_decharge_medecin(request, medecin_id):
@@ -600,7 +600,7 @@ def create_decharge_medecin(request, medecin_id):
         "medecin": medecin,
         "prestations": prestations_non_dechargees,
     }
-    return render(request, "finance/decharges/create_decharge_medecin.html", context)
+    return render(request, "decharges/create_decharge_medecin.html", context)
 
 
 @login_required
@@ -663,7 +663,7 @@ def gestion_convention_accorde(request):
         "current_patient": patient_id,
     }
     return render(
-        request, "finance/gestion_convention_accorde.html", context
+        request, "gestion_convention_accorde.html", context
     )
 
 

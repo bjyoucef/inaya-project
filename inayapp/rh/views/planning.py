@@ -83,8 +83,8 @@ def planning(request):
         id_planning__shift_date__range=[filters["start_date"], filters["end_date"]]
     )
     if filters.get("service", "all") != "all":
-        planning_filter &= Q(id_service__name=filters["service"])
-        pointage_filter &= Q(id_planning__id_service__name=filters["service"])
+        planning_filter &= Q(service__name=filters["service"])
+        pointage_filter &= Q(id_planning__service__name=filters["service"])
 
     if filters.get("poste", "all") != "all":
         planning_filter &= Q(id_poste__label=filters["poste"])
@@ -101,17 +101,17 @@ def planning(request):
 
     try:
         planningsValidees = Planning.objects.select_related(
-            "employee", "id_service"
+            "employee", "service"
         ).filter(planning_filter, pointage_created_at__isnull=False,id_decharge__isnull=True)
 
         plannings = Planning.objects.select_related(
-            "employee", "id_service", "shift"
+            "employee", "service", "shift"
         ).filter(planning_filter)
 
         pointages = (
             PointagesActes.objects.select_related(
                 "id_planning__employee",
-                "id_planning__id_service",
+                "id_planning__service",
                 "id_acte",
                 "id_planning__shift",
             )
@@ -155,7 +155,7 @@ def planning(request):
         events.append(
             {
                 "id": p.id,
-                "service_id": p.id_service.id_service,
+                "service_id": p.service.id,
                 "id_poste": p.id_poste.id,
                 "title": title,
                 "start": event_start.isoformat(),
@@ -163,7 +163,7 @@ def planning(request):
                 "backgroundColor": (
                     "gray"
                     if p.pointage_created_at
-                    else service_colors.get(p.id_service.name, "black")
+                    else service_colors.get(p.service.name, "black")
                 ),
             }
         )
@@ -189,7 +189,7 @@ def planning(request):
         grouped["prix_acte_total"] += planning.prix_acte or 0
         grouped["pointagesDetail"].append(
             {
-                "service_name": planning.id_service.name,
+                "service_name": planning.service.name,
                 "date_pointage": planning.shift_date.strftime("%Y-%m-%d"),
                 "shift": planning.shift.label if planning.shift else "",
                 "prix": planning.prix,
@@ -209,7 +209,7 @@ def planning(request):
         "pointages": pointages,
         "shifts": Shift.objects.all(),
     }
-    return render(request, "rh/planning.html", context)
+    return render(request, "planning.html", context)
 
 
 @permission_required("rh.creer_planning", raise_exception=True)
@@ -276,7 +276,7 @@ def save_planning(request):
             if event_id:
                 planning_obj = Planning.objects.filter(id=event_id).first()
                 if planning_obj:
-                    planning_obj.id_service = service_obj
+                    planning_obj.service = service_obj
                     planning_obj.id_poste = poste_obj
                     planning_obj.shift_date = shift_date
                     planning_obj.shift = shift_obj
@@ -288,7 +288,7 @@ def save_planning(request):
                     return redirect(reverse("planning") + redirect_params)
             else:
                 Planning.objects.create(
-                    id_service=service_obj,
+                    service=service_obj,
                     id_poste=poste_obj,
                     shift_date=shift_date,
                     shift=shift_obj,
@@ -403,9 +403,9 @@ def print_planning(request):
     if selected_service != "all":
         service_obj = Service.objects.filter(name=selected_service).first()
 
-    queryset = Planning.objects.select_related("employee", "id_service").all()
+    queryset = Planning.objects.select_related("employee", "service").all()
     if service_obj:
-        queryset = queryset.filter(id_service=service_obj)
+        queryset = queryset.filter(service=service_obj)
     if selected_shift != "all":
         queryset = queryset.filter(shift=selected_shift)
     if employee_obj:
@@ -421,13 +421,13 @@ def print_planning(request):
             "shift_date": p.shift_date,
             "full_name": p.employee.nom_prenom,
             "shift": p.shift,
-            "service": p.id_service.name if p.id_service else "",
+            "service": p.service.name if p.service else "",
         }
         for p in queryset.iterator()
     ]
     rendered_html = render(
         request,
-        "rh/planning_pdf.html",
+        "planning_pdf.html",
         {
             "selected_service": selected_service,
             "selected_shift": selected_shift,
@@ -458,7 +458,7 @@ def validate_presence(request, event_id):
     try:
         planning = Planning.objects.get(id=event_id)
         poste = planning.employee.poste if hasattr(planning.employee, "poste") else None
-        service = planning.id_service
+        service = planning.service
         shift = planning.shift
 
         # Recherche du tarif
@@ -513,7 +513,7 @@ def validate_presence_range(request):
 
         for planning in plannings:
             poste = planning.employee.poste
-            service = planning.id_service
+            service = planning.service
             shift = planning.shift
 
             tarif = Tarif_Gardes.objects.filter(

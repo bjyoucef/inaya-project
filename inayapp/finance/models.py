@@ -44,13 +44,12 @@ class Decharges(models.Model):
 
     class Meta:
         managed = True
-        db_table = "decharges"
 
 
 class Payments(models.Model):
     id_payment = models.AutoField(primary_key=True)
     id_decharge = models.ForeignKey(
-        Decharges,
+        "Decharges",
         models.DO_NOTHING,
         db_column="id_decharge",
         related_name="payments",
@@ -71,7 +70,6 @@ class Payments(models.Model):
 
     class Meta:
         managed = True
-        db_table = "Payments"
 
 
 class Tarif_Gardes(models.Model):
@@ -152,13 +150,15 @@ class Convention(models.Model):
 
 class TarifActeConvention(models.Model):
     convention = models.ForeignKey(
-        Convention, on_delete=models.CASCADE, related_name="tarifs"
+        "Convention", on_delete=models.CASCADE, related_name="tarifs"
     )
     acte = models.ForeignKey(
         "medical.Acte", on_delete=models.CASCADE, related_name="tarifs_convention"
     )
     tarif_acte = models.ForeignKey(
-        TarifActe, on_delete=models.CASCADE, related_name="tarifs_par_convention"
+        "TarifActe",
+        on_delete=models.CASCADE,
+        related_name="tarifs_par_convention",
     )
     date_effective = models.DateField(default=timezone.now)
     montant_honoraire_base = models.DecimalField(

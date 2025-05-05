@@ -1,0 +1,134 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container mt-5">
+    <div class="card shadow-lg">
+        <div class="card-header bg-primary text-white">
+            <h2 class="mb-0">
+                <i class="bi bi-cart-plus"></i>
+                {% if achat %}Modifier{% else %}Créer{% endif %} un achat
+            </h2>
+        </div>
+        
+        <div class="card-body">
+            <form method="post" class="needs-validation" novalidate>
+                {% csrf_token %}
+                
+                {% if form.errors %}
+                <div class="alert alert-danger">
+                    Veuillez corriger les erreurs ci-dessous
+                </div>
+                {% endif %}
+
+                <div class="row g-3">
+                    <!-- Colonne gauche -->
+                    <div class="col-md-6">
+                        <!-- Produit -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Produit</label>
+                            {{ form.produit }}
+                            <div class="invalid-feedback">
+                                Sélectionnez un produit valide
+                            </div>
+                        </div>
+
+                        <!-- Fournisseur -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Fournisseur</label>
+                                {{ form.fournisseur }}
+                            <div class="invalid-feedback">
+                                Entrez le nom du fournisseur
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Service destinataire</label>
+                            {{ form.service_destination }}
+                        </div>
+                    </div>
+
+                    <!-- Colonne droite -->
+                    <div class="col-md-6">
+                        <!-- Quantité et Prix -->
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Quantité</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       name="quantite_achetee" 
+                                       value="{{ achat.quantite_achetee|default:'' }}"
+                                       min="1" 
+                                       required>
+                                <div class="invalid-feedback">
+                                    Quantité minimale: 1
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Prix unitaire (€)</label>
+                                <input type="number" 
+                                       step="0.01" 
+                                       class="form-control" 
+                                       name="prix_unitaire" 
+                                       value="{{ achat.prix_unitaire|default:'' }}"
+                                       required>
+                                <div class="invalid-feedback">
+                                    Prix unitaire requis
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Lot et Date -->
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Numéro de lot</label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       name="numero_lot" 
+                                       value="{{ achat.numero_lot|default:'' }}"
+                                       pattern="[A-Za-z0-9-]+"
+                                       title="Caractères alphanumériques et tirets uniquement">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Date de péremption</label>
+                                <input type="date" 
+                                       class="form-control" 
+                                       name="date_peremption" 
+                                       value="{{ achat.date_peremption|date:'Y-m-d' }}">
+                                <small class="text-muted">Format: AAAA-MM-JJ</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Boutons -->
+                <div class="card-footer bg-light">
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="{% if achat %}{% url 'pharmacies:achat_detail' achat.id %}{% else %}{% url 'pharmacies:achat_list' %}{% endif %}" 
+                           class="btn btn-outline-secondary">
+                            <i class="bi bi-x-circle"></i> Annuler
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save"></i> Enregistrer
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Validation de formulaire -->
+<script>
+(function () {
+  'use strict'
+  const forms = document.querySelectorAll('.needs-validation')
+  Array.from(forms).forEach(form => {
+    form.addEventListener('submit', event => {
+      if (!form.checkValidity()) {
+        event.preventDefault()
+        event.stopPropagation()
+      }
+      form.classList.add('was-validated')
+    }, false)
+  })
+})()
+</script>
+{% endblock %}

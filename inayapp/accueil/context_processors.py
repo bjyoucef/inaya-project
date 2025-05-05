@@ -3,14 +3,15 @@
 
 from django.db.models import F, Q, Sum, Value
 from django.db.models.functions import Coalesce
+from django.urls import Resolver404, resolve, reverse
 from finance.models import Decharges
 from helpdesk.models import Helpdesk
 from rh.models import LeaveRequest, SalaryAdvanceRequest
 from django.db.models import F, Sum, Value, ExpressionWrapper
 from django.db.models.functions import Coalesce
 from django.db import models
-from .models import MenuItems, MenuGroup
-
+from .models import MenuItem, MenuGroup, NavbarItem
+from django.urls import resolve
 
 def get_menu_groups(request):
     groups = MenuGroup.objects.prefetch_related("items").all()
@@ -18,7 +19,7 @@ def get_menu_groups(request):
 
 
 def get_menu_items(request):
-    items = MenuItems.objects.all().order_by("n")
+    items = MenuItem.objects.all().order_by("order")
     filtered_items = []
 
     for item in items:
@@ -29,6 +30,66 @@ def get_menu_items(request):
             filtered_items.append(item)
 
     return {"menu_items": filtered_items}
+
+
+from django.urls import resolve, reverse
+from .models import MenuItem, NavbarItem
+
+
+# votre_app/context_processors.py
+
+from django.urls import resolve
+from .models import MenuItem, NavbarItem
+
+
+# votre_app/context_processors.py
+
+from django.urls import resolve
+from .models import MenuItem, NavbarItem
+
+
+def navbar_context(request):
+    # 1) obtenir le nom de la vue courante
+    try:
+        current_url_name = resolve(request.path_info).route
+    except Exception:
+        current_url_name = None
+
+    # 2) MenuItem actif
+    active_item = (
+        MenuItem.objects.filter(route=f"/{current_url_name}").first()
+        if current_url_name
+        else None
+    )
+
+    # 3) charger tous les NavbarItem et permissions
+    if active_item:
+        qs = (
+            NavbarItem.objects.filter(menu_item=active_item)
+            .select_related("menu_item")
+            .order_by("order")
+        )
+    else:
+        qs = NavbarItem.objects.none()
+
+    user_perms = request.user.get_all_permissions() if request.user.is_authenticated else set()
+    
+    # 4) Filtrer par permissions
+    user_perms = (
+        request.user.get_all_permissions() if request.user.is_authenticated else set()
+    )
+    navbar_items = [
+        nb
+        for nb in qs
+        if (not nb.permission or nb.permission in user_perms)
+        and (not active_item.permission or active_item.permission in user_perms)
+    ]
+
+    return {
+        "navbar_items": navbar_items,
+        "active_menu_item": active_item,
+        "current_url_name": current_url_name,
+    }
 
 
 def notification(request):

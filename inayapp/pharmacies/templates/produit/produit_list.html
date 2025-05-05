@@ -1,0 +1,73 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mt-4 mb-3">Liste des produits</h2>
+        <a href="{% url 'pharmacies:produit_create' %}" class="btn btn-primary btn-lg">
+            <i class="bi bi-plus-circle"></i> Créer un produit
+        </a>
+    </div>
+
+    <div class="table-responsive shadow rounded-3">
+        <table class="table table-striped table-hover align-middle">
+            <thead class="table-dark">
+                <tr class="text-center">
+                    <th scope="col">Code</th>
+                    <th scope="col">Nom</th>
+                    <th scope="col">Type</th>
+                    <th scope="col">Prix</th>
+                    <th scope="col">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in produits %}
+                <tr>
+                    <td class="fw-bold">{{ p.code_produit }}</td>
+                    <td>{{ p.nom }}</td>
+                    <td>{{ p.get_type_produit_display }}</td>
+                    <td class="text-end">{{ p.prix_vente }} €</td>
+                    <td class="text-nowrap">
+                        <div class="btn-group" role="group">
+                            <a href="{% url 'pharmacies:produit_detail' p.pk %}" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            <a href="{% url 'pharmacies:produit_update' p.pk %}" class="btn btn-sm btn-outline-secondary">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <a href="{% url 'pharmacies:produit_delete' p.pk %}" class="btn btn-sm btn-outline-danger">
+                                <i class="bi bi-trash"></i>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if is_paginated %}
+    <nav class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Précédent</a>
+            </li>
+            {% endif %}
+            
+            {% for num in page_obj.paginator.page_range %}
+            <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+            </li>
+            {% endfor %}
+            
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}">Suivant</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+{% endblock %}

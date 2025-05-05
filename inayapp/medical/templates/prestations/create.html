@@ -1,0 +1,502 @@
+{% extends "layout.html" %} {% load static custom_filters %} {% block content %}
+<style>
+  .produit-row {
+    background: #f8f9fa;
+    border-radius: 5px;
+    padding: 10px;
+    margin: 5px 0;
+  }
+  .produit-header {
+    font-weight: bold;
+    color: #0d6efd;
+  }
+  .acte-row {
+    border: 1px solid #dee2e6;
+    border-radius: 5px;
+    padding: 15px;
+    margin-bottom: 15px;
+  }
+</style>
+
+<link rel="stylesheet" href="{% static 'css/choices.min.css' %}" />
+
+<div class="container-lg">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <div>
+      <h1 class="h2 mb-0 text-primary">
+        <i class="bi bi-file-medical me-2"></i>Nouvelle Prestation
+      </h1>
+      <p class="text-muted">
+        Remplissez les informations ci-dessous pour enregistrer une nouvelle
+        prestation
+      </p>
+    </div>
+    <a
+      href="{% url 'medical:prestation_list' %}"
+      class="btn btn-soft-secondary"
+    >
+      <i class="bi bi-arrow-left me-2"></i>Retour
+    </a>
+  </div>
+
+  {% if errors %}
+  <div class="alert alert-danger mb-4">
+    <h4 class="alert-heading">Erreurs de validation</h4>
+    <ul class="mb-0">
+      {% for e in errors %}
+      <li>{{ e }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <form method="post">
+    {% csrf_token %}
+
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-primary text-white">
+        Informations Générales
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label for="patientSelect" class="form-label">Patient</label>
+            <select
+              id="patientSelect"
+              name="patient"
+              class="form-select"
+              required
+            >
+              <option value="">Choisir un patient...</option>
+              {% for p in patients %}
+              <option value="{{ p.id }}">{{ p.nom_complet }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label for="medecinSelect" class="form-label">Médecin</label>
+            <select
+              id="medecinSelect"
+              name="medecin"
+              class="form-select"
+              required
+            >
+              <option value="">Choisir un médecin...</option>
+              {% for m in medecins %}
+              <option value="{{ m.id }}">{{ m.nom_complet }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label for="dateInput" class="form-label">Date</label>
+            <input
+              id="dateInput"
+              type="date"
+              name="date_prestation"
+              class="form-control"
+              value="{{ now|date:'Y-m-d' }}"
+              required
+            />
+          </div>
+          <div class="col-md-4">
+            <label for="statutSelect" class="form-label">Statut</label>
+            <select
+              id="statutSelect"
+              name="statut"
+              class="form-select"
+              required
+            >
+              {% for v,l in statut_choices %}
+              <option value="{{ v }}">{{ l }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-12">
+            <label for="observationsTextarea" class="form-label"
+              >Observations</label
+            >
+            <textarea
+              id="observationsTextarea"
+              name="observations"
+              class="form-control"
+              rows="2"
+            ></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-primary text-white">Actes Médicaux</div>
+      <div class="card-body">
+        <div id="actes-container">
+          <div class="row g-3 mb-2 text-muted small fw-bold">
+            <div class="col-md-4">Acte</div>
+            <div class="col-md-3">Convention</div>
+            <div class="col-md-2">Statut</div>
+            <div class="col-md-2">Tarif</div>
+            <div class="col-md-1"></div>
+          </div>
+          <template id="acte-row-tpl">
+            <div class="acte-row row g-3" data-index="{index}">
+              <div class="col-md-4">
+                <select
+                  name="actes[]"
+                  class="form-select acte-select"
+                  required
+                ></select>
+              </div>
+              <div class="col-md-3">
+                <select
+                  name="conventions[]"
+                  class="form-select convention-select"
+                ></select>
+              </div>
+              <div class="col-md-2 statut-convention" style="display: none">
+                <select name="convention_accordee[]" class="form-select">
+                  <option value="oui">Oui</option>
+                  <option value="non" selected>Non</option>
+                </select>
+              </div>
+              <div class="col-md-2">
+                <div class="input-group">
+                  <input
+                    type="text"
+                    name="tarifs[]"
+                    class="form-control tarif-input text-end"
+                    readonly
+                  /><span class="input-group-text">DA</span>
+                </div>
+              </div>
+              <div class="col-md-1">
+                <button type="button" class="btn btn-danger remove-acte">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </div>
+              <div class="col-12 produit-container">
+                <div class="produit-header">Produits</div>
+                <div class="produit-list"></div>
+              </div>
+            </div>
+          </template>
+          <template id="produit-row-tpl">
+  <div class="produit-row row g-3 align-items-center" data-prod-index="{prodIndex}" data-default-qty="{defaultQty}"
+    data-unit-price="{unitPrice}">
+    <div class="col-md-3">
+      <select name="actes[{index}][produits][]" class="form-select produit-select" required>
+        <option value="">-- Choisir un produit --</option>
+        {% for prod in all_produits %}
+        <option value="{{ prod.id }}" data-default-qty="{{ prod.default_qty }}" data-prix="{{ prod.prix_vente }}">
+          {{ prod.code_produit }} - {{ prod.nom }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <input type="number" name="actes[{index}][quantites_reelles][]" class="form-control quantite-input" value="1"
+        min="0" required />
+    </div>
+    <div class="col-md-2">
+      <div class="input-group">
+        <span class="input-group-text">DA</span>
+        <input type="text" name="actes[{index}][prix_unitaire][]" class="form-control prix-input text-end" readonly />
+      </div>
+    </div>
+    <div class="col-md-2">
+      <div>
+        <small class="text-muted">Écart:</small>
+        <div class="ecart-value text-end"></div>
+      </div>
+    </div>
+    <div class="col-md-2">
+      <div>
+        <small class="text-muted">Montant:</small>
+        <div class="montant-value text-end"></div>
+      </div>
+    </div>
+    <div class="col-md-1">
+      <button type="button" class="btn btn-danger remove-produit">
+        <i class="bi bi-trash"></i>
+      </button>
+    </div>
+  </div>
+</template>
+        </div>
+        <button
+          type="button"
+          id="add-acte"
+          class="btn btn-outline-primary w-100"
+        >
+          Ajouter
+        </button>
+        <div class="mt-3 text-end">Total: <span id="total">0.00</span> DA</div>
+      </div>
+    </div>
+
+    <div class="text-end">
+      <button type="reset" class="btn btn-secondary">Annuler</button>
+      <button type="submit" class="btn btn-success">Enregistrer</button>
+    </div>
+  </form>
+</div>
+
+<script src="{% static 'js/choices.min.js' %}"></script>
+<script>
+  // Récupération de la liste globale des produits et des actes
+  const produitsGlobal = {{ all_produits_json|safe }};
+  const actesData     = {{ actes_json|safe }};
+
+  // Met à jour le total (tarifs d’actes + impact produits)
+  function updateTotal() {
+    let sum = 0;
+    document.querySelectorAll('.tarif-input').forEach(i => {
+      sum += parseFloat(i.value) || 0;
+    });
+    document.querySelectorAll('.produit-row').forEach(r => {
+      const m = parseFloat(r.querySelector('.montant-value').textContent) || 0;
+      sum += m;
+    });
+    document.getElementById('total').textContent = sum.toFixed(2);
+  }
+
+  // Charge les produits par défaut pour un acte sélectionné
+  function loadProduits(acteId, row) {
+    fetch(`/medical/get-acte-produits/${acteId}/`)
+      .then(r => r.json())
+      .then(data => {
+        const cont = row.querySelector('.produit-list');
+        cont.innerHTML = '';
+        data.produits.forEach((p, idx) => {
+          const tpl = document.getElementById('produit-row-tpl').innerHTML
+            .replace(/\{index\}/g, row.dataset.index)
+            .replace(/\{prodIndex\}/g, idx)
+            .replace(/\{defaultQty\}/g, p.quantite_defaut)
+            .replace(/\{unitPrice\}/g, p.prix_vente.toFixed(2));
+          const div = document.createElement('div');
+          div.innerHTML = tpl;
+          const prodRow = div.firstElementChild;
+          initProduitRow(prodRow);
+          // Préréglage
+          prodRow.querySelector('.produit-select').value   = p.id;
+          prodRow.querySelector('.quantite-input').value  = p.quantite_defaut;
+          prodRow.querySelector('.prix-input').value      = p.prix_vente.toFixed(2);
+          updateProduitImpact(prodRow);
+          cont.appendChild(prodRow);
+        });
+      });
+  }
+
+  // Initialise une ligne produit : options, handlers
+  function initProduitRow(row) {
+    const select = row.querySelector('.produit-select');
+
+    // Remplir les options
+    select.innerHTML = '<option value="">--</option>' +
+      produitsGlobal.map(p =>
+        `<option value="${p.id}" data-default-qty="${p.quantite_defaut}" data-prix="${p.prix_vente}">` +
+          `${p.code_produit} – ${p.nom}` +
+        `</option>`
+      ).join('');
+
+    // Lorsque l’on change de produit
+    select.onchange = () => {
+      const opt = select.selectedOptions[0];
+      row.dataset.defaultQty = opt.dataset.defaultQty;
+      row.dataset.unitPrice  = opt.dataset.prix;
+      row.querySelector('.prix-input').value = parseFloat(opt.dataset.prix).toFixed(2);
+      updateProduitImpact(row);
+    };
+
+    // Lorsque l’on change la quantité réelle
+    row.querySelector('.quantite-input').oninput = () => {
+        if (parseFloat(row.querySelector('.quantite-input').value) <= 0) {
+    // neutraliser pour que ça ne remonte pas
+    row.querySelectorAll('select, input').forEach(el => {
+      el.disabled = true;
+      el.removeAttribute('name');
+    });
+  } else {
+    // ré-activer normalement
+    row.querySelectorAll('select, input').forEach(el => {
+      el.disabled = false;
+      // **attention** : vous devez éventuellement restaurer le `name` manuellement
+    });
+  }
+      updateProduitImpact(row);
+    };
+
+    // Bouton supprimer
+    row.querySelector('.remove-produit').onclick = () => {
+        row.querySelectorAll('select, input').forEach(el => {
+    el.disabled = true;
+    el.removeAttribute('name');
+  });
+      row.remove();
+      updateTotal();
+    };
+  }
+
+  // Calcule l’écart et le montant pour un produit
+  function updateProduitImpact(row) {
+    const defaultQty = parseFloat(row.dataset.defaultQty) || 0;
+    const unitPrice  = parseFloat(row.dataset.unitPrice)  || 0;
+    const realQty    = parseFloat(row.querySelector('.quantite-input').value) || 0;
+    const ecart      = realQty - defaultQty;
+    const montant    = ecart * unitPrice;
+
+    row.querySelector('.ecart-value').textContent   = ecart.toFixed(2);
+    row.querySelector('.montant-value').textContent = montant.toFixed(2);
+    updateTotal();
+  }
+
+  // Récupère le tarif pour un acte (avec éventuelle convention)
+  function updateTarif(row) {
+    const a  = row.querySelector('.acte-select');
+    const c  = row.querySelector('.convention-select');
+    const t  = row.querySelector('.tarif-input');
+    const sC = row.querySelector('.statut-convention');
+    const s  = sC.querySelector('select');
+
+    if (!a.value) {
+      sC.style.display = 'none';
+      t.value = '';
+      updateTotal();
+      return;
+    }
+
+    const url = `/medical/get-tarif/?acte_id=${a.value}` + (c.value ? `&convention_id=${c.value}` : '');
+    fetch(url)
+      .then(r => r.json())
+      .then(j => {
+        t.value = parseFloat(j.tarif).toFixed(2);
+        sC.style.display = c.value ? 'block' : 'none';
+        s.required = !!c.value;
+        updateTotal();
+      });
+  }
+
+  // Initialise une ligne acte : select d’acte, conventions, produits, handlers
+  function initRow(row, idx) {
+    row.dataset.index = idx;
+
+    const a = row.querySelector('.acte-select');
+    const c = row.querySelector('.convention-select');
+    const rm = row.querySelector('.remove-acte');
+    // Choices pour acte et convention
+    [a, c].forEach(el => {
+      if (el._choices) el._choices.destroy();
+      el._choices = new Choices(el, {
+        searchEnabled: true,
+        removeItemButton: false,
+        shouldSort: false
+      });
+    });
+    // Remplir la liste des actes
+    a.innerHTML = '<option value="">--</option>' +
+      actesData.map(x =>
+        `<option value="${x.id}">${x.code} – ${x.libelle}</option>`
+      ).join('');
+    // Réinjecter dans Choices
+    a._choices.setChoices(
+      Array.from(a.options).map(o => ({
+        value: o.value,
+        label: o.text,
+        selected: o.selected,
+        disabled: o.disabled
+      })),
+      'value',
+      'label',
+      false
+    );
+    // Quand on choisit un acte
+    a.onchange = () => {
+      c.innerHTML = '<option value="">Base</option>';
+      const act = actesData.find(x => x.id == a.value);
+      if (act) {
+        act.conventions.forEach(cx =>
+          c.insertAdjacentHTML('beforeend',
+            `<option value="${cx.id}">${cx.nom}</option>`
+          )
+        );
+      }
+      
+      // Rafraîchir Choices pour la convention
+      c._choices.setChoices(
+        Array.from(c.options).map(o => ({
+          value: o.value,
+          label: o.text,
+          selected: o.selected,
+          disabled: o.disabled
+        })),
+        'value',
+        'label',
+        true
+      );
+
+      updateTarif(row);
+      loadProduits(a.value, row);
+    };
+
+    // Quand on choisit une convention
+    c.onchange = () => updateTarif(row);
+
+    // Supprimer l’acte
+    rm.onclick = () => {
+      row.remove();
+      updateTotal();
+    };
+
+    // Bouton « Ajouter un produit »
+    const contProd = row.querySelector('.produit-list');
+    const addBtn  = document.createElement('button');
+    addBtn.type   = 'button';
+    addBtn.className = 'btn btn-sm btn-outline-primary mt-2';
+    addBtn.textContent = 'Ajouter un produit';
+    addBtn.onclick = () => {
+      const newIdx = contProd.children.length;
+      const tpl = document.getElementById('produit-row-tpl').innerHTML
+        .replace(/\{index\}/g, idx)
+        .replace(/\{prodIndex\}/g, newIdx)
+        .replace(/\{defaultQty\}/g, 0)
+        .replace(/\{unitPrice\}/g, 0);
+      const div = document.createElement('div');
+      div.innerHTML = tpl;
+      const prodRow = div.firstElementChild;
+      initProduitRow(prodRow);
+      contProd.appendChild(prodRow);
+    };
+    row.querySelector('.produit-container').appendChild(addBtn);
+  }
+
+  // Au chargement de la page
+  document.addEventListener('DOMContentLoaded', () => {
+    new Choices('#medecinSelect');
+    new Choices('#patientSelect');
+
+    const cont = document.getElementById('actes-container');
+
+    // Bouton « Ajouter un acte »
+    document.getElementById('add-acte').onclick = () => {
+      const idx = cont.querySelectorAll('.acte-row').length;
+      const tpl = document.getElementById('acte-row-tpl').innerHTML
+        .replace(/\{index\}/g, idx);
+      const div = document.createElement('div');
+      div.innerHTML = tpl;
+      const row = div.firstElementChild;
+      cont.appendChild(row);
+      initRow(row, idx);
+    };
+
+    // Initialisation des lignes déjà présentes (si on revient après erreur)
+    cont.querySelectorAll('.acte-row').forEach((row, i) => {
+      initRow(row, i);
+      // si un acte est déjà choisi, charger ses produits
+      const a = row.querySelector('.acte-select');
+      if (a.value) loadProduits(a.value, row);
+    });
+
+    updateTotal();
+  });
+</script>
+
+{% endblock %}

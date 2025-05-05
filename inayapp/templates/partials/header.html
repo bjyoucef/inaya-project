@@ -1,0 +1,39 @@
+{% load static %}
+{% load permissions_tags %}
+
+<header class="header sticky-top py-2 shadow-sm" style="background-color: #7a6ad8;">
+  <nav class="container-fluid d-flex justify-content-between align-items-center">
+    <a href="{% url 'home' %}" class="brand-logo d-flex align-items-center gap-2 text-decoration-none">
+      <img src="{% static 'icon/logo_inaya.svg' %}" width="40" height="40" alt="Accueil"/>
+      <span class="text-white fs-5 fw-semibold">INAYA</span>
+    </a>
+
+<div class="d-flex align-items-center gap-3">
+  {% for item in active_navbar_items %}
+    {% if request.user|has_perm:item.permission %}
+      {% if item.type == 'title' %}
+        <h3 class="navbar-brand fs-3 fw-bold text-white mb-0">
+          <i class="{{ item.icon }}"></i>
+          {{ item.label }}
+        </h3>
+      {% else %}
+        <a href="{% url item.url_name %}" 
+           class="nav-link text-white {% if request.resolver_match.url_name == item.url_name %}active{% endif %}">
+          <i class="{{ item.icon }} me-2"></i>
+          <span class="d-none d-md-inline">{{ item.label }}</span>
+        </a>
+      {% endif %}
+    {% endif %}
+  {% endfor %}
+</div>
+
+    {% include 'partials/user_dropdown.html' %}
+
+    <div class="theme-switcher end">
+      <button type="button" class="btn btn-link text-white" id="themeToggle"
+              data-bs-toggle="tooltip" data-bs-placement="bottom" title="Thème clair/sombre">
+        <i class="fas fa-adjust"></i>
+      </button>
+    </div>
+  </nav>
+</header>

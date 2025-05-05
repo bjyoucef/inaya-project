@@ -294,7 +294,7 @@ def attendance_report(request):
     }
 
 
-    return render(request, "rh/pointage_report.html", context)
+    return render(request, "pointage_report.html", context)
 
 
 @csrf_exempt

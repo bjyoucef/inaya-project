@@ -1,79 +1,72 @@
-# views.py
-from django.shortcuts import render, get_object_or_404
-from django.db.models import Sum, Count, Q, Avg
-from django.db.models.functions import TruncDate
-from .models import Medecin, PrestationActe
+# pharmacies/views.py
+from django.contrib import messages
+from django.views.generic.edit import CreateView, UpdateView, DeleteView
+from django.views.generic import ListView, DetailView
+from .forms import ProduitForm, StockForm, TransfertForm, AchatForm
+from .models import Produit, Stock, Transfert, Achat
 
 
-def situation_medecin(request, medecin_id):
-    medecin = get_object_or_404(Medecin, pk=medecin_id)
+class ProduitListView(ListView):
+    model = Produit
+    template_name = "produit/produit_list.html"
+    context_object_name = "produits"
+    paginate_by = 20
 
-    # Gestion des filtres
-    date_debut = request.GET.get("date_debut")
-    date_fin = request.GET.get("date_fin")
 
-    base_query = PrestationActe.objects.filter(prestation__medecin=medecin)
-    if date_debut and date_fin:
-        base_query = base_query.filter(
-            Q(prestation__date_prestation__date__gte=date_debut)
-            & Q(prestation__date_prestation__date__lte=date_fin)
-        )
+class ProduitDetailView(DetailView):
+    model = Produit
+    template_name = "produit/produit_detail.html"
 
-    # Statistiques globales
-    stats = {
-        "total_honoraires": base_query.aggregate(total=Sum("honoraire_medecin"))[
-            "total"
-        ]
-        or 0,
-        "total_patients": base_query.values("prestation__patient").distinct().count(),
-        "moyenne_par_patient": base_query.aggregate(avg=Avg("honoraire_medecin"))["avg"]
-        or 0,
-    }
 
-    # Préparation des données pour les graphiques
-    conventions_data = (
-        base_query.values("convention__nom")
-        .annotate(total=Sum("honoraire_medecin"))
-        .order_by("-total")
-    )
+class ProduitCreateView(CreateView):
+    model = Produit
+    form_class = ProduitForm
+    template_name = "produit/produit_form.html"
 
-    actes_data = (
-        base_query.values("acte__libelle")
-        .annotate(total=Sum("honoraire_medecin"))
-        .order_by("-total")[:10]
-    )
+    def get_success_url(self):
+        messages.success(self.request, "Produit créé avec succès")
+        return reverse_lazy("pharmacies:produit_list")
 
-    evolution_data = (
-        base_query.annotate(date=TruncDate("prestation__date_prestation"))
-        .values("date")
-        .annotate(total=Sum("honoraire_medecin"))
-        .order_by("date")
-    )
 
-    # Conversion sécurisée des données
-    def safe_float(value):
-        try:
-            return float(value)
-        except (TypeError, ValueError):
-            return 0.0
+class ProduitUpdateView(UpdateView):
+    model = Produit
+    form_class = ProduitForm
+    template_name = "produit/produit_form.html"
 
-    context = {
-        "medecin": medecin,
-        "convention_labels": [
-            c["convention__nom"] or "Non renseigné" for c in conventions_data
-        ],
-        "convention_values": [safe_float(c.get("total")) for c in conventions_data],
-        "acte_labels": [a["acte__libelle"] or "Acte inconnu" for a in actes_data],
-        "acte_values": [safe_float(a.get("total")) for a in actes_data],
-        "evolution_dates": [
-            e["date"].isoformat() for e in evolution_data if e.get("date")
-        ],
-        "evolution_totals": [safe_float(e.get("total")) for e in evolution_data],
-        "date_debut": date_debut,
-        "date_fin": date_fin,
-        "total_honoraires": safe_float(stats["total_honoraires"]),
-        "total_patients": stats["total_patients"],
-        "moyenne_par_patient": safe_float(stats["moyenne_par_patient"]),
-    }
+    def get_success_url(self):
+        messages.success(self.request, "Produit mis à jour avec succès")
+        return reverse_lazy("pharmacies:produit_detail", kwargs={"pk": self.object.pk})
 
-    return render(request, "finance/situation.html", context)
+
+class ProduitDeleteView(DeleteView):
+    model = Produit
+    template_name = "produit/produit_confirm_delete.html"
+    success_url = reverse_lazy("pharmacies:produit_list")
+
+
+class StockCreateView(CreateView):
+    model = Stock
+    form_class = StockForm
+    template_name = "stock/stock_form.html"
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(self.request, "Stock ajouté avec succès")
+        return response
+
+
+class TransfertCreateView(CreateView):
+    model = Transfert
+    form_class = TransfertForm
+    template_name = "transfert/transfert_form.html"
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["user"] = self.request.user
+        return kwargs
+
+
+class AchatCreateView(CreateView):
+    model = Achat
+    form_class = AchatForm
+    template_name = "achat/form.html"

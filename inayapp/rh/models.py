@@ -1,13 +1,12 @@
 from django.contrib.auth.models import User
 from django.db import models
 from django.utils import timezone
-from medical.models import Service
 
 class Personnel(models.Model):
     id_personnel = models.AutoField(primary_key=True)
     nom_prenom = models.CharField(max_length=100, blank=True, null=True)
-    id_service = models.ForeignKey(
-        Service,
+    service = models.ForeignKey(
+        "medical.Service",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -41,16 +40,13 @@ class Personnel(models.Model):
     class Meta:
         ordering = ["nom_prenom"]
         managed = True
-        db_table = "personnel"
 
 
 class Planning(models.Model):
-    id_service = models.ForeignKey(
-        Service, on_delete=models.DO_NOTHING
-    )
+    service = models.ForeignKey("medical.Service", on_delete=models.DO_NOTHING)
     id_poste = models.ForeignKey("Poste", on_delete=models.DO_NOTHING)
     shift_date = models.DateField()
-    employee = models.ForeignKey(Personnel, on_delete=models.DO_NOTHING)
+    employee = models.ForeignKey("Personnel", on_delete=models.DO_NOTHING)
     shift = models.ForeignKey(
         "Shift", 
         on_delete=models.SET_NULL, 
@@ -79,7 +75,7 @@ class Planning(models.Model):
 
     # Ce champ enregistre qui a fait le pointage
     pointage_id_created_par = models.ForeignKey(
-        Personnel,
+        "Personnel",
         on_delete=models.DO_NOTHING,
         db_column="pointage_id_created_par",
         related_name="pointage_id_created_par",
@@ -97,7 +93,6 @@ class Planning(models.Model):
 
     class Meta:
         managed = True
-        db_table = "planning"
         permissions = (
             ("acces_aux_plannings", "Accès aux plannings"),
             ("creer_planning", "Créer un planning"),
@@ -122,17 +117,15 @@ class HonorairesActe(models.Model):
 
     class Meta:
         managed = True
-        db_table = "honoraires_acte"
 
 
 class PointagesActes(models.Model):
-    id_acte = models.ForeignKey(HonorairesActe, models.DO_NOTHING, db_column='id_acte', blank=True, null=True)
-    id_planning = models.ForeignKey(Planning, models.CASCADE, db_column='id_planning', blank=True, null=True)
+    id_acte = models.ForeignKey("HonorairesActe", models.DO_NOTHING, db_column='id_acte', blank=True, null=True)
+    id_planning = models.ForeignKey("Planning", models.CASCADE, db_column='id_planning', blank=True, null=True)
     nbr_actes = models.IntegerField()
 
     class Meta:
         managed = True
-        db_table = 'pointages_actes'
 
 
 class Poste(models.Model):
@@ -231,7 +224,7 @@ class Attendance(models.Model):
     ]
 
     employee = models.ForeignKey(
-        Employee,
+        "Employee",
         on_delete=models.CASCADE,
         related_name="attendances",
         verbose_name="Employé",
@@ -282,7 +275,7 @@ class SalaryAdvanceRequest(models.Model):
         CANCELED = "CAN", "Annulée"
 
     personnel = models.ForeignKey(
-        Personnel, on_delete=models.CASCADE, related_name="salary_advances"
+        "Personnel", on_delete=models.CASCADE, related_name="salary_advances"
     )
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     request_date = models.DateField(default=timezone.now)
@@ -321,7 +314,7 @@ class LeaveRequest(models.Model):
         CANCELED = "CAN", "Annulé"
 
     personnel = models.ForeignKey(
-        Personnel, on_delete=models.CASCADE, related_name="leave_requests"
+        "Personnel", on_delete=models.CASCADE, related_name="leave_requests"
     )
     start_date = models.DateField()
     end_date = models.DateField()

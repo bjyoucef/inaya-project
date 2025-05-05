@@ -7,7 +7,7 @@ from .forms import MedecinForm
 
 class MedecinListView(ListView):
     model = Medecin
-    template_name = "medecins/medecin_list.html"
+    template_name = "medecin_list.html"
     context_object_name = "medecins"
     paginate_by = 20
 
@@ -18,7 +18,7 @@ class MedecinListView(ListView):
 class MedecinCreateView(CreateView):
     form_class = MedecinForm
     model = Medecin
-    template_name = "medecins/medecin_form.html"
+    template_name = "medecin_form.html"
     success_url = reverse_lazy("medecins:list")
     
     def get_form_kwargs(self):
@@ -40,11 +40,11 @@ class MedecinCreateView(CreateView):
 class MedecinUpdateView(UpdateView):
     model = Medecin
     form_class = MedecinForm
-    template_name = "medecins/medecin_form.html"
+    template_name = "medecin_form.html"
     success_url = reverse_lazy("medecins:list")
 
 
 class MedecinDeleteView(DeleteView):
     model = Medecin
-    template_name = "medecins/medecin_confirm_delete.html"
+    template_name = "medecin_confirm_delete.html"
     success_url = reverse_lazy("medecins:list")

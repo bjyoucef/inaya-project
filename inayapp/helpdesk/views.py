@@ -75,7 +75,7 @@ def demande_assistance(request):
         'user': request.user,
         'services_list': services_list
     }
-    return render(request, 'helpdesk/demande_assistance.html', context)
+    return render(request, 'demande_assistance.html', context)
 
 # Fonction générique pour traiter la demande
 def traiter_demande(request, demande_type):
@@ -180,7 +180,7 @@ def dashboard(request):
         'user': user,
         'has_dept_perm': has_dept_perm,
     }
-    return render(request, 'helpdesk/dashboard.html', context)
+    return render(request, 'dashboard.html', context)
 
 
 

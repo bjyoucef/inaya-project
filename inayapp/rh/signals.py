@@ -13,17 +13,6 @@ import string
 
 User = get_user_model()
 
-@receiver(post_save, sender=Service)
-def create_service_permission(sender, instance, created, **kwargs):
-    if created:
-        content_type = ContentType.objects.get_for_model(Service)
-        codename = f'view_service_{slugify(instance.service_name).replace("-", "_")}'
-        name = f'Peut voir le service {instance.service_name}'
-        Permission.objects.get_or_create(
-            codename=codename,
-            name=name,
-            content_type=content_type
-        )
 
 
 

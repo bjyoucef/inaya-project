@@ -1,0 +1,123 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container mt-5">
+    <div class="card shadow-lg">
+        <div class="card-header bg-purple text-white">
+            <h2 class="mb-0">{% if stock %}Modifier{% else %}Ajouter{% endif %} un stock</h2>
+        </div>
+        
+        <div class="card-body">
+            <form method="post" class="needs-validation" novalidate>
+                {% csrf_token %}
+                
+                <div class="row g-3">
+                    <!-- Colonne gauche -->
+                    <div class="col-md-6">
+                        <!-- Produit -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Produit</label>
+                            <select class="form-select" name="produit" required>
+                                <option value="">Sélectionner un produit</option>
+                                {% for produit in produits %}
+                                <option value="{{ produit.id }}" 
+                                    {% if stock.produit.id == produit.id %}selected{% endif %}>
+                                    {{ produit.nom }} ({{ produit.code_produit }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <div class="invalid-feedback">
+                                Veuillez sélectionner un produit.
+                            </div>
+                        </div>
+
+                        <!-- Service -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Service</label>
+                            <select class="form-select" name="service" required>
+                                <option value="">Sélectionner un service</option>
+                                {% for service in services %}
+                                <option value="{{ service.id }}" 
+                                    {% if stock.service.id == service.id %}selected{% endif %}>
+                                    {{ service.nom }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <div class="invalid-feedback">
+                                Veuillez sélectionner un service.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Colonne droite -->
+                    <div class="col-md-6">
+                        <!-- Quantité -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Quantité</label>
+                            <input type="number" 
+                                   class="form-control" 
+                                   name="quantite" 
+                                   value="{{ stock.quantite|default:'1' }}"
+                                   min="1"
+                                   required>
+                            <div class="invalid-feedback">
+                                La quantité doit être supérieure à 0.
+                            </div>
+                        </div>
+
+                        <!-- Date de péremption -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Date de péremption</label>
+                            <input type="date" 
+                                   class="form-control" 
+                                   name="date_peremption" 
+                                   value="{{ stock.date_peremption|date:'Y-m-d' }}">
+                            <small class="text-muted">Format: JJ/MM/AAAA</small>
+                        </div>
+
+                        <!-- Numéro de lot -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Numéro de lot</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   name="numero_lot" 
+                                   value="{{ stock.numero_lot|default:'' }}"
+                                   pattern="[A-Za-z0-9-]+"
+                                   title="Caractères alphanumériques et tirets uniquement">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Boutons de soumission -->
+                <div class="card-footer bg-light">
+                    <div class="d-flex justify-content-between">
+                        <a href="{% if stock %}{% url 'pharmacies:stock_detail' stock.pk %}{% else %}{% url 'pharmacies:stock_list' %}{% endif %}" 
+                           class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left"></i> Annuler
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save"></i> Enregistrer
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Validation de formulaire -->
+<script>
+(function () {
+  'use strict'
+  const forms = document.querySelectorAll('.needs-validation')
+  Array.from(forms).forEach(form => {
+    form.addEventListener('submit', event => {
+      if (!form.checkValidity()) {
+        event.preventDefault()
+        event.stopPropagation()
+      }
+      form.classList.add('was-validated')
+    }, false)
+  })
+})()
+</script>
+{% endblock %}

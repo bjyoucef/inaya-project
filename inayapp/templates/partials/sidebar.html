@@ -1,0 +1,37 @@
+{% load static %}
+{% load permissions_tags %}
+<aside class="sidebar col-lg-2 d-flex flex-column">
+  <nav class="sidebar-nav flex-grow-1 sticky-top">
+    <ul class="nav flex-column">
+{% for group in menu_groups %}
+  {% if not group.permission or request.user|has_perm:group.permission %}
+    <li class="nav-item">
+      <div class="nav-group-toggle d-flex align-items-center mb-2 mt-2 rounded-3 text-white bg-gradient border border-white border-opacity-25 shadow-sm"
+           data-bs-toggle="collapse"
+           data-bs-target="#menu-{{ group.id }}"
+           role="button">
+        <i class="{{ group.icon }} fs-5 mx-2"></i>
+        <span class="flex-grow-1 text-center">{{ group.name }}</span>
+      </div>
+
+      <div class="collapse" id="menu-{{ group.id }}">
+        <ul class="nav flex-column">
+          {% for item in group.menu_items.all %}
+            {% if not item.permission or request.user|has_perm:item.permission %}
+              <li class="nav-item">
+                <a href="{% url item.url_name %}" 
+                   class="nav-link d-flex align-items-center gap-2 py-2 px-4 text-white{% if request.resolver_match.url_name == item.url_name %} active{% endif %}">
+                  <i class="{{ item.icon }}"></i>
+                  {{ item.label }}
+                </a>
+              </li>
+            {% endif %}
+          {% endfor %}
+        </ul>
+      </div>
+    </li>
+  {% endif %}
+{% endfor %}
+    </ul>
+  </nav>
+</aside>

@@ -1,0 +1,30 @@
+<!-- templates/partials/user_dropdown.html -->
+{% load static %}
+{% load permissions_tags %}
+{% if user.is_authenticated %}
+  <div class="dropdown">
+    <button id="userDropdown" class="btn btn-transparent text-white dropdown-toggle d-flex align-items-center gap-2"
+            data-bs-toggle="dropdown" aria-expanded="false" aria-label="Menu utilisateur">
+      <i class="fas fa-user-circle fs-5"></i>
+      <span class="d-none d-md-inline">{{ user.get_full_name }}</span>
+    </button>
+    <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="userDropdown">
+      <li><a class="dropdown-item d-flex align-items-center gap-2" href="{% url 'admin:index' %}">
+        <i class="fas fa-cog"></i> Administration
+      </a></li>
+      <li><hr class="dropdown-divider m-0"/></li>
+      <li>
+        <form method="post" action="{% url 'admin:logout' %}">{% csrf_token %}
+          <button type="submit" class="dropdown-item d-flex align-items-center gap-2 text-danger"
+                  aria-label="Déconnexion">
+            <i class="fas fa-sign-out-alt"></i> Déconnexion
+          </button>
+        </form>
+      </li>
+    </ul>
+  </div>
+{% else %}
+  <a href="{% url 'admin:login' %}" class="btn btn-outline-light">
+    <i class="fas fa-sign-in-alt me-2"></i> Connexion
+  </a>
+{% endif %}

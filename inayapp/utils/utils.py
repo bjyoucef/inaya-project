@@ -26,7 +26,7 @@ def services_autorises(user):
     """
     # 1) Toutes les permissions de l'utilisateur, au format "app_label.codename"
     user_perms = user.get_all_permissions()
-
+    print(user_perms)
     # 2) Construire un mapping codename -> Service
     #    (codename sans le préﬁxe "app_label.")
     slug_to_service = {}
@@ -49,5 +49,5 @@ def services_autorises(user):
     ]
 
     # 5) On renvoie un QuerySet filtré sur ces IDs pour usage en views
-    permitted_ids = [s.id_service for s in permitted_services]
-    return Service.objects.filter(id_service__in=permitted_ids)
+    permitted_ids = [s.id for s in permitted_services]
+    return Service.objects.filter(id__in=permitted_ids)

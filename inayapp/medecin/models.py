@@ -1,5 +1,8 @@
 # medecin.models
 from django.db import models
+from django.db.models import (Sum)
+from pharmacies.models import ConsommationProduit
+
 
 class Medecin(models.Model):
     personnel = models.OneToOneField(
@@ -61,3 +64,12 @@ class Medecin(models.Model):
     class Meta:
         verbose_name = "Médecin"
         verbose_name_plural = "Médecins"
+
+    @property
+    def solde_consommations(self):
+        return (
+            ConsommationProduit.objects.filter(
+                prestation_acte__prestation__medecin=self
+            ).aggregate(total=Sum("montant_solde"))["total"]
+            or 0.00
+        )

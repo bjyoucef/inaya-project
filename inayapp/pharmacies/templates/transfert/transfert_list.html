@@ -1,0 +1,94 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">Historique des transferts</h2>
+        <a href="{% url 'pharmacies:transfert_create' %}" class="btn btn-success">
+            <i class="bi bi-arrow-left-right"></i> Nouveau transfert
+        </a>
+    </div>
+
+    <div class="table-responsive rounded-3 shadow">
+        <table class="table table-hover align-middle">
+            <thead class="table-primary">
+                <tr>
+                    <th scope="col">Produit</th>
+                    <th scope="col">Origine</th>
+                    <th scope="col">Destination</th>
+                    <th scope="col" class="text-center">Quantité</th>
+                    <th scope="col" class="text-center">Expiration</th>
+                    <th scope="col">Lot</th>
+                    <th scope="col" class="text-center">Statut</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in transferts %}
+                <tr>
+                    <td>
+                        <div class="fw-bold">{{ t.produit.nom }}</div>
+                        <small class="text-muted">{{ t.produit.code_produit }}</small>
+                    </td>
+                    <td>
+                        <span class="badge bg-danger">{{ t.service_origine }}</span>
+                    </td>
+                    <td>
+                        <span class="badge bg-success">{{ t.service_destination }}</span>
+                    </td>
+                    <td class="text-center fw-bold">
+                        {{ t.quantite_transferee }}
+                    </td>
+                    <td class="text-center">
+                        {% if t.date_peremption %}
+                            <span class="{% if t.is_expired %}text-danger{% else %}text-muted{% endif %}">
+                                {{ t.date_peremption|date:"d/m/Y" }}
+                            </span>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>
+                        <code>{{ t.numero_lot|default:"N/A" }}</code>
+                    </td>
+                    <td class="text-center">
+                        {% if t.complete %}
+                            <span class="badge bg-success"><i class="bi bi-check-circle"></i> Terminé</span>
+                        {% else %}
+                            <span class="badge bg-warning text-dark"><i class="bi bi-clock"></i> En attente</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if is_paginated %}
+    <nav class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}">
+                    <i class="bi bi-chevron-left"></i>
+                </a>
+            </li>
+            {% endif %}
+            
+            {% for num in page_obj.paginator.page_range %}
+            <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+            </li>
+            {% endfor %}
+            
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}">
+                    <i class="bi bi-chevron-right"></i>
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+{% endblock %}

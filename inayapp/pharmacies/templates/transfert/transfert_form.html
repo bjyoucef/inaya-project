@@ -1,0 +1,142 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container mt-0">
+    <div class="card shadow-lg">
+        <div class="card-header bg-info text-white">
+            <h2 class="mb-0"><i class="bi bi-arrow-left-right"></i> Nouveau transfert</h2>
+        </div>
+        
+        <div class="card-body">
+            <form method="post" class="needs-validation" novalidate>
+                {% csrf_token %}
+                
+                <div class="row g-3">
+                    <!-- Colonne gauche -->
+                    <div class="col-md-6">
+                        <!-- Produit -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Produit</label>
+                            <select class="form-select" name="produit" required>
+                                <option value="">Sélectionner un produit</option>
+                                {% for produit in produits %}
+                                <option value="{{ produit.id }}">
+                                    {{ produit.nom }} ({{ produit.code_produit }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <div class="invalid-feedback">
+                                Sélectionnez un produit valide
+                            </div>
+                        </div>
+
+                        <!-- Services -->
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Service d'origine</label>
+                                <select class="form-select" name="service_origine" required>
+                                    <option value="">Origine</option>
+                                    {% for service in services %}
+                                    <option value="{{ service.id }}">
+                                        {{ service.nom }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Service destination</label>
+                                <select class="form-select" name="service_destination" required>
+                                    <option value="">Destination</option>
+                                    {% for service in services %}
+                                    <option value="{{ service.id }}">
+                                        {{ service.nom }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Colonne droite -->
+                    <div class="col-md-6">
+                        <!-- Quantité et Responsable -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Quantité à transférer</label>
+                            <input type="number" 
+                                   class="form-control" 
+                                   name="quantite_transferee" 
+                                   min="1" 
+                                   required
+                                   placeholder="Quantité disponible: {{ stock_disponible|default:'0' }}">
+                            <div class="invalid-feedback">
+                                Quantité minimale: 1
+                            </div>
+                        </div>
+
+                        <!-- Dates et Lot -->
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Date de péremption</label>
+                                <input type="date" 
+                                       class="form-control" 
+                                       name="date_peremption"
+                                       value="{{ stock.date_peremption|date:'Y-m-d' }}">
+                                <small class="text-muted">Format: JJ/MM/AAAA</small>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Numéro de lot</label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       name="numero_lot"
+                                       pattern="[A-Za-z0-9-]+"
+                                       title="Caractères alphanumériques et tirets uniquement">
+                            </div>
+                        </div>
+
+                        <!-- Responsable -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Responsable</label>
+                            <select class="form-select" name="responsable" required>
+                                <option value="">Sélectionner un responsable</option>
+                                {% for responsable in responsables %}
+                                <option value="{{ responsable.id }}">
+                                    {{ responsable.get_full_name|default:responsable.username }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Boutons -->
+                <div class="card-footer bg-light">
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'pharmacies:transfert_list' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-circle"></i> Annuler
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-send-check"></i> Valider le transfert
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Validation de formulaire -->
+<script>
+(function () {
+  'use strict'
+  const forms = document.querySelectorAll('.needs-validation')
+  Array.from(forms).forEach(form => {
+    form.addEventListener('submit', event => {
+      if (!form.checkValidity()) {
+        event.preventDefault()
+        event.stopPropagation()
+      }
+      form.classList.add('was-validated')
+    }, false)
+  })
+})()
+</script>
+{% endblock %}

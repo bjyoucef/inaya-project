@@ -12,4 +12,4 @@ def index(request):
         'title': 'Contacts',
         'user': user,
     }
-    return render(request, 'annuaire/index.html', context)
+    return render(request, 'index.html', context)

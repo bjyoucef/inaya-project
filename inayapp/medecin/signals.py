@@ -1,5 +1,9 @@
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.forms import ValidationError
+
+from medical.models.actes import Prestation
+from pharmacies.models import Stock
 from .models import Medecin
 from rh.models import Personnel
 
@@ -21,3 +25,4 @@ def create_personnel_for_new_medecin(sender, instance, created, **kwargs):
         instance.personnel = p
         # Éviter de ré-appeler le signal en utilisant update_fields
         instance.save(update_fields=["personnel"])
+

@@ -1,13 +1,18 @@
 # medical.models
 from decimal import Decimal
+from django.db.models import F
 
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.forms import ValidationError
 from django.utils import timezone
-from finance.models import HonorairesMedecin, TarifActe, TarifActeConvention
-
+from pharmacies.models import ConsommationProduit, Stock
+from finance.models import (
+    HonorairesMedecin,
+    TarifActeConvention,
+    TarifActe,
+)
 
 class Acte(models.Model):
     code = models.CharField(max_length=20, unique=True)
@@ -97,10 +102,21 @@ class Prestation(models.Model):
     def dossier_medical(self):
         return self.patient.dossier_medical
 
+    # def update_stock(self):
+    #     """Met à jour le stock par service concerné"""
+
+    #     for consommation in ConsommationProduit.objects.filter(
+    #         prestation_acte__prestation=self
+    #     ):
+    #         service = consommation.prestation_acte.acte.service
+    #         Stock.objects.filter(
+    #             produit=consommation.produit, service=service
+    #         ).update(quantite=F("quantite") - consommation.quantite_reelle)
+
 
 class PrestationActe(models.Model):
     prestation = models.ForeignKey(
-        Prestation, on_delete=models.CASCADE, related_name="actes_details"
+        "Prestation", on_delete=models.CASCADE, related_name="actes_details"
     )
     acte = models.ForeignKey(
         "Acte", on_delete=models.PROTECT, related_name="prestations_liees"
@@ -214,3 +230,29 @@ class PrestationActe(models.Model):
                 return tarif.tarif_acte.montant
         return self.acte.tarifs.latest().montant
 
+    def get_produits_defaut(self):
+        """Récupère les produits par défaut avec leur quantité"""
+        return self.acte.produits_defaut.all()
+
+
+class ActeProduit(models.Model):
+    acte = models.ForeignKey(
+        "Acte",
+        on_delete=models.CASCADE,
+        related_name="produits_defaut",
+        verbose_name="Acte médical",
+    )
+    produit = models.ForeignKey(
+        "pharmacies.Produit", on_delete=models.PROTECT, verbose_name="Produit associé"
+    )
+    quantite_defaut = models.PositiveIntegerField(
+        default=1, verbose_name="Quantité par défaut"
+    )
+
+    class Meta:
+        verbose_name = "Produit par défaut pour acte"
+        verbose_name_plural = "Produits par défaut pour actes"
+        unique_together = ("acte", "produit")
+
+    def __str__(self):
+        return f"{self.acte} - {self.produit} ({self.quantite_defaut})"

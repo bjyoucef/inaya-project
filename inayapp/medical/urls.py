@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from .views import GetActeProduitsView
 
 app_name = "medical"
 
@@ -31,5 +32,11 @@ urlpatterns = [
         name="prestation_delete",
     ),
     path("get-tarif/", views.GetTarifView.as_view(), name="get_tarif"),
-
+    
+    
+    path(
+        "get-acte-produits/<int:acte_id>/",
+        GetActeProduitsView.as_view(),
+        name="get_acte_produits",
+    ),
 ]

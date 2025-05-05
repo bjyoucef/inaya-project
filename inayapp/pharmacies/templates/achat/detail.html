@@ -1,0 +1,49 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container mt-5">
+    <div class="card shadow-lg">
+        <div class="card-header bg-primary text-white">
+            <h2 class="mb-0">Détails de l'achat</h2>
+        </div>
+        
+        <div class="card-body">
+            <dl class="row">
+                <dt class="col-sm-3">Date</dt>
+                <dd class="col-sm-9">{{ achat.date_achat|date:"d/m/Y H:i" }}</dd>
+
+                <dt class="col-sm-3">Fournisseur</dt>
+                <dd class="col-sm-9">{{ achat.fournisseur.raison_sociale }}</dd>
+
+                <dt class="col-sm-3">Produit</dt>
+                <dd class="col-sm-9">
+                    {{ achat.produit.nom }} ({{ achat.produit.code_produit }})
+                </dd>
+
+                <dt class="col-sm-3">Quantité</dt>
+                <dd class="col-sm-9">{{ achat.quantite_achetee }}</dd>
+
+                <dt class="col-sm-3">Prix unitaire</dt>
+                <dd class="col-sm-9">{{ achat.prix_unitaire }} €</dd>
+
+                <dt class="col-sm-3">Montant total</dt>
+                <dd class="col-sm-9">{{ achat.montant_total }} €</dd>
+
+                <dt class="col-sm-3">Service destinataire</dt>
+                <dd class="col-sm-9">{{ achat.service_destination.nom }}</dd>
+
+                <dt class="col-sm-3">Numéro de lot</dt>
+                <dd class="col-sm-9">{{ achat.numero_lot|default:"-" }}</dd>
+
+                <dt class="col-sm-3">Date de péremption</dt>
+                <dd class="col-sm-9">{{ achat.date_peremption|date:"d/m/Y" }}</dd>
+            </dl>
+
+            <div class="d-flex justify-content-end gap-2">
+                <a href="{% url 'pharmacies:achat_list' %}" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left"></i> Retour
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

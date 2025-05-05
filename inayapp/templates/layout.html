@@ -69,99 +69,167 @@
     </div>
 
     <!-- Header with login/logout -->
-    <header class="header sticky-top py-2 shadow-sm" style="background-color: #7a6ad8;">
-      <nav class="container-fluid d-flex justify-content-between align-items-center">
-        <a href="{% url 'home' %}" class="brand-logo d-flex align-items-center gap-2 text-decoration-none">
-          <img src="{% static 'icon/logo_inaya.svg' %}" alt="Accueil" width="40" height="40" />
-          <span class="text-white fs-5 fw-semibold">INAYA</span>
-        </a>
+<!-- Header with login/logout -->
+<header class="navbar navbar-expand-lg sticky-top shadow-sm" style="background-color: #7a6ad8;">
+  <div class="container-fluid">
+
+    <!-- Mobile Toggler -->
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent" 
+            aria-controls="navbarContent" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon text-white"></span>
+    </button>
+
+    <!-- Main Navigation -->
+    <div class="collapse navbar-collapse" id="navbarContent">
+      <!-- Navigation Items -->
+      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+        {% if active_menu_item and navbar_items %}
+          {% for nb in navbar_items %}
+            <li class="nav-item">
+              {% if nb.type == 'title' %}
+                <span class="navbar-text fs-5 fw-bold text-white me-5">
+                  <i class="{{ nb.icon }}"></i>
+                  {{ nb.label }}
+                </span>
+              {% else %}
+                {% url nb.url_name as target_url %}
+                <a href="{{ target_url }}" 
+                   class="nav-link text-white {% if current_url_name == nb.url_name %}active{% endif %}"
+                   aria-current="{% if current_url_name == nb.url_name %}page{% endif %}">
+                  {% if nb.icon %}<i class="{{ nb.icon }} me-1"></i>{% endif %}
+                  {{ nb.label }}
+                </a>
+              {% endif %}
+            </li>
+          {% endfor %}
+        {% endif %}
+      </ul>
+
+      <!-- Right Side Elements -->
+      <div class="d-flex align-items-center gap-3">
+        <!-- Theme Switcher -->
+        <button type="button" class="btn btn-link text-white p-0" 
+                id="themeToggle" aria-label="Changer le thème"
+                data-bs-toggle="tooltip" data-bs-placement="bottom" 
+                title="Thème clair/sombre">
+          <i class="fas fa-adjust fs-5"></i>
+        </button>
+
+        <!-- User Menu -->
         {% if user.is_authenticated %}
           <div class="dropdown">
-            <button id="userDropdown" class="btn btn-transparent text-white dropdown-toggle d-flex align-items-center gap-2" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Menu utilisateur">
+            <button class="btn btn-transparent text-white dropdown-toggle d-flex align-items-center gap-2" 
+                    type="button" data-bs-toggle="dropdown" aria-expanded="false">
               <i class="fas fa-user-circle fs-5"></i>
-              <span class="d-none d-md-inline">{{ user.first_name }} {{ user.last_name }}</span>
+              <span class="d-none d-lg-inline">{{ user.first_name }} {{ user.last_name }}</span>
             </button>
-
-            <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="userDropdown" style="min-width: 200px; z-index: 1030;">
-              <li>
-                <a class="dropdown-item d-flex align-items-center gap-2" href="{% url 'admin:index' %}"><i class="fas fa-cog"></i> Administration</a>
-              </li>
-              <li>
-                <hr class="dropdown-divider m-0" />
-              </li>
+            <ul class="dropdown-menu dropdown-menu-end shadow">
+              {% if user.is_staff %}
+                <li>
+                  <a class="dropdown-item d-flex align-items-center gap-2" 
+                     href="{% url 'admin:index' %}">
+                    <i class="fas fa-cog"></i> Administration
+                  </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+              {% endif %}
               <li>
                 <form method="post" action="{% url 'admin:logout' %}">
                   {% csrf_token %}
-                  <button type="submit" class="dropdown-item d-flex align-items-center gap-2 text-danger" aria-label="Déconnexion"><i class="fas fa-sign-out-alt"></i> Déconnexion</button>
+                  <button type="submit" class="dropdown-item d-flex align-items-center gap-2 text-danger">
+                    <i class="fas fa-sign-out-alt"></i> Déconnexion
+                  </button>
                 </form>
               </li>
             </ul>
           </div>
         {% else %}
-          <a href="{% url 'admin:login' %}" class="btn btn-outline-light"><i class="fas fa-sign-in-alt me-2"></i>Connexion</a>
+          <a href="{% url 'admin:login' %}" class="btn btn-outline-light">
+            <i class="fas fa-sign-in-alt me-2"></i>Connexion
+          </a>
         {% endif %}
-        <div class="theme-switcher end">
-          <button type="button" class="btn btn-link text-white" id="themeToggle" aria-label="Changer le thème" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Thème clair/sombre"><i class="fas fa-adjust"></i></button>
-        </div>
-      </nav>
-    </header>
+      </div>
+    </div>
+  </div>
+</header>
 <!-- Main Content Container -->
 <div class="container-fluid min-vh-100 d-flex flex-column">
   <div class="row flex-grow-1">
     <!-- Sidebar -->
-    <aside class="sidebar col-lg-2 border-end d-flex flex-column p-0 shadow-lg" style="z-index: 1050;">
+    <aside class="sidebar col-lg-2 border-end d-flex flex-column p-0 shadow-lg" style="z-index: 1020;">
       <nav class="sidebar-nav flex-fill d-flex flex-column sticky-top" aria-label="Main navigation">
         <ul class="nav nav-pills flex-column flex-fill gap-1 p-2">
-            {% for group in menu_groups %}
-                {% has_permission request.user group.permission as can_view_group %}
-                {% if can_view_group %}
-                    {% group_is_active group as is_active_group %}
+          {% for group in menu_groups %}
+            {% has_permission request.user group.permission as can_view_group %}
+            {% if can_view_group %}
+              {% group_is_active group as is_active_group %}
+              
+              <li class="nav-item">
+                <a class="nav-link dropdown-toggle d-flex align-items-center gap-2 rounded-2 text-white bg-opacity-10 bg-white"
+                   data-bs-toggle="collapse" 
+                   href="#menu-{{ group.id }}"
+                   role="button"
+                   aria-expanded="{{ is_active_group|yesno:'true,false' }}"
+                   aria-controls="menu-{{ group.id }}">
+                  <i class="{{ group.icon }} fs-6"></i>
+                  <span class="flex-grow-1">{{ group.name }}</span>
+                </a>
 
-                    <li class="nav-item">
-                        <a class="nav-link dropdown-toggle nav-group-toggle d-flex align-items-center mb-2 mt-2 rounded-3 text-white bg-gradient border border-white border-opacity-25 shadow-sm"
-                           data-bs-toggle="collapse"
-                           href="#menu-{{ group.id }}"
-                           role="button"
-                           aria-expanded="{{ is_active_group|yesno:'true,false' }}">
-                            <i class="{{ group.icon }} fs-5"></i>
-                            <span class="flex-grow-1 d-flex justify-content-center">{{ group.name }}</span>
-                        </a>
-
-                        <div class="collapse {% if is_active_group %}show{% endif %}" id="menu-{{ group.id }}">
-                            <ul class="nav flex-column">
-                                {% for item in group.items.all %}
-                                    {% has_permission request.user item.permission as can_view_item %}
-                                    {% if can_view_item %}
-                                        {% item_is_active item as is_active_item %}
-                                        <li class="nav-item">
-                                            <a href="{{ item.route }}"
-                                               class="nav-link d-flex align-items-center gap-2 py-2 px-4 text-white{% if is_active_item %} active{% endif %}"
-                                               aria-current="{% if is_active_item %}page{% endif %}">
-                                                <i class="{{ item.icon }}"></i>
-                                                {{ item.label }}
-                                                {% include 'partials/menu-badges.html' with item=item %}
-                                            </a>
-                                        </li>
-                                    {% endif %}
-                                {% endfor %}
-                            </ul>
-                        </div>
-                    </li>
-                {% endif %}
-            {% endfor %}
+                  <div class="collapse {% if is_active_group %}show{% endif %} ps-4" 
+                      id="menu-{{ group.id }}"
+                      data-bs-parent="#menu-{{ group.id }}">
+                  <ul class="nav flex-column gap-1">
+                    {% for item in group.items.all %}
+                      {% has_permission request.user item.permission as can_view_item %}
+                      {% if can_view_item %}
+                        {% item_is_active item as is_active_item %}
+                        <li class="nav-item">
+                          <a href="{{ item.route }}"
+                             class="nav-link d-flex align-items-center gap-2 rounded-2 text-white{% if is_active_item %} active bg-primary{% endif %}"
+                             aria-current="{% if is_active_item %}page{% endif %}">
+                            <i class="{{ item.icon }} fs-7"></i>
+                            <span class="flex-grow-1">{{ item.label }}</span>
+                            {% include 'partials/menu-badges.html' with item=item %}
+                          </a>
+                        </li>
+                      {% endif %}
+                    {% endfor %}
+                  </ul>
+                </div>
+              </li>
+            {% endif %}
+          {% endfor %}
         </ul>
-    </nav>
-</aside>
+        
+        <!-- Optional: Sidebar Footer -->
+        <div class="mt-auto border-top border-white border-opacity-10 p-2">
+          <!-- Add any footer content here -->
+        </div>
+      </nav>
+    </aside>
 
-        <!-- Content Area -->
-        <main class="col-lg-10">
-          <div class="container-fluid py-4 px-3">
+    <!-- Main Content Area -->
+    <main class="col-lg-10 bg-body-tertiary p-0">
+      <div class="container-fluid min-vh-100 p-4">
+        <!-- Back to Top Button -->
+        <button class="btn btn-primary shadow-sm rounded-circle position-fixed bottom-0 end-0 m-3" 
+                id="backToTop" 
+                style="display: none; z-index: 1000;"
+                aria-label="Back to top">
+          <i class="fas fa-arrow-up"></i>
+        </button>
+
+        <!-- Content Section -->
+        <div>
             {% block content %}
             {% endblock %}
-          </div>
-        </main>
+        </div>
       </div>
-    </div>
+    </main>
+  </div>
+</div>
+
+
     <!-- Bon ordre à garder -->
     <script src="{% static 'js/jquery-3.7.1.min.js' %}"></script>
     <script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
@@ -241,7 +309,6 @@ document.addEventListener('DOMContentLoaded', function() {
         applyTheme(newTheme);
         setStoredTheme(newTheme);
     });
-
 });
 </script>
   </body>
