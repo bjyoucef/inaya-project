@@ -105,13 +105,13 @@
         </div>
       </nav>
     </header>
-
-    <!-- Main Content -->
-    <div class="container-fluid flex-grow-1">
-      <div class="row flex-grow-0">
-<aside class="sidebar col-lg-2 d-flex flex-column">
-    <nav class="sidebar-nav flex-grow-1 sticky-top">
-        <ul class="nav flex-column">
+<!-- Main Content Container -->
+<div class="container-fluid min-vh-100 d-flex flex-column">
+  <div class="row flex-grow-1">
+    <!-- Sidebar -->
+    <aside class="sidebar col-lg-2 border-end d-flex flex-column p-0 shadow-lg" style="z-index: 1050;">
+      <nav class="sidebar-nav flex-fill d-flex flex-column sticky-top" aria-label="Main navigation">
+        <ul class="nav nav-pills flex-column flex-fill gap-1 p-2">
             {% for group in menu_groups %}
                 {% has_permission request.user group.permission as can_view_group %}
                 {% if can_view_group %}
