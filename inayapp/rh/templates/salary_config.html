@@ -1,0 +1,293 @@
+{% extends "layout.html" %}
+{% load static %}
+{% load humanize %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">
+            <i class="bi bi-calculator me-2 text-primary"></i>Configuration Salariale Globale
+        </h2>
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#configModal">
+            <i class="bi bi-pencil-square me-2"></i>Éditer
+        </button>
+    </div>
+
+    <!-- Carte de résumé -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <div class="row g-4">
+                <!-- Section CNAS -->
+                <div class="col-md-6">
+                    <div class="border p-3 rounded bg-light">
+                        <h5 class="d-flex align-items-center mb-3">
+                            <i class="bi bi-shield-check me-2"></i>Cotisations CNAS
+                        </h5>
+                        <dl class="row mb-0">
+                            <dt class="col-sm-6">Taux employeur</dt>
+                            <dd class="col-sm-6 text-end">{{ config.cnas_employer_rate|floatformat:2 }}%</dd>
+                            
+                            <dt class="col-sm-6">Taux employé</dt>
+                            <dd class="col-sm-6 text-end">{{ config.cnas_employee_rate|floatformat:2 }}%</dd>
+                        </dl>
+                    </div>
+                </div>
+
+                <!-- Section Indemnités -->
+                <div class="col-md-6">
+                    <div class="border p-3 rounded bg-light">
+                        <h5 class="d-flex align-items-center mb-3">
+                            <i class="bi bi-cash-coin me-2"></i>Indemnités Journalières
+                        </h5>
+                        <dl class="row mb-0">
+                            <dt class="col-sm-6">Panier</dt>
+                            <dd class="col-sm-6 text-end">{{ config.daily_meal_allowance|intcomma }} DZD</dd>
+                            
+                            <dt class="col-sm-6">Transport</dt>
+                            <dd class="col-sm-6 text-end">{{ config.daily_transport_allowance|intcomma }} DZD</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section Tranches IRG -->
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <h5 class="card-title d-flex align-items-center mb-4">
+                <i class="bi bi-graph-up me-2"></i>Tranches d'Imposition (IRG)
+            </h5>
+            
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>De (DZD)</th>
+                            <th>À (DZD)</th>
+                            <th>Taux d'imposition</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for bracket in irg_brackets %}
+                        <tr>
+                            <td>{{ bracket.min_amount|intcomma }}</td>
+                            <td>{{ bracket.max_amount|default:"∞"|intcomma }}</td>
+                            <td>
+                                <span class="badge bg-primary rounded-pill">
+                                    {{ bracket.tax_rate|floatformat:2 }}%
+                                </span>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="3" class="text-center text-muted py-4">
+                                Aucune tranche configurée
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal d'édition -->
+<div class="modal fade" id="configModal" tabindex="-1" aria-labelledby="configModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="POST" action="{% url 'salary_config' %}">
+                {% csrf_token %}
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-gear me-2"></i>Configuration des paramètres
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                
+                <div class="modal-body">
+                    <!-- Section CNAS -->
+                    <div class="row g-3 mb-4">
+                        <div class="col-12">
+                            <h6 class="d-flex align-items-center mb-3">
+                                <i class="bi bi-shield-check me-2 text-primary"></i>Cotisations CNAS
+                            </h6>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label">Taux employeur (%)</label>
+                            <div class="input-group">
+                                <input type="number" step="0.01" 
+                                    class="form-control" 
+                                    name="cnas_employer_rate"
+                                    value="{{ config.cnas_employer_rate|default:'26.00' }}"
+                                    required>
+                                <span class="input-group-text">%</span>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label">Taux employé (%)</label>
+                            <div class="input-group">
+                                <input type="number" step="0.01" 
+                                    class="form-control" 
+                                    name="cnas_employee_rate"
+                                    value="{{ config.cnas_employee_rate|default:'9.00' }}"
+                                    required>
+                                <span class="input-group-text">%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section Indemnités -->
+                    <div class="row g-3 mb-4">
+                        <div class="col-12">
+                            <h6 class="d-flex align-items-center mb-3">
+                                <i class="bi bi-cash-coin me-2 text-primary"></i>Indemnités Journalières
+                            </h6>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label">Panier</label>
+                            <div class="input-group">
+                                <input type="number" step="1" 
+                                    class="form-control" 
+                                    name="daily_meal_allowance"
+                                    value="{{ config.daily_meal_allowance|default:'300' }}"
+                                    required>
+                                <span class="input-group-text">DZD/jour</span>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label">Transport</label>
+                            <div class="input-group">
+                                <input type="number" step="1" 
+                                    class="form-control" 
+                                    name="daily_transport_allowance"
+                                    value="{{ config.daily_transport_allowance|default:'200' }}"
+                                    required>
+                                <span class="input-group-text">DZD/jour</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section Tranches IRG -->
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="d-flex align-items-center mb-0">
+                                <i class="bi bi-graph-up me-2 text-primary"></i>Tranches IRG
+                            </h6>
+                            <button type="button" id="add-bracket" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-plus-circle me-1"></i>Ajouter
+                            </button>
+                        </div>
+                        
+                        <div id="irg-brackets" class="border rounded p-3 bg-light">
+                            {% for bracket in irg_brackets %}
+                            <div class="row g-3 mb-3 bracket-row">
+                                <div class="col-md-4">
+                                    <input type="number" step="1" 
+                                        class="form-control" 
+                                        name="min_amount[]"
+                                        placeholder="Minimum"
+                                        value="{{ bracket.min_amount }}"
+                                        required>
+                                </div>
+                                <div class="col-md-4">
+                                    <input type="number" step="1" 
+                                        class="form-control" 
+                                        name="max_amount[]"
+                                        placeholder="Maximum (optionnel)"
+                                        value="{{ bracket.max_amount|default:'' }}">
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="input-group">
+                                        <input type="number" step="0.01" 
+                                            class="form-control" 
+                                            name="tax_rate[]"
+                                            placeholder="Taux"
+                                            value="{{ bracket.tax_rate }}"
+                                            required>
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-1 d-flex align-items-center">
+                                    <button type="button" class="btn btn-link text-danger remove-bracket">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <small class="text-muted">
+                            Exemple : [10000 - 20000 : 10%], [20001 - 30000 : 15%]
+                        </small>
+                    </div>
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle me-1"></i>Annuler
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save me-1"></i>Enregistrer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Gestion des tranches IRG
+    const irgContainer = document.getElementById('irg-brackets');
+    
+    // Ajouter une tranche
+    document.getElementById('add-bracket').addEventListener('click', () => {
+        const newRow = document.createElement('div');
+        newRow.className = 'row g-3 mb-3 bracket-row';
+        newRow.innerHTML = `
+            <div class="col-md-4">
+                <input type="number" step="1" 
+                    class="form-control" 
+                    name="min_amount[]" 
+                    placeholder="Minimum"
+                    required>
+            </div>
+            <div class="col-md-4">
+                <input type="number" step="1" 
+                    class="form-control" 
+                    name="max_amount[]" 
+                    placeholder="Maximum (optionnel)">
+            </div>
+            <div class="col-md-3">
+                <div class="input-group">
+                    <input type="number" step="0.01" 
+                        class="form-control" 
+                        name="tax_rate[]" 
+                        placeholder="Taux"
+                        required>
+                    <span class="input-group-text">%</span>
+                </div>
+            </div>
+            <div class="col-md-1 d-flex align-items-center">
+                <button type="button" class="btn btn-link text-danger remove-bracket">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+        `;
+        irgContainer.appendChild(newRow);
+    });
+
+    // Supprimer une tranche
+    irgContainer.addEventListener('click', (e) => {
+        if(e.target.closest('.remove-bracket')) {
+            e.target.closest('.bracket-row').remove();
+        }
+    });
+});
+</script>
+{% endblock %}

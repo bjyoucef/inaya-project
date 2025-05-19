@@ -1,44 +1,225 @@
 {% extends "layout.html" %}
+{% load static crispy_forms_tags %}
+
 {% block content %}
-<div class="container mt-5">
-    <div class="card shadow-lg">
-        <div class="card-header bg-primary text-white">
-            <h2 class="mb-0">
-                <i class="bi bi-file-earmark-text"></i>
-                {% if object %}Modifier{% else %}Créer{% endif %} un bon de commande
-            </h2>
+<div class="container-lg mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">{% if object %}Modifier{% else %}Nouveau{% endif %} bon de commande</h1>
+    <a href="{% if object %}{{ object.get_absolute_url }}{% else %}{% url 'pharmacies:commande_list' %}{% endif %}" 
+       class="btn btn-link">
+      <i class="fas fa-arrow-left me-2"></i>Retour
+    </a>
+  </div>
+
+  <form method="post" class="needs-validation" novalidate>
+    {% csrf_token %}
+
+    <!-- Section Informations principales -->
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-primary text-white py-3">
+        <h2 class="h5 mb-0"><i class="fas fa-file-alt me-2"></i>Informations générales</h2>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-6">
+            {{ form.fournisseur|as_crispy_field }}
+          </div>
+          <div class="col-md-6">
+            {{ form.service_destination|as_crispy_field }}
+          </div>
+          <div class="col-md-4">
+            {{ form.date_livraison_prevue|as_crispy_field }}
+          </div>
+          <div class="col-md-4">
+            {{ form.statut|as_crispy_field }}
+          </div>
+          <div class="col-12">
+            {{ form.commentaire|as_crispy_field }}
+          </div>
         </div>
-        
-        <div class="card-body">
-            <form method="post">
-                {% csrf_token %}
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        {{ form.as_p }}
-                    </div>
-                    
-                    <div class="col-md-6">
-                        <h4>Articles commandés</h4>
-                        {{ formset.management_form }}
-                        {% for form in formset %}
-                        <div class="card mb-3">
-                            <div class="card-body">
-                                {{ form.as_p }}
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
-                
-                <div class="card-footer bg-light">
-                    <div class="d-flex justify-content-end gap-2">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-save"></i> Enregistrer
-                        </button>
-                    </div>
-                </div>
-            </form>
-        </div>
+      </div>
     </div>
+
+    <!-- Section Articles commandés -->
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-success text-white py-3 d-flex justify-content-between align-items-center">
+        <h2 class="h5 mb-0"><i class="fas fa-boxes me-2"></i>Articles commandés</h2>
+        <button type="button" class="btn btn-light btn-sm" id="add-form">
+          <i class="fas fa-plus-circle me-2"></i>Ajouter un article
+        </button>
+      </div>
+      <div class="card-body">
+        {{ formset.management_form }}
+<div id="formset-container" class="row g-3">
+  {% for subform in formset.forms %}
+    <div class="col-12 formset-form card mb-2">
+      <div class="card-body bg-light">
+        <div class="row g-3 align-items-end">
+          <div class="col-lg-4">
+            {{ subform.produit|as_crispy_field }}
+          </div>
+          <div class="col-lg-2">
+            {{ subform.quantite|as_crispy_field }}
+          </div>
+          <div class="col-lg-2">
+            {{ subform.prix_unitaire|as_crispy_field }}
+          </div>
+          <div class="col-lg-2">
+            {{ subform.date_peremption|as_crispy_field }}
+          </div>
+          <div class="col-lg-1">
+            {{ subform.numero_lot|as_crispy_field }}
+          </div>
+          <div class="col-lg-1 text-end">
+            <button type="button" class="btn btn-danger btn-sm delete-form">
+              <i class="fas fa-trash-alt"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  {% endfor %}
 </div>
+
+
+        <!-- Template pour les nouveaux formulaires -->
+        <div id="empty-form" class="d-none">
+          <div class="col-12 formset-form card mb-2">
+            <div class="card-body bg-light">
+              <div class="row g-3 align-items-end">
+                <div class="col-lg-4">
+                  {{ formset.empty_form.produit|as_crispy_field }}
+                </div>
+                <div class="col-lg-2">
+                  {{ formset.empty_form.quantite|as_crispy_field }}
+                </div>
+                <div class="col-lg-2">
+                  {{ formset.empty_form.prix_unitaire|as_crispy_field }}
+                </div>
+                <div class="col-lg-2">
+                  {{ formset.empty_form.date_peremption|as_crispy_field }}
+                </div>
+                <div class="col-lg-1">
+                  {{ formset.empty_form.numero_lot|as_crispy_field }}
+                </div>
+                <div class="col-lg-1 text-end">
+                  <button type="button" class="btn btn-danger btn-sm delete-form">
+                    <i class="fas fa-trash-alt"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="d-grid gap-2 d-md-flex justify-content-md-end mb-5">
+      <button type="submit" class="btn btn-primary btn-lg">
+        <i class="fas fa-save me-2"></i>Enregistrer
+      </button>
+    </div>
+  </form>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // On ne déclare TOTAL_FORMS qu'une seule fois :
+  const totalForms = document.getElementById('id_lignes-TOTAL_FORMS');
+  const addButton = document.getElementById('add-form');
+  const container = document.getElementById('formset-container');
+  const emptyForm = document.getElementById('empty-form').innerHTML;
+
+  let formCount = parseInt(totalForms.value, 10);
+
+  // Ajout d'un formulaire
+  addButton.addEventListener('click', () => {
+    const newFormHtml = emptyForm.replace(/__prefix__/g, formCount.toString());
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = newFormHtml;
+    const newForm = wrapper.firstElementChild;
+    container.appendChild(newForm);
+    
+    // Réinitialiser et configurer les nouveaux champs
+    newForm.querySelectorAll('input, select').forEach(input => {
+      if (input.name.includes('date_peremption')) {
+        input.type = 'date';
+      }
+      input.value = '';
+      input.removeAttribute('readonly');
+    });
+
+    // Animation
+    newForm.animate([
+      { opacity: 0, transform: 'translateY(-20px)' },
+      { opacity: 1, transform: 'translateY(0)' }
+    ], { duration: 300 });
+
+    formCount++;
+    totalForms.value = formCount;
+  });
+
+  // Suppression d'un formulaire
+  container.addEventListener('click', (e) => {
+    const btn = e.target.closest('.delete-form');
+    if (!btn) return;
+
+    const formCard = btn.closest('.formset-form');
+    const deleteInput = formCard.querySelector('input[id$="-DELETE"]');
+
+    formCard.animate([
+      { opacity: 1, transform: 'translateY(0)' },
+      { opacity: 0, transform: 'translateY(20px)' }
+    ], { duration: 300, easing: 'ease-out' })
+    .onfinish = () => {
+      if (deleteInput) {
+        deleteInput.value = 'on';
+        formCard.style.display = 'none';
+      } else {
+        formCard.remove();
+        formCount--;
+        totalForms.value = formCount;
+      }
+    };
+  });
+
+  // Tooltips Bootstrap
+  document.querySelectorAll('[data-bs-toggle="tooltip"]')
+    .forEach(el => new bootstrap.Tooltip(el));
+});
+</script>
+
+
+<style>
+.formset-form {
+  transition: all 0.3s ease;
+}
+
+.card-header {
+  border-radius: 0.5rem 0.5rem 0 0 !important;
+}
+
+.formset-form .card-body {
+  padding: 1rem;
+  border-radius: 0.5rem;
+}
+
+.delete-form {
+  transition: transform 0.2s;
+}
+
+.delete-form:hover {
+  transform: scale(1.1);
+}
+
+@media (max-width: 992px) {
+  .formset-form .col-lg-4 {
+    margin-bottom: 1rem;
+  }
+  
+  .delete-form {
+    margin-top: 0.5rem;
+  }
+}
+</style>
 {% endblock %}

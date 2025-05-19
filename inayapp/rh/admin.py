@@ -1,13 +1,36 @@
 from django.contrib import admin, messages
-from django.utils.text import slugify
+from django.contrib.admin.models import LogEntry
 from django.contrib.auth.models import User
+from django.contrib.contenttypes.models import ContentType
 from django.utils.crypto import get_random_string
-from .models import AnvizConfiguration, HonorairesActe, Personnel, Poste
+from django.utils.encoding import force_str
+from django.utils.text import slugify
+from django.utils.translation import gettext as _
+from import_export.admin import ImportExportModelAdmin
+
+from .models import AnvizConfiguration, HonorairesActe, Personnel, Poste, JourFerie
+from .resources import PersonnelResource, PosteResource
 
 
-class PersonnelAdmin(admin.ModelAdmin):
-    list_display = ("nom_prenom", "get_username")
-    search_fields = ("nom_prenom", "poste__label")
+from import_export.admin import ImportExportModelAdmin
+
+
+class PatchedImportExportAdmin(ImportExportModelAdmin):
+    """
+    Surcharge _create_log_entry pour ne rien logger
+    (évite toute incompatibilité avec LogEntryManager.log_actions).
+    """
+
+    def _create_log_entry(self, *args, **kwargs):
+        # On ne fait rien. Si besoin, vous pouvez créer manuellement un LogEntry ici.
+        return
+
+
+@admin.register(Personnel)
+class PersonnelAdmin(PatchedImportExportAdmin):
+    resource_class = PersonnelResource
+    list_display = ("nom_prenom", "service", "poste", "salaire", "get_username")
+    search_fields = ("nom_prenom", "service__name", "poste__label")
 
     def save_model(self, request, obj, form, change):
         # Lors de la création d'un nouveau Personnel, générer automatiquement l'utilisateur
@@ -55,13 +78,17 @@ class PersonnelAdmin(admin.ModelAdmin):
     get_username.short_description = "Nom d'utilisateur"
 
 
-admin.site.register(Personnel, PersonnelAdmin)
-
-
 @admin.register(AnvizConfiguration)
 class AnvizDeviceConfigAdmin(admin.ModelAdmin):
     list_display = ('name', 'ip_address', 'username', 'is_active', 'last_modified')
 
 
 admin.site.register(HonorairesActe)
-admin.site.register(Poste)
+admin.site.register(JourFerie)
+
+
+@admin.register(Poste)
+class PosteAdmin(PatchedImportExportAdmin):
+    resource_class = PosteResource
+    list_display = ("label",)
+    search_fields = ("label",)

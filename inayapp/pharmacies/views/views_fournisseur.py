@@ -1,107 +1,111 @@
-# pharmacies/views.py
+# pharmacies/views/views_fournisseur.py
 
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib import messages
+from django.contrib.auth.mixins import (LoginRequiredMixin,
+                                        PermissionRequiredMixin)
+from django.db import transaction
+from django.forms import modelform_factory
 from django.urls import reverse_lazy
+from django.views import View
 from django.views.generic import (CreateView, DeleteView, DetailView, ListView,
                                   UpdateView)
+from openpyxl import Workbook
 
-from ..forms import FournisseurForm, PaiementForm
-from ..models import (Fournisseur,
-                     HistoriquePaiement, OrdrePaiement)
+from django.http import HttpResponse
+from ..forms import FournisseurForm, OrdrePaiementForm
+from ..models import Fournisseur, OrdrePaiement
 
+import logging
 
-class FournisseurListView(LoginRequiredMixin, ListView):
+logger = logging.getLogger(__name__)
+
+class FournisseurListView(PermissionRequiredMixin, ListView):
+    permission_required = "pharmacies.view_fournisseur"
     model = Fournisseur
     template_name = "fournisseurs/liste.html"
     context_object_name = "fournisseurs"
-    paginate_by = 20
+    paginate_by = 25
     ordering = ["-date_creation"]
 
     def get_queryset(self):
-        return Fournisseur.objects.order_by("-date_creation")
+        qs = super().get_queryset()
+        if self.request.GET.get("q"):
+            qs = qs.filter(raison_sociale__icontains=self.request.GET["q"])
+        return qs
 
 
-class FournisseurCreateView(LoginRequiredMixin, CreateView):
+class FournisseurCreateView(PermissionRequiredMixin, CreateView):
+    permission_required = "pharmacies.add_fournisseur"
     model = Fournisseur
     form_class = FournisseurForm
     template_name = "fournisseurs/form.html"
     success_url = reverse_lazy("pharmacies:liste")
 
+    def get_initial(self):
+        return {"pays": "Algérie", "conditions_paiement": 30}
+
+    @transaction.atomic
     def form_valid(self, form):
         form.instance.utilisateur_creation = self.request.user
+        messages.success(self.request, "Fournisseur créé avec succès")
         return super().form_valid(form)
 
 
-class FournisseurDetailView(LoginRequiredMixin, DetailView):
+class FournisseurDetailView(PermissionRequiredMixin, DetailView):
+    permission_required = "pharmacies.view_fournisseur"
     model = Fournisseur
     template_name = "fournisseurs/detail.html"
     context_object_name = "fournisseur"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["paiements"] = self.object.historique_paiements.select_related("achat")
+        # Retirez les références à historique_paiements
+        context["paiement_form"] = None  # Si vous aviez un formulaire lié
         return context
 
 
-class FournisseurUpdateView(LoginRequiredMixin, UpdateView):
+class FournisseurUpdateView(PermissionRequiredMixin, UpdateView):
+    permission_required = "pharmacies.change_fournisseur"
     model = Fournisseur
     form_class = FournisseurForm
     template_name = "fournisseurs/form.html"
-    success_url = reverse_lazy("pharmacies:liste")
+
+    def get_success_url(self):
+        return reverse_lazy("pharmacies:detail", kwargs={"pk": self.object.pk})
+
+    @transaction.atomic
+    def form_valid(self, form):
+        messages.success(self.request, "Modifications enregistrées")
+        return super().form_valid(form)
 
 
-class FournisseurDeleteView(LoginRequiredMixin, DeleteView):
+class FournisseurDeleteView(PermissionRequiredMixin, DeleteView):
+    permission_required = "pharmacies.delete_fournisseur"
     model = Fournisseur
     template_name = "fournisseurs/supprimer.html"
     success_url = reverse_lazy("pharmacies:liste")
 
-
-class PaiementCreateView(LoginRequiredMixin, CreateView):
-    model = HistoriquePaiement
-    form_class = PaiementForm
-    template_name = "fournisseurs/paiement_form.html"
-
-    def get_initial(self):
-        return {"fournisseur": self.kwargs["pk"]}
-
-    def form_valid(self, form):
-        form.instance.fournisseur_id = self.kwargs["pk"]
-        return super().form_valid(form)
-
-    def get_success_url(self):
-        return reverse_lazy("pharmacies:detail", kwargs={"pk": self.kwargs["pk"]})
+    def delete(self, request, *args, **kwargs):
+        response = super().delete(request, *args, **kwargs)
+        messages.success(request, "Fournisseur supprimé")
+        return response
 
 
-class OrdrePaiementCreateView(LoginRequiredMixin, CreateView):
+# pharmacies/views.py
+class OrdrePaiementCreateView(CreateView):
     model = OrdrePaiement
-    fields = ["montant", "mode_paiement", "date_paiement", "preuve"]
-    template_name = "commandes/paiement_form.html"
+    form_class = OrdrePaiementForm
+    template_name = "pharmacies/ordre_paiement_form.html"
+    success_url = reverse_lazy("ordre-paiement-list")
 
-    def form_valid(self, form):
-        form.instance.commande_id = self.kwargs["commande_pk"]
-        return super().form_valid(form)
-
-    def get_success_url(self):
-        return reverse_lazy(
-            "pharmacies:commande_detail", kwargs={"pk": self.kwargs["commande_pk"]}
-        )
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["fournisseurs"] = Fournisseur.objects.active()
+        return context
 
 
-class AnnulerPaiementView(LoginRequiredMixin, UpdateView):
+class OrdrePaiementUpdateView(UpdateView):
     model = OrdrePaiement
-    fields = []
-    template_name = "commandes/annuler_paiement.html"
-
-    def form_valid(self, form):
-        paiement = form.save(commit=False)
-        paiement.statut = "ANNULE"
-        paiement.save()
-        paiement.commande.fournisseur.mettre_a_jour_solde(
-            paiement.montant, operation="ajout"
-        )
-        return super().form_valid(form)
-
-    def get_success_url(self):
-        return reverse_lazy(
-            "pharmacies:commande_detail", kwargs={"pk": self.object.commande.pk}
-        )
+    form_class = OrdrePaiementForm
+    template_name = "pharmacies/ordre_paiement_form.html"
+    success_url = reverse_lazy("ordre-paiement-list")

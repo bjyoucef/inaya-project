@@ -1,4 +1,4 @@
-# pharmacies/models.py
+# pharmacies/models/stock.py
 
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
@@ -15,6 +15,24 @@ class StockManager(models.Manager):
             quantite__gt=0,
             date_peremption__gte=timezone.now().date(),
         ).order_by("date_peremption")
+
+    def update_or_create_stock(
+        self, produit, service, date_peremption, numero_lot, quantite
+    ):
+        with transaction.atomic():
+            stock, created = self.select_for_update().get_or_create(
+                produit=produit,
+                service=service,
+                date_peremption=date_peremption,
+                numero_lot=numero_lot,
+                defaults={"quantite": quantite},
+            )
+
+            if not created:
+                stock.quantite += quantite
+                stock.save()
+
+            return stock
 
 
 class Stock(models.Model):
@@ -36,12 +54,7 @@ class Stock(models.Model):
     class Meta:
         verbose_name = "Stock"
         verbose_name_plural = "Stocks"
-        constraints = [
-            models.UniqueConstraint(
-                fields=["produit", "service", "date_peremption", "numero_lot"],
-                name="unique_stock_entry",
-            )
-        ]
+
         indexes = [
             models.Index(fields=["date_peremption"]),
             models.Index(fields=["numero_lot"]),
@@ -179,7 +192,13 @@ class Transfert(models.Model):
     numero_lot = models.CharField(
         max_length=50, blank=True, null=True, verbose_name="Numéro de lot"
     )
-
+    commande_interne = models.ForeignKey(
+        "BonCommandeInterne",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="transferts",
+    )
     objects = TransfertManager()
 
     class Meta:

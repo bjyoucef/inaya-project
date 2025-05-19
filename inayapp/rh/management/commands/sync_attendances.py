@@ -5,7 +5,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.utils.dateparse import parse_datetime
 from django.utils.timezone import make_aware
 from rh.anviz_service import AnvizAPI
-from rh.models import AnvizConfiguration, Attendance, Employee
+from rh.models import AnvizConfiguration, Pointage, Employee
 
 logger = logging.getLogger(__name__)
 
@@ -77,14 +77,12 @@ class Command(BaseCommand):
 
                 emp_id = int(record["id"])
                 check_time = make_aware(parse_datetime(record["time"]))
-                check_type = self.parse_check_type(record["status"])
 
                 employee = self.get_or_create_employee(emp_id, record.get("name"))
 
-                Attendance.objects.update_or_create(
+                Pointage.objects.update_or_create(
                     employee=employee,
                     check_time=check_time,
-                    defaults={"check_type": check_type},
                 )
                 count += 1
             except Exception as e:
@@ -92,13 +90,6 @@ class Command(BaseCommand):
                 continue
         return count
 
-    def parse_check_type(self, status):
-        status = str(status).upper()
-        if status in ["IN", "1", "CHECKIN"]:
-            return "IN"
-        elif status in ["OUT", "0", "CHECKOUT"]:
-            return "OUT"
-        return "2"
 
     def get_or_create_employee(self, emp_id, name):
         try:

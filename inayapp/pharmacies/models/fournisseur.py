@@ -1,9 +1,10 @@
-# pharmacies/models.py
+# pharmacies/models/fournisseur.py
 
 from decimal import Decimal
 from django.db.models import F
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models, transaction
+from django.forms import ValidationError
 from django.utils import timezone
 
 
@@ -94,6 +95,21 @@ class Fournisseur(models.Model):
                     solde=F("solde") - montant
                 )
             self.refresh_from_db()
+
+    def clean(self):
+        if self.limite_credit < 0:
+            raise ValidationError(
+                {"limite_credit": "La limite de crédit ne peut pas être négative"}
+            )
+
+        if self.conditions_paiement > 365:
+            raise ValidationError(
+                {"conditions_paiement": "Le délai ne peut excéder 365 jours"}
+            )
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
 
 
 class HistoriquePaiement(models.Model):

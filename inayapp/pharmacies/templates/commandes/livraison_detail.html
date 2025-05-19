@@ -1,0 +1,93 @@
+<!-- commandes/livraison_detail.html -->
+{% extends "layout.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container-lg mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">Bon de livraison {{ livraison.numero_bl }}</h1>
+    <a href="{% url 'pharmacies:livraison_list' %}" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-left me-2"></i>Retour à la liste
+    </a>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+      <h2 class="h5 mb-0">Détails du BL</h2>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <div class="col-md-6">
+          <dl class="row">
+            <dt class="col-sm-4">Commande associée :</dt>
+            <dd class="col-sm-8">{{ livraison.commande.numero_commande }}</dd>
+            
+            <dt class="col-sm-4">Date création :</dt>
+            <dd class="col-sm-8">{{ livraison.date_livraison|date:"d/m/Y H:i" }}</dd>
+            
+            <dt class="col-sm-4">Statut :</dt>
+            <dd class="col-sm-8">
+              <span class="badge badge-{% if livraison.est_complet %}success{% else %}warning{% endif %}">
+                {% if livraison.est_complet %}Terminé{% else %}En attente{% endif %}
+              </span>
+            </dd>
+          </dl>
+        </div>
+        <div class="col-md-6">
+          {% if livraison.fichier_bl %}
+          <div class="d-grid gap-2">
+            <a href="{{ livraison.fichier_bl.url }}" 
+               class="btn btn-outline-primary"
+               target="_blank">
+              <i class="fas fa-file-pdf me-2"></i>Télécharger le BL
+            </a>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <h5 class="mt-4">Articles livrés</h5>
+      <div class="table-responsive">
+        <table class="table table-sm">
+          <thead class="bg-light">
+            <tr>
+              <th>Produit</th>
+              <th class="text-end">Quantité</th>
+              <th>Lot</th>
+              <th>Péremption</th>
+              <th class="text-end">Prix unitaire</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for achat in livraison.achats.all %}
+            <tr>
+              <td>{{ achat.produit.nom }}</td>
+              <td class="text-end">{{ achat.quantite_achetee }}</td>
+              <td>{{ achat.numero_lot|default:"-" }}</td>
+              <td>{{ achat.date_peremption|date:"d/m/Y" }}</td>
+              <td class="text-end">{{ achat.prix_unitaire|floatformat:2 }} €</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {% if not livraison.est_complet %}
+  <div class="card border-danger">
+    <div class="card-header bg-danger text-white">
+      Valider la réception
+    </div>
+    <div class="card-body">
+      <form method="post" action="{% url 'pharmacies:livraison_valider' livraison.pk %}">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-success btn-lg">
+          <i class="fas fa-check-circle me-2"></i>Confirmer la réception complète
+        </button>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

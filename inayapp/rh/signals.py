@@ -1,23 +1,18 @@
-from django.db.models.signals import post_save
-from django.dispatch import receiver
-from django.contrib.auth.models import Permission
-from django.contrib.contenttypes.models import ContentType
-from medical.models import Service
-from django.utils.text import slugify
-from django.contrib.auth.models import User
-from .models import Personnel
-from django.contrib.auth import get_user_model
 import secrets
-from django.core.exceptions import ValidationError
 import string
 
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Permission, User
+from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import ValidationError
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from django.utils.text import slugify
+from medical.models import Service
+
+from .models import Personnel
+
 User = get_user_model()
-
-
-
-
-
-
 
 def generate_unique_username(base_username):
     username = base_username

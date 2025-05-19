@@ -1,72 +1,67 @@
-# pharmacies/views.py
-from django.contrib import messages
-from django.views.generic.edit import CreateView, UpdateView, DeleteView
-from django.views.generic import ListView, DetailView
-from .forms import ProduitForm, StockForm, TransfertForm, AchatForm
-from .models import Produit, Stock, Transfert, Achat
+def traiter_jour(current_date, employee, holidays):
+    is_holiday = current_date in holidays
+    is_weekend = current_date.weekday() in [4, 5]
 
+    ref_start = employee.reference_start or datetime_time(8, 0)
+    ref_end = employee.reference_end or datetime_time(16, 0)
 
-class ProduitListView(ListView):
-    model = Produit
-    template_name = "produit/produit_list.html"
-    context_object_name = "produits"
-    paginate_by = 20
+    attendances = Pointage.objects.filter(
+        employee=employee, check_time__date=current_date
+    ).order_by("check_time")
+    next_day_att = Pointage.objects.filter(
+        employee=employee, check_time__date=current_date + timedelta(days=1)
+    ).order_by("check_time")
 
+    entries, exits = classify_attendances(attendances, employee, current_date)
+    pairs = build_pairs(
+        entries,
+        exits,
+        employee,
+        current_date,
+        next_day_att,
+        current_date + timedelta(days=1),
+    )
 
-class ProduitDetailView(DetailView):
-    model = Produit
-    template_name = "produit/produit_detail.html"
+    validated_overtime = non_validated_overtime = 0
+    for entry, exit_point in pairs:
+        entry_dt = entry.check_time
+        exit_dt = get_dt(exit_point)
+        dur = (exit_dt - entry_dt).total_seconds()
+        if entry.ov_validated or getattr(exit_point, "ov_validated", False):
+            validated_overtime += dur
+        else:
+            non_validated_overtime += dur
 
+    # calcul des heures de référence vs overtime
+    if is_holiday or is_weekend:
+        total_sec_w = 0
+        overtime_sec = sum(
+            (get_dt(exit_p) - entry.check_time).total_seconds()
+            for entry, exit_p in pairs
+            if exit_p
+        )
+    else:
+        total_sec_w = calculer_heures_reference(pairs, employee, current_date)
+        # early / late overtime hors référence
+        early = late = 0
+        if entries and entries[0].check_time.time() < ref_start:
+            early = (
+                datetime.combine(current_date, ref_start) - entries[0].check_time
+            ).total_seconds()
+        if exits and exits[-1].check_time.time() > ref_end:
+            late = (
+                exits[-1].check_time - datetime.combine(current_date, ref_end)
+            ).total_seconds()
+        overtime_sec = early + late
 
-class ProduitCreateView(CreateView):
-    model = Produit
-    form_class = ProduitForm
-    template_name = "produit/produit_form.html"
-
-    def get_success_url(self):
-        messages.success(self.request, "Produit créé avec succès")
-        return reverse_lazy("pharmacies:produit_list")
-
-
-class ProduitUpdateView(UpdateView):
-    model = Produit
-    form_class = ProduitForm
-    template_name = "produit/produit_form.html"
-
-    def get_success_url(self):
-        messages.success(self.request, "Produit mis à jour avec succès")
-        return reverse_lazy("pharmacies:produit_detail", kwargs={"pk": self.object.pk})
-
-
-class ProduitDeleteView(DeleteView):
-    model = Produit
-    template_name = "produit/produit_confirm_delete.html"
-    success_url = reverse_lazy("pharmacies:produit_list")
-
-
-class StockCreateView(CreateView):
-    model = Stock
-    form_class = StockForm
-    template_name = "stock/stock_form.html"
-
-    def form_valid(self, form):
-        response = super().form_valid(form)
-        messages.success(self.request, "Stock ajouté avec succès")
-        return response
-
-
-class TransfertCreateView(CreateView):
-    model = Transfert
-    form_class = TransfertForm
-    template_name = "transfert/transfert_form.html"
-
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        kwargs["user"] = self.request.user
-        return kwargs
-
-
-class AchatCreateView(CreateView):
-    model = Achat
-    form_class = AchatForm
-    template_name = "achat/form.html"
+    return {
+        "date": current_date,
+        "is_holiday": is_holiday,
+        "is_weekend": is_weekend,
+        "pairs": pairs,
+        "total_seconds_w": total_sec_w,
+        "overtime_seconds": overtime_sec,
+        "validated_overtime": validated_overtime,
+        "non_validated_overtime": non_validated_overtime,
+        # … (le reste de votre dict reste inchangé)
+    }

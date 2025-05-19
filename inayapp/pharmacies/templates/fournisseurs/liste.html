@@ -1,18 +1,20 @@
+<!-- templates/fournisseurs/liste.html -->
 {% extends "layout.html" %}
+
 {% block content %}
-<div class="container mt-4">
+<div class="container-fluid px-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>Gestion des Fournisseurs</h2>
-        <a href="{% url 'pharmacies:creer' %}" class="btn btn-success">
-            <i class="bi bi-plus-circle"></i> Nouveau Fournisseur
+        <h1 class="mt-4"><i class="bi bi-truck me-2"></i>Gestion des Fournisseurs</h1>
+        <a href="{% url 'pharmacies:creer' %}" class="btn btn-primary">
+            <i class="bi bi-plus-lg me-2"></i>Nouveau fournisseur
         </a>
     </div>
 
-    <div class="card shadow">
-        <div class="card-body p-0">
+    <div class="card shadow-lg">
+        <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-hover mb-0">
-                    <thead class="table-dark">
+                <table class="table table-hover align-middle" id="dataTable">
+                    <thead class="table-light">
                         <tr>
                             <th>Code</th>
                             <th>Raison Sociale</th>
@@ -24,29 +26,52 @@
                     </thead>
                     <tbody>
                         {% for f in fournisseurs %}
-                        <tr>
-                            <td>{{ f.code_fournisseur }}</td>
-                            <td>{{ f.raison_sociale }}</td>
+                        <tr class="clickable-row" data-url="{% url 'pharmacies:detail' f.pk %}">
+                            <td class="fw-bold">{{ f.code_fournisseur }}</td>
                             <td>
-                                <div>{{ f.telephone }}</div>
-                                <small class="text-muted">{{ f.email }}</small>
+                                <div class="d-flex align-items-center">
+                                    <i class="bi bi-building me-3 fs-4 text-primary"></i>
+                                    {{ f.raison_sociale }}
+                                </div>
                             </td>
                             <td>
-                                <div>Limite: {{ f.limite_credit }} €</div>
-                                <div>Solde: {{ f.solde }} €</div>
+                                <div class="d-flex flex-column">
+                                    <a href="mailto:{{ f.email }}" class="text-decoration-none">
+                                        <i class="bi bi-envelope me-2"></i>{{ f.email }}
+                                    </a>
+                                    <a href="tel:{{ f.telephone }}" class="text-decoration-none">
+                                        <i class="bi bi-telephone me-2"></i>{{ f.telephone }}
+                                    </a>
+                                </div>
                             </td>
                             <td>
-                                <span class="badge bg-{% if f.statut == 'ACTIF' %}success{% elif f.statut == 'SUSPENDU' %}warning{% else %}secondary{% endif %}">
+                                <div class="progress" style="height: 20px;">
+                                    <div class="progress-bar bg-{% if f.credit_disponible > 0 %}success{% else %}danger{% endif %}" 
+                                         role="progressbar" 
+                                         style="width: {{ f.credit_utilise_percent }}%"
+                                         aria-valuenow="{{ f.credit_utilise_percent }}" 
+                                         aria-valuemin="0" 
+                                         aria-valuemax="100">
+                                        {{ f.credit_utilise_percent|floatformat }}%
+                                    </div>
+                                </div>
+                                <small class="text-muted">{{ f.solde }} / {{ f.limite_credit }} €</small>
+                            </td>
+                            <td>
+                                <span class="badge rounded-pill bg-{{ f.status_badge }}">
                                     {{ f.get_statut_display }}
                                 </span>
                             </td>
                             <td class="text-end">
-                                <div class="btn-group">
+                                <div class="btn-group shadow-sm">
                                     <a href="{% url 'pharmacies:detail' f.pk %}" class="btn btn-sm btn-outline-primary">
                                         <i class="bi bi-eye"></i>
                                     </a>
-                                    <a href="{% url 'pharmacies:modifier' f.pk %}" class="btn btn-sm btn-outline-secondary">
+                                    <a href="{% url 'pharmacies:modifier' f.pk %}" class="btn btn-sm btn-outline-warning">
                                         <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <a href="{% url 'pharmacies:supprimer' f.pk %}" class="btn btn-sm btn-outline-danger">
+                                        <i class="bi bi-trash"></i>
                                     </a>
                                 </div>
                             </td>
@@ -58,4 +83,21 @@
         </div>
     </div>
 </div>
+
+<script>
+    $(document).ready(function() {
+        $('#dataTable').DataTable({
+            language: {
+                url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/fr-FR.json'
+            },
+            columnDefs: [
+                { orderable: false, targets: -1 }
+            ]
+        });
+        
+        $('.clickable-row').click(function() {
+            window.location = $(this).data('url');
+        });
+    });
+</script>
 {% endblock %}

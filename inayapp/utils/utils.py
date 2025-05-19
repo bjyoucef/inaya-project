@@ -2,7 +2,6 @@ from datetime import datetime, timezone
 import logging
 from django.utils.text import slugify
 from requests import request
-
 from medical.models.services import Service
 
 logger = logging.getLogger(__name__)
@@ -14,8 +13,6 @@ def get_date_range(config):
     if start_date > end_date:
         start_date, end_date = end_date, start_date
     return start_date, end_date
-
-
 
 
 def services_autorises(user):
@@ -51,3 +48,6 @@ def services_autorises(user):
     # 5) On renvoie un QuerySet filtré sur ces IDs pour usage en views
     permitted_ids = [s.id for s in permitted_services]
     return Service.objects.filter(id__in=permitted_ids)
+
+
+

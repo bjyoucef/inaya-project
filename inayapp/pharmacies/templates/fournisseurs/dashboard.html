@@ -1,0 +1,35 @@
+<!-- fournisseurs/dashboard.html -->
+<div class="row">
+    <div class="col-md-4">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title">Répartition par statut</h5>
+                <div id="chart-statut"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title">Évolution des créances</h5>
+                <div id="chart-solde"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Exemple avec Chart.js
+const ctx = document.getElementById('chart-statut').getContext('2d');
+new Chart(ctx, {
+    type: 'pie',
+    data: {
+        labels: {{ statut_labels|safe }},
+        datasets: [{
+            data: {{ statut_data|safe }},
+            backgroundColor: ['#28a745', '#ffc107', '#6c757d']
+        }]
+    }
+});
+</script>

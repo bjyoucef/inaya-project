@@ -31,3 +31,32 @@ def status_color(status):
         "CAN": "secondary",
     }
     return color_map.get(status, "secondary")
+
+
+@register.filter
+def minutes_to_duree(minutes):
+    """
+    Convertit un entier de minutes en 'XhYY', ou '-' si <= 0.
+    """
+    try:
+        m = int(minutes)
+    except (ValueError, TypeError):
+        return "-"
+    if m <= 0:
+        return "-"
+    h = m // 60
+    mn = m % 60
+    return f"{h}h{mn:02d}"
+
+
+@register.filter
+def first_letter(value):
+    return value[0].upper() if value else ""
+
+
+@register.filter
+def is_instance(value, class_name):
+    try:
+        return value.__class__.__name__.lower() == class_name.lower()
+    except AttributeError:
+        return False

@@ -1,0 +1,40 @@
+<!-- templates/fournisseurs/supprimer.html -->
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="card shadow-lg border-danger mt-4">
+        <div class="card-header bg-danger text-white">
+            <h3 class="text-center my-4">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                Supprimer le Fournisseur
+            </h3>
+        </div>
+        
+        <div class="card-body">
+            <div class="alert alert-danger" role="alert">
+                <h4 class="alert-heading">Attention !</h4>
+                <p>Vous êtes sur le point de supprimer définitivement le fournisseur :</p>
+                <hr>
+                <p class="mb-0">
+                    <strong>{{ object }}</strong><br>
+                    Code : {{ object.code_fournisseur }}<br>
+                    Raison sociale : {{ object.raison_sociale }}
+                </p>
+            </div>
+
+            <form method="post">
+                {% csrf_token %}
+                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                    <a href="{% url 'pharmacies:detail' object.pk %}" class="btn btn-secondary">
+                        <i class="bi bi-x-circle me-2"></i>Annuler
+                    </a>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash me-2"></i>Confirmer la suppression
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

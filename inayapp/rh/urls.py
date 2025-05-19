@@ -1,12 +1,13 @@
 from django.urls import path
+
+
 from . import views
 from .views import (
     save_planning,
     update_event,
     delete_event,
     print_planning,
-    attendance_report,
-
+    rapport_pointage,
 )
 
 
@@ -29,10 +30,12 @@ urlpatterns = [
     ),
     path("sync/attendances/", views.sync_attendances, name="sync_attendances"),
     path("sync/users/", views.sync_users, name="sync_users"),
-    path("pointages/", attendance_report, name="attendance_report"),
+    path("pointages/", rapport_pointage, name="attendance_report"),
     path(
         "save-reference-hours/", views.save_reference_hours, name="save_reference_hours"
     ),
+    path("pointages/salary-config/", views.salary_config_view, name="salary_config"),
+    path("save-salary-config/", views.handle_config_save, name="save_salary_config"),
     path(
         "salary-advance/create/",
         views.salary_advance_create,
@@ -54,5 +57,9 @@ urlpatterns = [
     ),
     path("get-honoraires-acte/", views.get_honoraires_acte, name="get_honoraires_acte"),
     path("add-pointage-acte/", views.add_pointage_acte, name="add_pointage_acte"),
-
+    path(
+        "pointage/validate/<int:pointage_id>/",
+        views.validate_overtime,
+        name="validate_overtime",
+    ),
 ]

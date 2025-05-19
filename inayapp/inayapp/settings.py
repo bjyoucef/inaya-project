@@ -14,14 +14,31 @@ SECRET_KEY = "django-insecure-!en%k-ktxrmpr7mz=q#uu9p3on!iy2fn)uxg2(f_73f+(60@wf
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
-
-ALLOWED_HOSTS = []
-
-
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'DEBUG',
+    },
+}
+ALLOWED_HOSTS = [
+    "127.0.0.1",
+    "localhost",
+    "192.168.10.254",
+    "192.168.10.0/24",  # autoriser tout le réseau (moins sécurisé) :
+]
+INTERNAL_IPS = ["127.0.0.1"]
 # Application definition
 
 INSTALLED_APPS = [
     "jazzmin",
+    "debug_toolbar",
     "fontawesomefree",
     "nested_admin",
     "widget_tweaks",
@@ -38,6 +55,9 @@ INSTALLED_APPS = [
     "mptt",
     "django_ckeditor_5",
     "simple_history",
+    "crispy_forms",
+    "crispy_bootstrap5",
+    "import_export",
 ]
 INSTALLED_APPS += [
     "accueil",
@@ -70,6 +90,7 @@ ANVIZ_CONFIG = {
 }
 
 MIDDLEWARE = [
+    "debug_toolbar.middleware.DebugToolbarMiddleware",
     "maintenance_mode.middleware.MaintenanceModeMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -273,3 +294,7 @@ JAZZMIN_UI_TWEAKS = {
     "actions_sticky_top": True,
 }
 PLOTLY_OFFLINE_CONFIG = {"show_link": False, "link_text": "", "displaylogo": False}
+
+
+CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
+CRISPY_TEMPLATE_PACK = "bootstrap5"

@@ -1,68 +1,96 @@
+<!-- commandes/commande_detail.html -->
 {% extends "layout.html" %}
+{% load static %}
+
 {% block content %}
-<div class="container mt-5">
-    <div class="card shadow-lg">
-        <div class="card-header bg-primary text-white">
-            <h2 class="mb-0">Bon de commande {{ object.numero_commande }}</h2>
-        </div>
-        
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-6">
-                    <dl class="row">
-                        <dt class="col-sm-4">Fournisseur</dt>
-                        <dd class="col-sm-8">{{ object.fournisseur }}</dd>
-                        
-                        <dt class="col-sm-4">Date commande</dt>
-                        <dd class="col-sm-8">{{ object.date_commande|date:"d/m/Y" }}</dd>
-                    </dl>
-                </div>
-                
-                <div class="col-md-6">
-                    <dl class="row">
-                        <dt class="col-sm-4">Statut</dt>
-                        <dd class="col-sm-8">
-                            <span class="badge bg-{{ object.get_status_badge }}">
-                                {{ object.get_statut_display }}
-                            </span>
-                        </dd>
-                    </dl>
-                </div>
-            </div>
-
-            <h4 class="mt-4">Articles commandés</h4>
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Produit</th>
-                        <th>Quantité</th>
-                        <th>Prix unitaire</th>
-                        <th>Total</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for ligne in object.lignes.all %}
-                    <tr>
-                        <td>{{ ligne.produit.nom }}</td>
-                        <td>{{ ligne.quantite }}</td>
-                        <td>{{ ligne.prix_unitaire }} €</td>
-                        <td>{{ ligne.montant }} €</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-
-            <div class="d-flex justify-content-between mt-4">
-                <a href="{% url 'pharmacies:commande_list' %}" class="btn btn-secondary">
-                    <i class="bi bi-arrow-left"></i> Retour
-                </a>
-                <div class="btn-group">
-                    <a href="#" class="btn btn-success">
-                        <i class="bi bi-truck"></i> Valider la livraison
-                    </a>
-                </div>
-            </div>
-        </div>
+<div class="container mt-4">
+  <h1>Commande {{ object.numero_commande }}</h1>
+  
+  <div class="card mb-4">
+    <div class="card-header">
+      <h5>Détails de la commande</h5>
     </div>
+    <div class="card-body">
+      <dl class="row">
+        <dt class="col-sm-3">Fournisseur</dt>
+        <dd class="col-sm-9">{{ object.fournisseur }}</dd>
+
+        <dt class="col-sm-3">Service destinataire</dt>
+        <dd class="col-sm-9">{{ object.service_destination }}</dd>
+
+        <dt class="col-sm-3">Date commande</dt>
+        <dd class="col-sm-9">{{ object.date_commande|date:"d/m/Y" }}</dd>
+
+        <dt class="col-sm-3">Statut</dt>
+        <dd class="col-sm-9">
+          <span class="badge badge-{{ object.get_status_badge }}">
+            {{ object.get_statut_display }}
+          </span>
+        </dd>
+
+        <dt class="col-sm-3">Montant total</dt>
+        <dd class="col-sm-9">{{ object.montant_total|floatformat:2 }} €</dd>
+      </dl>
+
+      <h5>Lignes de commande</h5>
+      <table class="table table-sm">
+        <thead>
+          <tr>
+            <th>Produit</th>
+            <th>Quantité</th>
+            <th>Prix unitaire</th>
+            <th>Total</th>
+            <th>Lot</th>
+            <th>Péremption</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for ligne in object.lignes.all %}
+          <tr>
+            <td>{{ ligne.produit }}</td>
+            <td>{{ ligne.quantite }}</td>
+            <td>{{ ligne.prix_unitaire|floatformat:2 }} €</td>
+            <td>{{ ligne.montant|floatformat:2 }} €</td>
+            <td>{{ ligne.numero_lot|default:"-" }}</td>
+            <td>{{ ligne.date_peremption|date:"d/m/Y" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-header">
+      <h5>Livraisons associées</h5>
+    </div>
+    <div class="card-body">
+      {% for livraison in object.livraisons.all %}
+      <div class="mb-3">
+        <h6>BL {{ livraison.numero_bl }}</h6>
+        <p>Date: {{ livraison.date_livraison|date:"d/m/Y" }}</p>
+        {% if livraison.fichier_bl %}
+        <a href="{{ livraison.fichier_bl.url }}" class="btn btn-sm btn-secondary">
+          <i class="fas fa-download"></i> Télécharger BL
+        </a>
+        {% endif %}
+      </div>
+      {% empty %}
+      <p>Aucune livraison associée</p>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="mb-4">
+    <a href="{% url 'pharmacies:commande_list' %}" class="btn btn-secondary">
+      <i class="fas fa-arrow-left"></i> Retour
+    </a>
+    <a href="{% url 'pharmacies:commande_pdf' object.pk %}" class="btn btn-primary">
+      <i class="fas fa-file-pdf"></i> Générer PDF
+    </a>
+    <a href="{% url 'pharmacies:livraison_create' commande_pk=object.pk %}" class="btn btn-success">
+      <i class="fas fa-truck"></i> Créer livraison
+    </a>
+  </div>
 </div>
 {% endblock %}

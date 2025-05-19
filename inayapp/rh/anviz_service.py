@@ -7,17 +7,17 @@ from datetime import date
 import requests
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.management import CommandError
-from .models import AnvizConfiguration, Attendance
+from .models import AnvizConfiguration, Pointage
 from django.db.models import Max
 
 
 def get_last_attendance_sync_date():
-    last_sync = Attendance.objects.aggregate(last_sync=Max("synced_at"))["last_sync"]
+    last_sync = Pointage.objects.aggregate(last_sync=Max("synced_at"))["last_sync"]
 
     if last_sync is None:
         # Si aucune date de synchronisation n'existe, on retourne une date très ancienne
         return "2024-01-01"
-    
+
     # Formater la date au format attendu par l'API Anviz
     last_sync = last_sync.strftime("%Y-%m-%d")
     # today = (date.today()).strftime("%Y-%m-%d")

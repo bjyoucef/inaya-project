@@ -2,6 +2,8 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.core.exceptions import ValidationError
 from django.utils import timezone
+
+from .models.commande import BonLivraison
 from .models import Transfert, Stock, Consommation
 
 

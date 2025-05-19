@@ -1,4 +1,4 @@
-# pharmacies/models.py
+# pharmacies/models/produit.py
 
 from django.db import models
 

@@ -1,6 +1,12 @@
+from decimal import ROUND_HALF_UP, Decimal, getcontext
+
 from django.contrib.auth.models import User
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.forms import ValidationError
 from django.utils import timezone
+from medical.models.services import Service
+
 
 class Personnel(models.Model):
     id_personnel = models.AutoField(primary_key=True)
@@ -12,21 +18,37 @@ class Personnel(models.Model):
         blank=True,
         related_name="personnels",
     )
-
     poste = models.ForeignKey(
         "Poste",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        verbose_name="Poste occupé"
+        verbose_name="Poste occupé",
     )
-
     telephone = models.CharField(max_length=15, blank=True, null=True)
+
+    # ==== CHAMP salaire et employee par la pointeuse ====
+    salaire = models.DecimalField(
+        max_digits=10,  # nombre total de chiffres (incluant ceux après la virgule)
+        decimal_places=2,  # 2 décimales pour les centimes
+        null=True,
+        blank=True,
+        verbose_name="Salaire mensuel",
+    )
+    employee = models.OneToOneField(
+        "Employee",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name="Fiche Pointeuse",
+        related_name="personnel",
+    )
+    # ==================================
+
     created_at = models.DateTimeField(auto_now_add=True, blank=True, null=True)
     updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
     statut_activite = models.BooleanField(default=True)
     use_in_planning = models.BooleanField(default=False)
-
     user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True)
 
     def get_associated_services(self):
@@ -34,12 +56,29 @@ class Personnel(models.Model):
             return self.medecin_profile.service.all()
         return Service.objects.none()
 
+    @property
+    def taux_horaire(self):
+        if self.salaire:
+            return (self.salaire / Decimal("160")).quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            )
+        return Decimal("0.00")
+
+    @property
+    def identite_complete(self):
+        return f"{self.nom_prenom} ({self.poste.label if self.poste else 'Sans poste'})"
+
     def __str__(self):
         return f"{self.nom_prenom}"
 
     class Meta:
         ordering = ["nom_prenom"]
         managed = True
+
+    def save(self, *args, **kwargs):
+        if not self.salaire:
+            self.salaire = 0.00
+        super().save(*args, **kwargs)
 
 
 class Planning(models.Model):
@@ -172,28 +211,9 @@ class AnvizConfiguration(models.Model):
 
 
 class Employee(models.Model):
-    SHIFT_DAY = "day"
-    SHIFT_NIGHT = "night"
-    SHIFT_24H = "24h"
-    SHIFT_CHOICES = [
-        (SHIFT_DAY, "Jour"),
-        (SHIFT_NIGHT, "Nuit"),
-        (SHIFT_24H, "24h"),
-    ]
-
     anviz_id = models.BigIntegerField(unique=True, verbose_name="ID Anviz")
     name = models.CharField(max_length=100, verbose_name="Nom complet")
-    card_number = models.CharField(
-        max_length=20, null=True, blank=True, verbose_name="Numéro de badge"
-    )
-    department = models.PositiveSmallIntegerField(default=0, verbose_name="Département")
-    group = models.PositiveSmallIntegerField(default=0, verbose_name="Groupe")
-    shift = models.CharField(
-        max_length=5,
-        choices=SHIFT_CHOICES,
-        default=SHIFT_DAY,
-        verbose_name="Type de shift",
-    )
+
     reference_start = models.TimeField(
         null=True, blank=True, verbose_name="Heure de début de référence"
     )
@@ -204,25 +224,20 @@ class Employee(models.Model):
         auto_now=True, verbose_name="Dernière mise à jour"
     )
 
+    def horaires_reference(self):
+        if self.reference_start and self.reference_end:
+            return f"{self.reference_start.strftime('%H:%M')} - {self.reference_end.strftime('%H:%M')}"
+        return "Non défini"
+
     class Meta:
-        verbose_name = "Employé"
-        verbose_name_plural = "Employés"
+        verbose_name = "Employé (Pointeuse)"
+        verbose_name_plural = "Employés (Pointeuse)"
 
     def __str__(self):
         return f"{self.name} (ID: {self.anviz_id})"
 
 
-class Attendance(models.Model):
-    CHECK_TYPE_CHOICES = [
-        ("IN", "Entrée"),
-        ("OUT", "Sortie"),
-        ("2", "Début pause"),
-        ("3", "Fin pause"),
-        ("4", "Heure supplémentaire"),
-        ("5", "Retard"),
-        ("6", "Absence"),
-    ]
-
+class Pointage(models.Model):
     employee = models.ForeignKey(
         "Employee",
         on_delete=models.CASCADE,
@@ -230,13 +245,29 @@ class Attendance(models.Model):
         verbose_name="Employé",
     )
     check_time = models.DateTimeField(verbose_name="Heure de pointage")
-    check_type = models.CharField(
-        max_length=6, choices=CHECK_TYPE_CHOICES, verbose_name="Type de pointage"
+
+    ov_validated = models.BooleanField(default=False, verbose_name="heures supplimentaires Validé ")
+    validation_date = models.DateTimeField(null=True, blank=True, verbose_name="Date de validation")
+    validated_by = models.ForeignKey(
+        User, 
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name="Validé par"
     )
+
     synced_at = models.DateTimeField(
         auto_now_add=True, verbose_name="Date de synchronisation"
     )
-
+    def toggle_validation(self, user):
+        self.ov_validated = not self.ov_validated
+        if self.ov_validated:
+            self.validation_date = timezone.now()
+            self.validated_by = user
+        else:
+            self.validation_date = None
+            self.validated_by = None
+        self.save()
     class Meta:
         unique_together = ["employee", "check_time"]
         verbose_name = "Pointage"
@@ -249,18 +280,138 @@ class Attendance(models.Model):
     def __str__(self):
         return f"{self.employee} - {self.get_check_type_display()} à {self.check_time.strftime('%d/%m/%Y %H:%M')}"
 
-    @property
-    def check_type_icon(self):
-        icons = {
-            "IN": "bi-box-arrow-in-right text-success",
-            "OUT": "bi-box-arrow-left text-danger",
-            "2": "bi-cup-straw text-warning",
-            "3": "bi-cup-fill text-primary",
-            "4": "bi-alarm text-info",
-            "5": "bi-clock-history text-warning",
-            "6": "bi-x-circle text-danger",
-        }
-        return icons.get(self.check_type, "bi-question-circle")
+class JourFerie(models.Model):
+    date = models.DateField(unique=True, verbose_name="Date")
+    name = models.CharField(max_length=100, verbose_name="Nom")
+
+    class Meta:
+        verbose_name = "Jour férié"
+        verbose_name_plural = "Jours fériés"
+
+    def __str__(self):
+        return f"{self.name} ({self.date})"
+
+
+class GlobalSalaryConfig(models.Model):
+    # Paramètres CNAS
+    cnas_employer_rate = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        verbose_name="Taux CNAS employeur (%)",
+        default=26.00,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+    )
+
+    cnas_employee_rate = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        verbose_name="Taux CNAS employé (%)",
+        default=9.00,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+    )
+
+    # Indemnités
+    daily_meal_allowance = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        verbose_name="Indemnité repas journalière (DZA)",
+        default=300.00,
+    )
+
+    daily_transport_allowance = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        verbose_name="Indemnité transport journalière (DZA)",
+        default=200.00,
+    )
+    overtime_hourly_rate = models.DecimalField(
+        max_digits=6,
+        decimal_places=2,
+        default=1.20,
+        verbose_name="Taux horaire heures supplémentaires",
+    )
+    holiday_hourly_rate = models.DecimalField(
+        max_digits=6,
+        decimal_places=2,
+        default=1.20,
+        verbose_name="Taux horaire heures holiday",
+    )
+    daily_absence_penalty = models.DecimalField(
+        max_digits=6,
+        decimal_places=2,
+        default=1.00,
+        verbose_name="Pénalité absence journalière",
+    )
+    late_minute_penalty = models.DecimalField(
+        max_digits=6,
+        decimal_places=2,
+        default=1.00,
+        verbose_name="Pénalité par minute de retard",
+    )
+    # Paramètres généraux
+    update_date = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        verbose_name="Dernière modification par",
+    )
+
+    class Meta:
+        verbose_name = "Configuration Salariale Globale"
+        verbose_name_plural = "Configuration Salariale Globale"
+
+    def __str__(self):
+        return f"Configuration globale - {self.update_date.strftime('%d/%m/%Y')}"
+
+    @classmethod
+    def get_latest_config(cls):
+        """Récupère la dernière configuration en vigueur"""
+        try:
+            return cls.objects.latest("update_date")
+        except cls.DoesNotExist:
+            # Retourne une configuration par défaut si aucune existe
+            return cls(
+                cnas_employer_rate=Decimal("26.00"),
+                cnas_employee_rate=Decimal("9.00"),
+                daily_meal_allowance=Decimal("300.00"),
+                daily_transport_allowance=Decimal("200.00"),
+            )
+
+
+class IRGBracket(models.Model):
+    config = models.ForeignKey(
+        GlobalSalaryConfig, on_delete=models.CASCADE, related_name="irg_brackets"
+    )
+    min_amount = models.DecimalField(
+        max_digits=12, decimal_places=2, verbose_name="Montant minimum"
+    )
+    max_amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        verbose_name="Montant maximum",
+        null=True,
+        blank=True,
+    )
+    tax_rate = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        verbose_name="Taux d'imposition (%)",
+    )
+
+    class Meta:
+        ordering = ["min_amount"]
+        verbose_name = "Tranche IRG"
+        verbose_name_plural = "Tranches IRG"
+
+    def clean(self):
+        if self.max_amount and self.min_amount >= self.max_amount:
+            raise ValidationError("Le montant maximum doit être supérieur au minimum")
+
+    def __str__(self):
+        return f"{self.min_amount} - {self.max_amount or '∞'} : {self.tax_rate}%"
+
 
 #  ###################################################################################
 #  ###################################################################################
@@ -297,7 +448,6 @@ class SalaryAdvanceRequest(models.Model):
                 "Peut traiter les demandes d'avance sur salaire",
             ),
         ]
-
 
 class LeaveRequest(models.Model):
     class LeaveType(models.TextChoices):

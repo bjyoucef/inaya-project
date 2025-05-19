@@ -1,243 +1,325 @@
-{% extends "layout.html" %}
-{% load humanize %}
-
-{% block content %}
-<style>
-  .stat-card {
-    background: white;
-    border-radius: 12px;
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  }
-
-  .chart-card {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-    height: 100%;
-  }
-
-  .detail-table {
-    background: #f8f9fa;
-    border-radius: 8px;
-    overflow: hidden;
-  }
-
-  .toggle-details[aria-expanded="true"] i {
-    transform: rotate(180deg);
-  }
-</style>
-
-<div class="container-fluid py-4">
-  <!-- En-tête -->
-  <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="h4 mb-0">Tableau de bord - {{ medecin }}</h2>
-    <div class="d-flex gap-2">
-      <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#exportModal">
-        <i class="bi bi-download me-2"></i>Exporter
-      </button>
-    </div>
-  </div>
-
-  <!-- Filtres -->
-  <div class="card shadow-sm mb-4">
-    <div class="card-header d-flex justify-content-between align-items-center">
-      <h6 class="m-0 fw-bold">Filtres</h6>
-      <button class="btn btn-link p-0" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse">
-        <i class="bi bi-sliders"></i>
-      </button>
-    </div>
-    <div class="collapse show" id="filterCollapse">
-      <div class="card-body pt-0">
-        <form method="get" class="row g-3">
-          <div class="col-12 col-md-6 col-lg-3">
-            <label class="form-label small text-muted mb-1">Date début</label>
-            <input type="date" name="date_debut" class="form-control" value="{{ date_debut }}">
+{% for emp_data in report %}
+<div class="employee-report border-0 shadow-lg mb-4 overflow-hidden">
+  <!-- En-tête Employee amélioré -->
+  <div class="card-header bg-primary text-white border-0 py-3 position-relative">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="avatar-circle bg-white text-primary fs-3 fw-bold shadow-sm">
+          {{ emp_data.personnel.nom_prenom|slice:":1"|upper }}
+        </div>
+        <div>
+          <h2 class="h4 mb-1 fw-bold">{{ emp_data.personnel.nom_prenom }}</h2>
+          <div class="d-flex gap-2 flex-wrap">
+            <span class="badge bg-white-20 text-white rounded-pill">
+              <i class="fas fa-building me-1"></i>
+              {{ emp_data.personnel.service.name|default_if_none:"Non affecté" }}
+            </span>
+            <span class="badge bg-white-20 text-white rounded-pill">
+              <i class="fas fa-user-tag me-1"></i>
+              {{ emp_data.personnel.poste.label|default_if_none:"Poste non défini" }}
+            </span>
           </div>
-          <div class="col-12 col-md-6 col-lg-3">
-            <label class="form-label small text-muted mb-1">Date fin</label>
-            <input type="date" name="date_fin" class="form-control" value="{{ date_fin }}">
-          </div>
-          <div class="col-12 col-md-6 col-lg-3 d-flex align-items-end">
-            <button type="submit" class="btn btn-primary w-100">
-              <i class="bi bi-funnel me-2"></i>Appliquer
-            </button>
-          </div>
-        </form>
+        </div>
+      </div>
+      <div class="text-end ms-auto">
+        <div class="text-uppercase small opacity-75">Matricule</div>
+        <div class="h4 mb-0 font-monospace">#{{ emp_data.personnel.employee.anviz_id|default_if_none:"NC" }}</div>
       </div>
     </div>
   </div>
 
-  <!-- Cartes de statistiques -->
-  <div class="row g-3 mb-4">
-    <div class="col-12 col-md-6 col-xl-3">
-      <div class="stat-card">
-        <div class="d-flex align-items-center">
-          <div class="bg-primary bg-opacity-10 p-2 rounded-circle me-3">
-            <i class="bi bi-cash-coin text-primary fs-4"></i>
-          </div>
-          <div>
-            <div class="text-muted small">Total Honoraires</div>
-            <div class="h4 mb-0 fw-bold">{{ stats.total_honoraires|floatformat:2|intcomma }} DA</div>
-          </div>
+  <!-- Corps principal - Version compactée pour meilleure lisibilité -->
+  <div class="card-body bg-light">
+
+    <!-- Section Statistiques Principales -->
+    <!-- Taux de Présence -->
+    <div class="presence-header mb-4">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h5 class="mb-0"><i class="fas fa-calendar-check me-2"></i>Taux de présence</h5>
+        <span class="badge fs-6 
+            {% if emp_data.totals.taux_presence >= 75 %}
+            bg-success
+            {% elif emp_data.totals.taux_presence >= 50 %}
+            bg-warning
+            {% else %}
+            bg-danger
+            {% endif %}">
+          {{ emp_data.totals.taux_presence|floatformat:1 }}%
+        </span>
+      </div>
+      <div class="progress rounded-pill" style="height: 20px;">
+        <div class="progress-bar 
+            {% if emp_data.totals.taux_presence >= 75 %}
+            bg-success
+            {% elif emp_data.totals.taux_presence >= 50 %}
+            bg-warning
+            {% else %}
+            bg-danger
+            {% endif %}" role="progressbar" style="width: {{ emp_data.totals.taux_presence|floatformat:0 }}%;"
+          aria-valuenow="{{ emp_data.totals.taux_presence|floatformat:0 }}" aria-valuemin="0" aria-valuemax="100">
         </div>
       </div>
     </div>
 
-    <div class="col-12 col-md-6 col-xl-3">
-      <div class="stat-card">
-        <div class="d-flex align-items-center">
-          <div class="bg-success bg-opacity-10 p-2 rounded-circle me-3">
-            <i class="bi bi-people text-success fs-4"></i>
+    <div class="row g-3 mb-4">
+      <!-- Heures Normales -->
+      <div class="col-12 col-md-6 col-xl-3">
+        <div class="card metric-card h-100">
+          <div class="card-header bg-success text-white">
+            <i class="fas fa-clock me-2"></i>Heures Travaillées
           </div>
-          <div>
-            <div class="text-muted small">Patients</div>
-            <div class="h4 mb-0 fw-bold">{{ stats.total_patients|intcomma }}</div>
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <span class="h4 mb-0">{{ emp_data.totals.regular_hours_formatted }}</span>
+              <span class="badge bg-success fs-6">
+                +{{ emp_data.salaire.salaire_base|floatformat:2 }} DZD
+              </span>
+            </div>
+            <div class="list-group list-group-flush">
+              <div class="list-group-item d-flex justify-content-between">
+                <span>Indemnité repas</span>
+                <span class="text-success">+{{ emp_data.salaire.indemnites.repas|floatformat:2 }} DZD</span>
+              </div>
+              <div class="list-group-item d-flex justify-content-between">
+                <span>Indemnité transport</span>
+                <span class="text-success">+{{ emp_data.salaire.indemnites.transport|floatformat:2 }} DZD</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <div class="col-12 col-md-6 col-xl-3">
-      <div class="stat-card">
-        <div class="d-flex align-items-center">
-          <div class="bg-info bg-opacity-10 p-2 rounded-circle me-3">
-            <i class="bi bi-clipboard-pulse text-info fs-4"></i>
+      <!-- Heures Supplémentaires -->
+      <div class="col-12 col-md-6 col-xl-3">
+        <div class="card metric-card h-100">
+
+          <div class="card-header bg-warning text-dark">
+            <i class="fas fa-bolt me-2"></i>Heures Supplémentaires
           </div>
-          <div>
-            <div class="text-muted small">Actes médicaux</div>
-            <div class="h4 mb-0 fw-bold">{{ stats.total_actes|intcomma }}</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
 
-  <!-- Graphiques -->
-  <div class="row g-3 mb-4">
-    <div class="col-12 col-lg-4">
-      <div class="chart-card p-3">
-        <h6 class="fw-bold mb-3">Répartition par convention</h6>
-        <canvas id="conventionChart"></canvas>
-      </div>
-    </div>
-
-    <div class="col-12 col-lg-4">
-      <div class="chart-card p-3">
-        <h6 class="fw-bold mb-3">Top 10 des actes</h6>
-        <canvas id="actesChart"></canvas>
-      </div>
-    </div>
-
-    <div class="col-12 col-lg-4">
-      <div class="chart-card p-3">
-        <h6 class="fw-bold mb-3">Évolution des honoraires</h6>
-        <canvas id="evolutionChart"></canvas>
-      </div>
-    </div>
-  </div>
-
-  <!-- Tableau patients -->
-  <div class="card shadow-sm">
-    <div class="card-header d-flex justify-content-between align-items-center">
-      <h6 class="m-0 fw-bold">Détail par patient</h6>
-      <div class="col-md-3">
-        <input type="text" class="form-control form-control-sm" placeholder="Rechercher..." id="searchInput">
-      </div>
-    </div>
-
-    <div class="table-responsive rounded-3">
-      <table class="table data-table mb-0">
-        <thead>
-          <tr>
-            <th>Patient</th>
-            <th class="text-end">Actes</th>
-            <th class="text-end">Honoraires</th>
-            <th class="text-end">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for p in patients %}
-          <tr>
-            <td>
-              <div class="d-flex align-items-center">
-                <div class="me-2">
-                  <i class="bi bi-person-circle text-muted"></i>
+          <div class="card-body">
+            <div class="list-group list-group-flush">
+              <div class="list-group-item">
+                <div class="d-flex justify-content-between mb-2">
+                  <span>{{ emp_data.totals.overtime_formatted }}</span>
+                  <span class="text-success">+{{ emp_data.totals.regular_overtime_amount|floatformat:2 }} DZD</span>
                 </div>
+                <small class="text-muted">Heures supp. normales</small>
+              </div>
+              <div class="list-group-item">
+                <div class="d-flex justify-content-between mb-2">
+                  <span><i class="fas fa-clock-rotate-left me-2"></i>{{ emp_data.totals.early_overtime_formatted
+                    }}</span>
+                  <span class="text-success">+{{ emp_data.totals.early_overtime_amount|floatformat:2 }} DZD</span>
+                </div>
+                <small class="text-muted">Suppl. avant horaire</small>
+              </div>
+              <div class="list-group-item">
+                <div class="d-flex justify-content-between mb-2">
+                  <span><i class="fas fa-clock-rotate-left fa-flip-horizontal me-2"></i>{{
+                    emp_data.totals.late_overtime_formatted }}</span>
+                  <span class="text-success">+{{ emp_data.totals.late_overtime_amount|floatformat:2 }} DZD</span>
+                </div>
+                <small class="text-muted">Suppl. après horaire</small>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Jours Fériés -->
+      <div class="col-12 col-md-6 col-xl-3">
+        <div class="card metric-card h-100">
+          <div class="card-header bg-danger text-white">
+            <i class="fas fa-flag me-2"></i>Jours Fériés
+          </div>
+          <div class="card-body">
+            <div class="list-group list-group-flush">
+              <div class="list-group-item d-flex justify-content-between align-items-center">
                 <div>
-                  {{ p.prestation__patient__last_name }} {{ p.prestation__patient__first_name }}
+                  <div class="fw-500">{{ emp_data.totals.public_holiday_overtime_formatted }}</div>
+                  <small class="text-muted">Travaillés</small>
                 </div>
+                <span class="text-success">+{{ emp_data.totals.public_holiday_overtime_amount|default:0|floatformat:2 }}
+                  DZD</span>
               </div>
-            </td>
-            <td class="text-end">{{ p.nombre_actes }}</td>
-            <td class="text-end">{{ p.total_honoraires|floatformat:2|intcomma }} DA</td>
-            <td class="text-end">
-              <button class="btn btn-sm btn-outline-primary toggle-details" data-bs-toggle="collapse"
-                data-bs-target="#patient{{ forloop.counter }}">
-                <i class="bi bi-chevron-down"></i>
-              </button>
-            </td>
-          </tr>
-          <tr class="collapse">
-            <td colspan="4" class="p-0">
-              <div class="detail-table m-3">
-                <table class="table table-sm mb-0">
-                  <thead class="small">
-                    <tr>
-                      <th>Date</th>
-                      <th>Acte</th>
-                      <th>Convention</th>
-                      <th class="text-end">Montant</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {% for acte in actes_details %}
-                    {% if acte.prestation__patient_id == p.prestation__patient_id %}
-                    <tr>
-                      <td>{{ acte.prestation__date_prestation|date:"d/m/Y" }}</td>
-                      <td>{{ acte.acte__libelle }}</td>
-                      <td>{{ acte.convention__nom|default:"-" }}</td>
-                      <td class="text-end">{{ acte.honoraire_medecin|floatformat:2 }} DA</td>
-                    </tr>
+              <div class="list-group-item d-flex justify-content-between align-items-center">
+                <div>
+                  <div class="fw-500">{{ emp_data.totals.paid_holidays|default:"0" }}</div>
+                  <small class="text-muted">Non travaillés</small>
+                </div>
+                <span class="text-success">+{{ emp_data.totals.paid_holidays_amount|default:0|floatformat:2 }}
+                  DZD</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Absences & Retards -->
+      <div class="col-12 col-md-6 col-xl-3">
+        <div class="card metric-card h-100">
+          <div class="card-header bg-danger text-white">
+            <i class="fas fa-exclamation-triangle me-2"></i>Absences & Retards
+          </div>
+          <div class="card-body">
+            <div class="list-group list-group-flush">
+              <div class="list-group-item d-flex justify-content-between">
+                <span>{{ emp_data.totals.absence }} absences</span>
+                <span class="text-danger">-{{ emp_data.totals.absence_amount|floatformat:2 }} DZD</span>
+              </div>
+              <div class="list-group-item d-flex justify-content-between">
+                <span><i class="fas fa-clock me-2"></i>{{ emp_data.totals.late }} min</span>
+                <span class="text-danger">-{{ emp_data.totals.late_amount|floatformat:2 }} DZD</span>
+              </div>
+              <div class="list-group-item d-flex justify-content-between">
+                <span><i class="fas fa-running me-2"></i>{{ emp_data.totals.early_leave }} min</span>
+                <span class="text-danger">-{{ emp_data.totals.early_leave_amount|floatformat:2 }} DZD</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Déductions -->
+      <div class="col-12 col-md-6 col-xl-3">
+        <div class="card metric-card h-100">
+          <div class="card-header bg-info text-white">
+            <i class="fas fa-file-invoice-dollar me-2"></i>Déductions
+          </div>
+          <div class="card-body">
+            <div class="list-group list-group-flush">
+              <div class="list-group-item d-flex justify-content-between">
+                <span>IRG</span>
+                <span class="text-danger">-{{ emp_data.salaire.deductions.irg|floatformat:2 }} DZD</span>
+              </div>
+              <div class="list-group-item d-flex justify-content-between">
+                <span>CNAS</span>
+                <span class="text-danger">-{{ emp_data.salaire.deductions.cnas|floatformat:2 }} DZD</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Total Net -->
+    <div class="alert alert-success border-0 shadow-sm mb-4">
+      <div class="d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center">
+          <i class="fas fa-wallet fa-2x me-3"></i>
+          <h4 class="mb-0">Salaire Net à Payer</h4>
+        </div>
+        <span class="display-5 fw-bold">{{ emp_data.salaire.salaire_net|floatformat:2 }} DZD</span>
+      </div>
+    </div>
+
+    <!-- Détails Journaliers amélioré -->
+    <div class="card border-0 shadow-sm mt-4">
+      <div class="card-header bg-secondary text-white py-2">
+        <div class="d-flex justify-content-between align-items-center">
+          <h5 class="mb-0"><i class="fas fa-calendar-alt me-2"></i>Détails Journaliers</h5>
+          <span class="badge bg-white-20">{{ emp_data.days|length }} jours</span>
+        </div>
+      </div>
+
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover mb-0 align-middle">
+            <thead class="bg-light">
+              <tr>
+                <th class="ps-4">Date</th>
+                <th>Plages horaires</th>
+                <th class="text-end">Total</th>
+                <th class="text-end">Heures supp.</th>
+                <th class="text-end">Retard</th>
+                <th class="text-end">Départ</th>
+                <th class="pe-4">Statut</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for day in emp_data.days %}
+              <tr
+                class="{% if day.is_holiday %}table-success{% elif day.is_weekend %}table-info{% elif not day.entries %}table-danger{% endif %}">
+                <td class="ps-4">
+                  <div class="fw-semibold">{{ day.date|date:"d/m/Y" }}</div>
+                  <div class="text-muted small">{{ day.date|date:"l"|capfirst }}</div>
+                </td>
+
+                <td>
+                  {% for pair in day.pairs %}
+                  <div class="time-range-badge">
+                    <span class="start-time">{{ pair.0|time:"H:i" }}</span>
+                    <span class="separator">→</span>
+                    <span class="end-time">{% if pair.1 %}{{ pair.1|time:"H:i" }}{% else %}--:--{% endif %}</span>
+                  </div>
+                  {% empty %}
+                  <span class="text-muted">-</span>
+                  {% endfor %}
+                </td>
+
+                <td class="text-end fw-semibold">{{ day.total|default:"-" }}</td>
+
+                <td class="text-end">
+                  <div class="overtime-details">
+                    {% if day.overtime != '-' %}
+                    <div class="text-success">{{ day.overtime }}</div>
                     {% endif %}
-                    {% endfor %}
-                  </tbody>
-                </table>
-              </div>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+                    {% if day.early_overtime != '-' %}
+                    <div class="text-muted small">⏪ {{ day.early_overtime }}</div>
+                    {% endif %}
+                    {% if day.late_overtime != '-' %}
+                    <div class="text-muted small">⏩ {{ day.late_overtime }}</div>
+                    {% endif %}
+                  </div>
+                </td>
+
+                <td class="text-end">
+                  {% if day.late_minutes %}
+                  <span class="text-danger">{{ day.late_minutes }}</span>
+                  {% else %}-{% endif %}
+                </td>
+
+                <td class="text-end">
+                  {% if day.early_leave_minutes %}
+                  <span class="text-warning">{{ day.early_leave_minutes }}</span>
+                  {% else %}-{% endif %}
+                </td>
+
+                <td class="pe-4">
+                  {% if day.is_holiday %}
+                  <span class="badge bg-success bg-opacity-10 text-success d-flex align-items-center gap-1">
+                    <i class="fas fa-flag"></i>
+                    Férié
+                  </span>
+                  {% elif day.is_weekend %}
+                  <span class="badge bg-primary bg-opacity-10 text-primary d-flex align-items-center gap-1">
+                    <i class="fas fa-umbrella-beach"></i>
+                    Week-end
+                  </span>
+                  {% elif not day.entries %}
+                  <span class="badge bg-danger bg-opacity-10 text-danger d-flex align-items-center gap-1">
+                    <i class="fas fa-bed"></i>
+                    Absence
+                  </span>
+                  {% elif day.late_minutes %}
+                  <span class="badge bg-warning bg-opacity-10 text-warning d-flex align-items-center gap-1">
+                    <i class="fas fa-clock"></i>
+                    Retard
+                  </span>
+                  {% else %}
+                  <span class="badge bg-success bg-opacity-10 text-success d-flex align-items-center gap-1">
+                    <i class="fas fa-check-circle"></i>
+                    Conforme
+                  </span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   </div>
 </div>
-
-<script>
-  document.addEventListener('DOMContentLoaded', function () {
-    // Recherche
-    document.getElementById('searchInput').addEventListener('input', function (e) {
-      const value = e.target.value.toLowerCase();
-      document.querySelectorAll('.data-table tbody tr').forEach(row => {
-        if (row.classList.contains('collapse')) return;
-        const text = row.textContent.toLowerCase();
-        row.style.display = text.includes(value) ? '' : 'none';
-      });
-    });
-
-    // Animation des boutons de détail
-    document.querySelectorAll('.toggle-details').forEach(btn => {
-      btn.addEventListener('click', function () {
-        this.querySelector('i').classList.toggle('bi-chevron-up');
-      });
-    });
-  });
-</script>
-
-<!-- Scripts Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script>
-  // [Conserver les scripts Chart.js existants]
-</script>
-{% endblock %}
+{% endfor %}

@@ -45,7 +45,7 @@
     .choices__list--dropdown {
         border: 1px solid #dee2e6;
         box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-        z-index: 1060 !important;
+
     }
 
     .form-control-sm,
@@ -270,6 +270,118 @@
             align-items: stretch;
         }
     }
+    .employee-report {
+        border-radius: 1rem;
+        overflow: hidden;
+    }
+    
+    .report-header {
+        padding: 1.5rem;
+        border-radius: 1rem 1rem 0 0;
+    }
+    
+    .metric-icon {
+        width: 50px;
+        height: 50px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .bg-purple {
+        background-color: #6f42c1;
+    }
+    
+    .bg-success-20 {
+        background-color: rgba(25, 135, 84, 0.1);
+    }
+    
+    .bg-warning-20 {
+        background-color: rgba(255, 193, 7, 0.1);
+    }
+    
+    .avatar {
+        width: 50px;
+        height: 50px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+    }
+    
+    .table-hover tbody tr:hover {
+        transform: translateX(4px);
+        transition: transform 0.2s ease;
+    }
+    .avatar-circle {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.2s;
+      }
+    
+      .time-range-badge {
+        padding: 3px 8px;
+        border-radius: 4px;
+        background: rgba(0, 0, 0, 0.05);
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        margin: 2px;
+      }
+    
+      .overtime-details {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+    
+      .table-hover tbody tr {
+        transition: all 0.2s;
+        cursor: pointer;
+      }
+    
+      .table-hover tbody tr:hover {
+        transform: scale(1.002);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+      }
+    
+      .bg-white-20 {
+        background-color: rgba(255, 255, 255, 0.2);
+      }
+    
+      @media (max-width: 768px) {
+        .table-responsive {
+          border: 0;
+        }
+    
+        .table thead {
+          display: none;
+        }
+    
+        .table tr {
+          display: block;
+          margin-bottom: 1rem;
+          border: 1px solid #dee2e6;
+          border-radius: 8px;
+        }
+    
+        .table td {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          border: none;
+        }
+    
+        .table td::before {
+          content: attr(data-label);
+          font-weight: 500;
+          margin-right: 1rem;
+        }
+      }
 </style>
 <div class="container-fluid px-4">
     <div class="report-header">
@@ -298,6 +410,7 @@
                     <i class="bi bi-plus-lg me-1 me-md-2"></i>
                     <span class="d-none d-md-inline">Ajouter heures</span>
                 </button>
+
             </div>
         </div>
 
@@ -306,17 +419,20 @@
             <form method="get" class="row g-3 align-items-end">
                 <!-- Sélecteur d'employé -->
                 <div class="col-md-5 col-lg-4">
-                    <label class="form-label text-muted small mb-1">Employé</label>
-                    <select name="employee" class="form-select filter-select" id="employeeFilter"
-                        onchange="this.form.submit()">
-                        <option value="">Tous les employés</option>
-                        {% for emp in employees %}
-                        <option value="{{ emp.anviz_id }}" {% if request.GET.employee == emp.anviz_id|stringformat:"s" %}selected{% endif %}>
-                            {{ emp.name }}
+                    <label class="form-label text-muted small mb-1">Personnel</label>
+                    <select name="personnel" class="form-select filter-select" id="personnelFilter"
+                    onchange="this.form.submit()">
+                        <option value="">Tous les personnels</option>
+                    {% for personnel in personnels %}
+                        <option value="{{ personnel.id_personnel }}"
+                        {% if request.GET.personnel == personnel.id_personnel|stringformat:"s" %}selected{% endif %}>
+                        {{ personnel.nom_prenom }}
                         </option>
-                        {% endfor %}
+                    {% endfor %}
                     </select>
                 </div>
+
+
                 <!-- Sélecteur de période -->
                 <div class="col-md-7 col-lg-6">
                     <label class="form-label text-muted small mb-1">Période</label>
@@ -366,9 +482,10 @@
                         <label class="form-label text-muted mb-2">Employé</label>
                         <select name="employee_id" class="form-select rounded-pill" id="employeeFilterAddDate" required>
                             <option value="">Sélectionner un employé</option>
-                            {% for emp in employees %}
-                            <option value="{{ emp.id }}" {% if request.GET.employee == emp.anviz_id|stringformat:"s" %}selected{% endif %}>
-                                {{ emp.name }}
+                            {% for personnel in personnels %}
+                            <option value="{{ personnel.id_personnel }}" 
+                            {% if request.GET.personnel|add:0 == personnel.id_personnel %}selected{% endif %}>
+                                {{ personnel.nom_prenom }}
                             </option>
                             {% endfor %}
                         </select>
@@ -395,6 +512,10 @@
     </div>
 </div>
 
+
+
+<!-- Dans votre fichier template -->
+
 <!-- Scripts -->
 <script src="{% static 'js/jquery-3.7.1.min.js' %}"></script>
 <script src="{% static 'js/moment.min.js' %}"></script>
@@ -404,7 +525,7 @@
 
 <script>
     // Initialisation de Choices.js pour le select des employés
-    new Choices("#employeeFilter", {
+    new Choices("#personnelFilter", {
         searchEnabled: true,
         removeItemButton: true,
         placeholder: true
@@ -465,11 +586,11 @@
     });
 
     $('#daterangepicker').on('apply.daterangepicker', function (ev, picker) {
-        const employeeId = $('#employeeFilter').val();
+        const employeeId = $('#personnelFilter').val();
         // Construction de l'URL en utilisant une template literal
         let url = `{% url 'attendance_report' %}?start_date=${picker.startDate.format('YYYY-MM-DD')}&end_date=${picker.endDate.format('YYYY-MM-DD')}`;
         if (employeeId) {
-            url += `&employee=${employeeId}`;
+            url += `&personnel=${employeeId}`;
         }
         window.location.href = url;
     });
@@ -518,4 +639,64 @@
         }
     });
 </script>
+<script>
+    // Récupération du cookie CSRF (snippet Django)
+    function getCookie(name) {
+      let cookieValue = null;
+      if (document.cookie && document.cookie !== '') {
+        document.cookie.split(';').forEach(c => {
+          const [k, v] = c.trim().split('=');
+          if (k === name) cookieValue = decodeURIComponent(v);
+        });
+      }
+      return cookieValue;
+    }
+  
+    document.addEventListener('DOMContentLoaded', () => {
+      const csrftoken = getCookie('csrftoken');
+  
+      document.querySelectorAll('.js-ov-form').forEach(form => {
+        form.addEventListener('submit', async e => {
+          e.preventDefault();
+  
+          const url = form.dataset.url;
+          const btn = form.querySelector('.js-ov-btn');
+          const pointageId = btn.dataset.pointageId;
+  
+          try {
+            const response = await fetch(url, {
+              method: 'POST',
+              headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': csrftoken,
+              },
+              body: new FormData(form)
+            });
+            const data = await response.json();
+  
+            if (data.status === 'success' && data.pointage_id == pointageId) {
+              // 1) Bouton
+              btn.textContent = data.ov_validated ? 'Annuler' : 'Valider';
+              btn.classList.toggle('btn-outline-success', data.ov_validated);
+              btn.classList.toggle('btn-outline-danger', !data.ov_validated);
+  
+              // 2) Mise à jour des montants à l’écran
+              // on cherche l’élément qui porte la somme validée pour ce jour
+              const row = form.closest('tr'); 
+              if (row) {
+                // total OT
+                row.querySelector('.daily-overtime').textContent = data.validation_data.overtime;
+                // montant validé
+                row.querySelector('.daily-validated-amount').textContent =
+                  '+' + parseFloat(data.validation_data.validated_amount).toFixed(2) + ' DZD';
+              }
+            }
+          } catch(err) {
+            console.error('Erreur AJAX:', err);
+          }
+        });
+      });
+    });
+  </script>
+  
 {% endblock %}
