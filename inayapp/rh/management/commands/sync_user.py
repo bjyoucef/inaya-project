@@ -48,11 +48,10 @@ class Command(BaseCommand):
                     try:
                         user_id = int(user["userid"])
                         name = user.get("username", f"Employé #{user_id}")
-                        card_number = user.get("cardid", "")
 
                         Employee.objects.update_or_create(
                             anviz_id=user_id,
-                            defaults={"name": name, "card_number": card_number},
+                            defaults={"name": name},
                         )
                         synced_this_device += 1
                     except Exception as e:

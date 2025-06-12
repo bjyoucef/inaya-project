@@ -1,0 +1,280 @@
+{% extends 'base.html' %}
+
+{% block title %}Détails Maintenance{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>
+            <i class="fas fa-tools me-2"></i>
+            {{ maintenance.titre }}
+        </h2>
+        <div>
+            <a href="{% url 'inventaire:maintenance_update' maintenance.id %}" class="btn btn-outline-secondary me-2">
+                <i class="fas fa-edit me-2"></i>Modifier
+            </a>
+            {% if maintenance.statut == 'planifiee' %}
+                <a href="#" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#startModal">
+                    <i class="fas fa-play me-2"></i>Démarrer
+                </a>
+            {% elif maintenance.statut == 'en_cours' %}
+                <a href="#" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#completeModal">
+                    <i class="fas fa-check me-2"></i>Terminer
+                </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-info-circle me-2"></i>Détails de la Maintenance
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Équipement:</div>
+                        <div class="col-md-8">
+                            {{ maintenance.item.nom }} ({{ maintenance.item.code_barre }})
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Type:</div>
+                        <div class="col-md-8">
+                            {{ maintenance.get_type_maintenance_display }}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Statut:</div>
+                        <div class="col-md-8">
+                            <span class="badge bg-{% if maintenance.statut == 'planifiee' %}info{% elif maintenance.statut == 'en_cours' %}warning{% else %}success{% endif %}">
+                                {{ maintenance.get_statut_display }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Date Planifiée:</div>
+                        <div class="col-md-8">{{ maintenance.date_planifiee|date:"d/m/Y" }}</div>
+                    </div>
+                    {% if maintenance.date_debut %}
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Date Début:</div>
+                        <div class="col-md-8">{{ maintenance.date_debut|date:"d/m/Y H:i" }}</div>
+                    </div>
+                    {% endif %}
+                    {% if maintenance.date_fin %}
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Date Fin:</div>
+                        <div class="col-md-8">{{ maintenance.date_fin|date:"d/m/Y H:i" }}</div>
+                    </div>
+                    {% endif %}
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Technicien:</div>
+                        <div class="col-md-8">
+                            {% if maintenance.technicien %}
+                                {{ maintenance.technicien.get_full_name }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Coût:</div>
+                        <div class="col-md-8">
+                            {% if maintenance.cout %}
+                                {{ maintenance.cout }} DA
+                            {% else %}
+                                -
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Description:</div>
+                        <div class="col-md-8">{{ maintenance.description|linebreaks }}</div>
+                    </div>
+                </div>
+            </div>
+
+            {% if maintenance.rapport %}
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-file-alt me-2"></i>Rapport de Maintenance
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {{ maintenance.rapport|linebreaks }}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="col-md-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-history me-2"></i>Historique
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <ul class="timeline">
+                        <li>
+                            <div class="timeline-badge bg-primary">
+                                <i class="fas fa-plus"></i>
+                            </div>
+                            <div class="timeline-panel">
+                                <div class="timeline-heading">
+                                    <h6 class="timeline-title">Création</h6>
+                                    <p class="text-muted">
+                                        <small>{{ maintenance.created_at|timesince }} ago</small>
+                                    </p>
+                                </div>
+                                <div class="timeline-body">
+                                    <p>Créé par {{ maintenance.created_by.get_full_name }}</p>
+                                </div>
+                            </div>
+                        </li>
+                        {% if maintenance.date_debut %}
+                        <li class="timeline-inverted">
+                            <div class="timeline-badge bg-warning">
+                                <i class="fas fa-play"></i>
+                            </div>
+                            <div class="timeline-panel">
+                                <div class="timeline-heading">
+                                    <h6 class="timeline-title">Maintenance démarrée</h6>
+                                    <p class="text-muted">
+                                        <small>{{ maintenance.date_debut|timesince }} ago</small>
+                                    </p>
+                                </div>
+                            </div>
+                        </li>
+                        {% endif %}
+                        {% if maintenance.date_fin %}
+                        <li>
+                            <div class="timeline-badge bg-success">
+                                <i class="fas fa-check"></i>
+                            </div>
+                            <div class="timeline-panel">
+                                <div class="timeline-heading">
+                                    <h6 class="timeline-title">Maintenance terminée</h6>
+                                    <p class="text-muted">
+                                        <small>{{ maintenance.date_fin|timesince }} ago</small>
+                                    </p>
+                                </div>
+                            </div>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-wrench me-2"></i>Équipement
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-barcode fa-2x text-gray-300"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h5>{{ maintenance.item.nom }}</h5>
+                            <p class="mb-0">{{ maintenance.item.code_barre }}</p>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="fw-bold">Catégorie</div>
+                            <p>{{ maintenance.item.categorie.nom }}</p>
+                        </div>
+                        <div class="col-6">
+                            <div class="fw-bold">Marque</div>
+                            <p>{{ maintenance.item.marque.nom|default:"-" }}</p>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="fw-bold">État</div>
+                            <p>
+                                <span class="badge bg-{% if maintenance.item.etat == 'neuf' %}success{% elif maintenance.item.etat == 'bon' %}info{% elif maintenance.item.etat == 'moyen' %}warning{% else %}danger{% endif %}">
+                                    {{ maintenance.item.get_etat_display }}
+                                </span>
+                            </p>
+                        </div>
+                        <div class="col-6">
+                            <div class="fw-bold">Salle</div>
+                            <p>{{ maintenance.item.stocks.first.salle.nom|default:"-" }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modals -->
+<div class="modal fade" id="startModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Démarrer la maintenance</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{% url 'inventaire:maintenance_start' maintenance.id %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <p>Êtes-vous sûr de vouloir démarrer la maintenance de <strong>{{ maintenance.item.nom }}</strong>?</p>
+                    <p>L'état de l'équipement sera changé à "En réparation".</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-warning">Démarrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="completeModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Terminer la maintenance</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{% url 'inventaire:maintenance_complete' maintenance.id %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Rapport de maintenance</label>
+                        <textarea name="rapport" class="form-control" rows="4" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Nouvel état de l'équipement</label>
+                        <select name="nouvel_etat" class="form-select">
+                            <option value="bon">Bon état</option>
+                            <option value="moyen">État moyen</option>
+                            <option value="neuf">Neuf</option>
+                            <option value="mauvais">Mauvais état</option>
+                            <option value="hs">Hors service</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Coût réel (DA)</label>
+                        <input type="number" name="cout" step="0.01" class="form-control">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-success">Terminer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

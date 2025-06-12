@@ -1,0 +1,319 @@
+{% extends "layout.html" %}
+{% load static %}
+{% load custom_filters %}
+
+{% block content %}
+<div class="container">
+    <!-- En-tête -->
+    <div class="d-flex align-items-center mb-4">
+        <a href="{% url 'liste_demandes_heures_sup' %}" class="btn btn-outline-secondary me-3">
+            <i class="fas fa-arrow-left"></i>
+        </a>
+        <div>
+            <h2 class="mb-1">
+                <i class="fas fa-file-alt me-2"></i>Détails de la demande
+                <span class="text-primary">{{ demande.numero_demande }}</span>
+            </h2>
+            <div class="d-flex align-items-center">
+                <span class="badge status-{{ demande.statut }} me-2">
+                    {% if demande.statut == 'en_attente' %}
+                        <i class="fas fa-clock me-1"></i>
+                    {% elif demande.statut == 'approuvee' %}
+                        <i class="fas fa-check me-1"></i>
+                    {% elif demande.statut == 'refusee' %}
+                        <i class="fas fa-times me-1"></i>
+                    {% elif demande.statut == 'annulee' %}
+                        <i class="fas fa-ban me-1"></i>
+                    {% endif %}
+                    {{ demande.get_statut_display }}
+                </span>
+                <small class="text-muted">
+                    Créée le {{ demande.created_at|date:"d/m/Y à H:i" }} Par {{ demande.created_by.personnel.nom_prenom }} 
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Carte principale -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row">
+                <!-- Colonne gauche -->
+                <div class="col-md-6">
+                    <!-- Personnel demandeur -->
+                    <div class="mb-4">
+
+                        <div class="d-flex align-items-center">
+                            <div class="avatar-lg bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" 
+                                 style="width: 64px; height: 64px;">
+                                <i class="fas fa-user me-1"></i>
+                            </div>
+                            <div>
+                                <h4 class="mb-1">{{ demande.personnel_demandeur.nom_prenom }}</h4>
+                                {% if demande.personnel_demandeur.poste %}
+                                    <p class="mb-0">{{ demande.personnel_demandeur.poste.label }}</p>
+                                {% endif %}
+                                {% if demande.personnel_demandeur.service %}
+                                    <p class="mb-0 text-muted">{{ demande.personnel_demandeur.service.nom }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Dates -->
+                    <div class="mb-4">
+                        <h5 class="text-muted mb-3">
+                            <i class="fas fa-calendar-alt me-1"></i>Période
+                        </h5>
+                        <div class="row">
+                            <div class="col-6">
+                                <div class="border-start border-3 border-success ps-3 py-1">
+                                    <small class="text-muted">Début</small>
+                                    <div class="fw-bold">{{ demande.date_debut|date:"d/m/Y H:i" }}</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="border-start border-3 border-danger ps-3 py-1">
+                                    <small class="text-muted">Fin</small>
+                                    <div class="fw-bold">{{ demande.date_fin|date:"d/m/Y H:i" }}</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <small class="text-muted">Durée totale</small>
+                                    <div class="fw-bold">{{ demande.nombre_heures }} heures</div>
+                                </div>
+                                {% if demande.est_en_retard %}
+                                    <span class="badge bg-danger">
+                                        <i class="fas fa-exclamation-triangle me-1"></i>En retard
+                                    </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Colonne droite -->
+                <div class="col-md-6">
+                    <!-- Motif -->
+                    <div class="mb-4">
+
+                        <h5 class="text-muted mb-3">
+                            <i class="fas fa-tag me-1"></i>Motif
+                        </h5>
+                        <div class="alert alert-light">
+                            <span class="badge bg-light text-dark me-2">
+                                {{ demande.get_motif_display }}
+                            </span>
+                            {% if demande.motif == 'autre' and demande.description %}
+                                <div class="mt-2">
+                                    <strong>Détails :</strong>
+                                    <p class="mb-0">{{ demande.description }}</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Description -->
+                    {% if demande.description and demande.motif != 'autre' %}
+                    <div class="mb-4">
+                        <h5 class="text-muted mb-3">
+                            <i class="fas fa-align-left me-1"></i>Description
+                        </h5>
+                        <div class="alert alert-light">
+                            {{ demande.description|linebreaks }}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Validation -->
+                    {% if demande.statut != 'en_attente' %}
+                    <div class="mb-4">
+                        <h5 class="text-muted mb-3">
+                            {% if demande.statut == 'approuvee' %}
+                                <i class="fas fa-check-circle text-success me-1"></i>Validation
+                            {% elif demande.statut == 'refusee' %}
+                                <i class="fas fa-times-circle text-danger me-1"></i>Validation
+                            {% elif demande.statut == 'annulee' %}
+                                <i class="fas fa-ban text-secondary me-1"></i>Annulation
+                            {% endif %}
+                        </h5>
+                        <div class="alert alert-{% if demande.statut == 'approuvee' %}success{% elif demande.statut == 'refusee' %}danger{% else %}secondary{% endif %}">
+                            <div class="d-flex align-items-center">
+                                {% if demande.personnel_validateur %}
+                                <div class="avatar-sm bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2" 
+                                     style="width: 32px; height: 32px;">
+                                    {{ demande.personnel_validateur.nom_prenom|first|upper }}
+                                </div>
+                                {% endif %}
+                                <div>
+                                    <div class="fw-bold">
+                                        {% if demande.statut == 'annulee' %}
+                                            Par {{ demande.created_by.get_full_name|default:demande.created_by.username }}
+                                        {% else %}
+                                            Par {{ demande.personnel_validateur.nom_prenom }}
+                                        {% endif %}
+                                    </div>
+                                    <div class="small">
+                                        {{ demande.date_validation|date:"d/m/Y à H:i" }}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {% if demande.commentaire_validation %}
+                            <div class="mt-2">
+                                <strong>Commentaire :</strong>
+                                <p class="mb-0">{{ demande.commentaire_validation }}</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="d-flex justify-content-between mb-4">
+        <div>
+            {% if demande.peut_etre_modifiee %}
+                <a href="{% url 'modifier_demande_heures_sup' demande.pk %}" class="btn btn-warning me-2">
+                    <i class="fas fa-edit me-1"></i>Modifier
+                </a>
+            {% endif %}
+            
+            {% if demande.statut == 'en_attente' %}
+                <form method="post" action="{% url 'annuler_demande_heures_sup' demande.pk %}" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-outline-danger">
+                        <i class="fas fa-ban me-1"></i>Annuler
+                    </button>
+                </form>
+            {% endif %}
+        </div>
+        
+        {% if peut_valider and demande.statut == 'en_attente' %}
+        <div class="btn-group">
+            <form method="post" action="{% url 'valider_demande_heures_sup' demande.pk %}" class="d-inline">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="refuser">
+                <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#refuserModal">
+                    <i class="fas fa-times me-1"></i>Refuser
+                </button>
+            </form>
+            <form method="post" action="{% url 'valider_demande_heures_sup' demande.pk %}" class="d-inline">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="approuver">
+                <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#approuverModal">
+                    <i class="fas fa-check me-1"></i>Approuver
+                </button>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modal pour l'approbation -->
+<div class="modal fade" id="approuverModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'valider_demande_heures_sup' demande.pk %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="approuver">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-check-circle me-2"></i>Approuver la demande
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Êtes-vous sûr de vouloir approuver cette demande d'heures supplémentaires ?</p>
+                    <div class="mb-3">
+                        <label for="commentaire_validation" class="form-label">Commentaire (optionnel)</label>
+                        <textarea class="form-control" id="commentaire_validation" name="commentaire_validation" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-success">Confirmer l'approbation</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal pour le refus -->
+<div class="modal fade" id="refuserModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'valider_demande_heures_sup' demande.pk %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="refuser">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-times-circle me-2"></i>Refuser la demande
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Êtes-vous sûr de vouloir refuser cette demande d'heures supplémentaires ?</p>
+                    <div class="mb-3">
+                        <label for="commentaire_validation" class="form-label">Motif du refus</label>
+                        <textarea class="form-control" id="commentaire_validation" name="commentaire_validation" rows="3" required></textarea>
+                        <div class="form-text">Veuillez indiquer la raison du refus</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-danger">Confirmer le refus</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    .timeline {
+        position: relative;
+        padding-left: 30px;
+        list-style: none;
+    }
+    
+    .timeline-item {
+        position: relative;
+        margin-bottom: 1.5rem;
+    }
+    
+    .timeline-badge {
+        position: absolute;
+        left: -30px;
+        top: 0;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1;
+    }
+    
+    .timeline-content {
+        background: #f8f9fa;
+        border-left: 2px solid #dee2e6;
+        padding: 0.5rem 1rem;
+        border-radius: 0 0.25rem 0.25rem 0;
+    }
+    
+    .status-en_attente { background-color: #ffc107; color: #000; }
+    .status-approuvee { background-color: #198754; color: #fff; }
+    .status-refusee { background-color: #dc3545; color: #fff; }
+    .status-annulee { background-color: #6c757d; color: #fff; }
+    
+    .avatar-sm { font-size: 0.8rem; }
+    .avatar-lg { font-size: 1.5rem; }
+    .avatar-xs { font-size: 0.6rem; }
+</style>
+{% endblock %}

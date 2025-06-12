@@ -3,6 +3,7 @@ from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 
 from accueil.models import ConfigDate
+from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.db import transaction
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -73,7 +74,6 @@ class GetActeProduitsView(View):
             }
             for ap in produits
         ]
-        print(data)
         return JsonResponse({"produits": data})
 
 
@@ -83,7 +83,7 @@ class PrestationCreateView(View):
 
         patients = Patient.objects.all()
         medecins = Medecin.objects.all()
-        
+
         # Récupère tous les produits actifs pour initialiser le JS
         all_prods = Produit.objects.filter(est_actif=True)
 
@@ -297,7 +297,6 @@ class PrestationListView(View):
             val = request.GET.get(param)
             if not val:
                 continue
-
             # Pour 'service', on valide en plus l'autorisation
             if param == "service":
                 sid = caster(val)
@@ -306,13 +305,11 @@ class PrestationListView(View):
                     break
                 prestations = prestations.filter(**{field: sid})
                 continue
-
             # Typage éventuel
             try:
                 val = caster(val) if caster else val
             except (ValueError, TypeError):
                 continue
-
             prestations = prestations.filter(**{field: val})
 
         # Filtre de date
@@ -321,9 +318,39 @@ class PrestationListView(View):
         if end_date:
             prestations = prestations.filter(date_prestation__lte=end_date)
 
+        # === PAGINATION ===
+        # Nombre d'éléments par page (configurable)
+        items_per_page = request.GET.get("per_page", 10)
+        try:
+            items_per_page = int(items_per_page)
+            # Limiter entre 10 et 100 pour éviter les abus
+            items_per_page = max(10, min(100, items_per_page))
+        except (ValueError, TypeError):
+            items_per_page = 25
+
+        # Création du paginator
+        paginator = Paginator(prestations, items_per_page)
+
+        # Récupération du numéro de page
+        page_number = request.GET.get("page", 1)
+
+        try:
+            page_obj = paginator.get_page(page_number)
+        except PageNotAnInteger:
+            # Si page n'est pas un entier, afficher la première page
+            page_obj = paginator.get_page(1)
+        except EmptyPage:
+            # Si page est hors limite, afficher la dernière page
+            page_obj = paginator.get_page(paginator.num_pages)
+
         # Context pour template
         context = {
-            "prestations": prestations,
+            "paginator": paginator,
+            "page_obj": page_obj,
+            "is_paginated": page_obj.has_other_pages(),
+            "items_per_page": items_per_page,
+            "total_count": paginator.count,
+            
             "medecins": Medecin.objects.filter(prestations__isnull=False).distinct(),
             "patients": Patient.objects.filter(prestations__isnull=False).distinct(),
             "services": services,
@@ -331,6 +358,7 @@ class PrestationListView(View):
             "start_date": start_date,
             "end_date": end_date,
         }
+
         return render(request, "prestations/list.html", context)
 
 
@@ -548,3 +576,35 @@ class PrestationDeleteView(View):
         prestation = get_object_or_404(Prestation, pk=prestation_id)
         prestation.delete()
         return redirect("medical:prestation_list")
+
+
+class PatientPrestationHistoryView(View):
+    def get(self, request, patient_id):
+        patient = get_object_or_404(Patient, pk=patient_id)
+        prestations = Prestation.objects.filter(patient=patient).order_by(
+            "-date_prestation"
+        )[
+            :10
+        ]  # Dernières 10 prestations
+
+        data = {
+            "patient": patient.nom_complet,
+            "prestations": [
+                {
+                    "id": p.id,
+                    "date": p.date_prestation.strftime("%d/%m/%Y"),
+                    "medecin": p.medecin.nom_complet,
+                    "statut": p.get_statut_display(),
+                    "total": float(p.prix_total),
+                    "actes": [
+                        {
+                            "libelle": pa.acte.libelle,
+                            "tarif": float(pa.tarif_conventionne),
+                        }
+                        for pa in p.actes_details.all()
+                    ],
+                }
+                for p in prestations
+            ],
+        }
+        return JsonResponse(data)

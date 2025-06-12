@@ -1,0 +1,340 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Rapport des Mouvements{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.css">
+<style>
+    .movement-card {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 25px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    }
+    .movement-type {
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-weight: bold;
+        text-transform: uppercase;
+        font-size: 0.8em;
+    }
+    .type-entree { background: #d4edda; color: #155724; }
+    .type-sortie { background: #f8d7da; color: #721c24; }
+    .type-transfert { background: #d1ecf1; color: #0c5460; }
+    .type-inventaire { background: #fff3cd; color: #856404; }
+    .type-perte { background: #f5c6cb; color: #721c24; }
+    .type-vol { background: #f5c6cb; color: #721c24; }
+    .type-casse { background: #f5c6cb; color: #721c24; }
+    .type-reparation { background: #e2e3e5; color: #383d41; }
+    .type-renovation { background: #e2e3e5; color: #383d41; }
+    .type-retour { background: #d4edda; color: #155724; }
+    
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .stat-item {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 12px;
+        text-align: center;
+    }
+    
+    .chart-section {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 25px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-exchange-alt me-2"></i>Rapport des Mouvements</h2>
+        <div>
+            <button class="btn btn-outline-secondary me-2" onclick="filterByPeriod('today')">
+                <i class="fas fa-calendar-day me-1"></i>Aujourd'hui
+            </button>
+            <button class="btn btn-outline-secondary me-2" onclick="filterByPeriod('week')">
+                <i class="fas fa-calendar-week me-1"></i>Cette semaine
+            </button>
+            <button class="btn btn-outline-secondary me-2" onclick="filterByPeriod('month')">
+                <i class="fas fa-calendar-alt me-1"></i>Ce mois
+            </button>
+            <button class="btn btn-primary" onclick="printReport()">
+                <i class="fas fa-print me-2"></i>Imprimer
+            </button>
+        </div>
+    </div>
+
+    <!-- Statistiques Globales -->
+    <div class="stats-grid">
+        <div class="stat-item">
+            <i class="fas fa-arrow-up fa-2x mb-2"></i>
+            <h4>{{ mouvements_par_type|length }}</h4>
+            <small>Types de mouvements</small>
+        </div>
+        <div class="stat-item">
+            <i class="fas fa-boxes fa-2x mb-2"></i>
+            <h4>
+                {% for mouvement in mouvements_par_type %}
+                    {{ mouvement.quantite_totale|add:0 }}
+                {% empty %}0{% endfor %}
+            </h4>
+            <small>Quantité totale déplacée</small>
+        </div>
+        <div class="stat-item">
+            <i class="fas fa-chart-line fa-2x mb-2"></i>
+            <h4>
+                {% for mouvement in mouvements_par_type %}
+                    {{ mouvement.count|add:0 }}
+                {% empty %}0{% endfor %}
+            </h4>
+            <small>Mouvements totaux</small>
+        </div>
+        <div class="stat-item">
+            <i class="fas fa-clock fa-2x mb-2"></i>
+            <h4 id="avg-movement">-</h4>
+            <small>Moyenne par jour</small>
+        </div>
+    </div>
+
+    <!-- Graphiques -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="chart-section">
+                <h5 class="mb-3"><i class="fas fa-chart-bar me-2"></i>Mouvements par Type</h5>
+                <canvas id="movementTypeChart" height="300"></canvas>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="chart-section">
+                <h5 class="mb-3"><i class="fas fa-pie-chart me-2"></i>Répartition</h5>
+                <canvas id="movementPieChart" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Timeline des mouvements -->
+    <div class="chart-section">
+        <h5 class="mb-3"><i class="fas fa-timeline me-2"></i>Évolution des Mouvements (30 derniers jours)</h5>
+        <canvas id="timelineChart" height="400"></canvas>
+    </div>
+
+    <!-- Détails par Type de Mouvement -->
+    <div class="movement-card">
+        <h5 class="mb-4"><i class="fas fa-list-ul me-2"></i>Détails par Type de Mouvement</h5>
+        <div class="row">
+            {% for mouvement in mouvements_par_type %}
+            <div class="col-md-6 col-lg-4 mb-3">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body text-center">
+                        <div class="movement-type type-{{ mouvement.type_mouvement }} mb-3">
+                            {{ mouvement.type_mouvement|capfirst }}
+                        </div>
+                        <h4 class="text-primary">{{ mouvement.count }}</h4>
+                        <p class="text-muted mb-1">Nombre de mouvements</p>
+                        <h5 class="text-success">{{ mouvement.quantite_totale|default:0 }}</h5>
+                        <p class="text-muted">Quantité totale</p>
+                        
+                        <!-- Graphique miniature -->
+                        <div class="progress mt-3" style="height: 8px;">
+                            <div class="progress-bar" 
+                                 style="width: {% widthratio mouvement.count mouvements_par_type.0.count 100 %}%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-12">
+                <div class="alert alert-info text-center">
+                    <i class="fas fa-info-circle fa-2x mb-2"></i>
+                    <h5>Aucun mouvement enregistré</h5>
+                    <p class="mb-0">Il n'y a pas de mouvements de stock pour la période sélectionnée.</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Analyse des tendances -->
+    <div class="movement-card">
+        <h5 class="mb-4"><i class="fas fa-chart-line me-2"></i>Analyse des Tendances</h5>
+        <div class="row">
+            <div class="col-md-4">
+                <div class="text-center p-3 border rounded">
+                    <i class="fas fa-arrow-up text-success fa-2x mb-2"></i>
+                    <h6>Entrées</h6>
+                    <h4 class="text-success">
+                        {% for mouvement in mouvements_par_type %}
+                            {% if mouvement.type_mouvement == 'entree' %}
+                                {{ mouvement.quantite_totale|default:0 }}
+                            {% endif %}
+                        {% endfor %}
+                    </h4>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="text-center p-3 border rounded">
+                    <i class="fas fa-arrow-down text-danger fa-2x mb-2"></i>
+                    <h6>Sorties</h6>
+                    <h4 class="text-danger">
+                        {% for mouvement in mouvements_par_type %}
+                            {% if mouvement.type_mouvement == 'sortie' %}
+                                {{ mouvement.quantite_totale|default:0 }}
+                            {% endif %}
+                        {% endfor %}
+                    </h4>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="text-center p-3 border rounded">
+                    <i class="fas fa-exchange-alt text-info fa-2x mb-2"></i>
+                    <h6>Transferts</h6>
+                    <h4 class="text-info">
+                        {% for mouvement in mouvements_par_type %}
+                            {% if mouvement.type_mouvement == 'transfert' %}
+                                {{ mouvement.quantite_totale|default:0 }}
+                            {% endif %}
+                        {% endfor %}
+                    </h4>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+<script>
+// Données pour les graphiques
+const movementData = {
+    labels: [{% for mouvement in mouvements_par_type %}'{{ mouvement.type_mouvement|capfirst }}'{% if not forloop.last %},{% endif %}{% endfor %}],
+    counts: [{% for mouvement in mouvements_par_type %}{{ mouvement.count }}{% if not forloop.last %},{% endif %}{% endfor %}],
+    quantities: [{% for mouvement in mouvements_par_type %}{{ mouvement.quantite_totale|default:0 }}{% if not forloop.last %},{% endif %}{% endfor %}]
+};
+
+// Graphique en barres des mouvements par type
+new Chart(document.getElementById('movementTypeChart'), {
+    type: 'bar',
+    data: {
+        labels: movementData.labels,
+        datasets: [{
+            label: 'Nombre de mouvements',
+            data: movementData.counts,
+            backgroundColor: 'rgba(54, 162, 235, 0.6)',
+            borderColor: 'rgba(54, 162, 235, 1)',
+            borderWidth: 2
+        }, {
+            label: 'Quantité totale',
+            data: movementData.quantities,
+            backgroundColor: 'rgba(255, 99, 132, 0.6)',
+            borderColor: 'rgba(255, 99, 132, 1)',
+            borderWidth: 2,
+            yAxisID: 'y1'
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            y: {
+                type: 'linear',
+                display: true,
+                position: 'left',
+            },
+            y1: {
+                type: 'linear',
+                display: true,
+                position: 'right',
+                grid: {
+                    drawOnChartArea: false,
+                },
+            }
+        }
+    }
+});
+
+// Graphique circulaire
+new Chart(document.getElementById('movementPieChart'), {
+    type: 'doughnut',
+    data: {
+        labels: movementData.labels,
+        datasets: [{
+            data: movementData.counts,
+            backgroundColor: [
+                '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', 
+                '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F',
+                '#FF8A65', '#A1C4FD'
+            ]
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom'
+            }
+        }
+    }
+});
+
+// Graphique timeline (exemple avec données simulées)
+const timelineData = {
+    labels: Array.from({length: 30}, (_, i) => {
+        const date = new Date();
+        date.setDate(date.getDate() - (29 - i));
+        return date.toLocaleDateString('fr-FR', {day: '2-digit', month: '2-digit'});
+    }),
+    datasets: [{
+        label: 'Mouvements par jour',
+        data: Array.from({length: 30}, () => Math.floor(Math.random() * 20) + 1),
+        borderColor: 'rgba(75, 192, 192, 1)',
+        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+        tension: 0.4
+    }]
+};
+
+new Chart(document.getElementById('timelineChart'), {
+    type: 'line',
+    data: timelineData,
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            y: {
+                beginAtZero: true
+            }
+        }
+    }
+});
+
+// Fonctions utilitaires
+function filterByPeriod(period) {
+    // Implémentation du filtrage par période
+    console.log('Filtrage par période:', period);
+    // Ici vous pourriez faire une requête AJAX pour recharger les données
+    alert(`Filtrage par ${period} - À implémenter avec AJAX`);
+}
+
+function printReport() {
+    window.print();
+}
+
+// Calculer la moyenne par jour
+const totalMovements = movementData.counts.reduce((a, b) => a + b, 0);
+const avgPerDay = Math.round(totalMovements / 30);
+document.getElementById('avg-movement').textContent = avgPerDay;
+</script>
+{% endblock %}

@@ -13,7 +13,7 @@
     <div class="card shadow-lg">
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-hover align-middle" id="dataTable">
+                <table class="table table-hover align-middle">
                     <thead class="table-light">
                         <tr>
                             <th>Code</th>
@@ -84,20 +84,5 @@
     </div>
 </div>
 
-<script>
-    $(document).ready(function() {
-        $('#dataTable').DataTable({
-            language: {
-                url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/fr-FR.json'
-            },
-            columnDefs: [
-                { orderable: false, targets: -1 }
-            ]
-        });
-        
-        $('.clickable-row').click(function() {
-            window.location = $(this).data('url');
-        });
-    });
-</script>
+
 {% endblock %}

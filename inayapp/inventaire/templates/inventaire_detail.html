@@ -1,0 +1,266 @@
+
+<!-- templates/inventaire/inventaire_detail.html -->
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ inventaire.nom }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <!-- En-tête de l'inventaire -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <div class="row align-items-center">
+                        <div class="col">
+                            <h3 class="card-title mb-0">
+                                <i class="fas fa-clipboard-list mr-2"></i>
+                                {{ inventaire.nom }}
+                            </h3>
+                        </div>
+                        <div class="col-auto">
+                            {% if inventaire.statut == 'planifie' %}
+                            <form method="post" style="display: inline;">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="start">
+                                <button type="submit" class="btn btn-success">
+                                    <i class="fas fa-play mr-1"></i>
+                                    Démarrer
+                                </button>
+                            </form>
+                            {% elif inventaire.statut == 'en_cours' %}
+                            <form method="post" style="display: inline;">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="finish">
+                                <button type="submit" class="btn btn-warning">
+                                    <i class="fas fa-stop mr-1"></i>
+                                    Terminer
+                                </button>
+                            </form>
+                            {% elif inventaire.statut == 'termine' %}
+                            <form method="post" style="display: inline;">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="validate">
+                                <button type="submit" class="btn btn-primary" 
+                                        onclick="return confirm('Valider cet inventaire ? Les stocks seront ajustés.')">
+                                    <i class="fas fa-check mr-1"></i>
+                                    Valider
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <strong>Salle:</strong><br>
+                            {{ inventaire.salle.service.name }} - {{ inventaire.salle.nom }}
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Date planifiée:</strong><br>
+                            {{ inventaire.date_planifiee|date:"d/m/Y" }}
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Statut:</strong><br>
+                            {% if inventaire.statut == 'planifie' %}
+                                <span class="badge badge-info">Planifié</span>
+                            {% elif inventaire.statut == 'en_cours' %}
+                                <span class="badge badge-warning">En cours</span>
+                            {% elif inventaire.statut == 'termine' %}
+                                <span class="badge badge-success">Terminé</span>
+                            {% elif inventaire.statut == 'valide' %}
+                                <span class="badge badge-primary">Validé</span>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Responsable:</strong><br>
+                            {{ inventaire.responsable.get_full_name|default:inventaire.responsable.username }}
+                        </div>
+                    </div>
+                    
+                    {% if inventaire.observations %}
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <strong>Observations:</strong><br>
+                            {{ inventaire.observations|linebreaks }}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Lignes d'inventaire -->
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="card-title">
+                        <i class="fas fa-list mr-2"></i>
+                        Lignes d'inventaire
+                        <span class="badge badge-secondary ml-2">{{ lignes.count }}</span>
+                    </h4>
+                </div>
+                <div class="card-body">
+                    {% if inventaire.statut == 'en_cours' %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        Comptez les quantités réelles pour chaque item et saisissez-les dans la colonne "Quantité comptée".
+                    </div>
+                    {% endif %}
+
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead class="thead-dark">
+                                <tr>
+                                    <th>Item</th>
+                                    <th>Code-barres</th>
+                                    <th>Emplacement</th>
+                                    <th class="text-center">Qté Théorique</th>
+                                    <th class="text-center">Qté Comptée</th>
+                                    <th class="text-center">Écart</th>
+                                    <th class="text-center">Statut</th>
+                                    {% if inventaire.statut == 'en_cours' %}
+                                    <th class="text-center">Action</th>
+                                    {% endif %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for ligne in lignes %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ ligne.stock.item.nom }}</strong><br>
+                                        <small class="text-muted">{{ ligne.stock.item.categorie.nom }}</small>
+                                    </td>
+                                    <td>
+                                        <code>{{ ligne.stock.item.code_barre }}</code>
+                                    </td>
+                                    <td>{{ ligne.stock.emplacement|default:"-" }}</td>
+                                    <td class="text-center">
+                                        <span class="badge badge-light">{{ ligne.quantite_theorique }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        {% if inventaire.statut == 'en_cours' %}
+                                        <input type="number" class="form-control form-control-sm text-center" 
+                                               style="width: 80px; display: inline-block;"
+                                               value="{{ ligne.quantite_comptee }}" 
+                                               onchange="updateQuantite({{ ligne.id }}, this.value)"
+                                               min="0">
+                                        {% else %}
+                                        <span class="badge badge-light">{{ ligne.quantite_comptee }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if ligne.ecart > 0 %}
+                                            <span class="badge badge-success">+{{ ligne.ecart }}</span>
+                                        {% elif ligne.ecart < 0 %}
+                                            <span class="badge badge-danger">{{ ligne.ecart }}</span>
+                                        {% else %}
+                                            <span class="badge badge-secondary">0</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if ligne.statut_ecart == 'excedent' %}
+                                            <span class="badge badge-success">Excédent</span>
+                                        {% elif ligne.statut_ecart == 'manquant' %}
+                                            <span class="badge badge-danger">Manquant</span>
+                                        {% else %}
+                                            <span class="badge badge-success">Conforme</span>
+                                        {% endif %}
+                                    </td>
+                                    {% if inventaire.statut == 'en_cours' %}
+                                    <td class="text-center">
+                                        <button class="btn btn-sm btn-outline-primary" 
+                                                onclick="addObservation({{ ligne.id }})">
+                                            <i class="fas fa-comment"></i>
+                                        </button>
+                                    </td>
+                                    {% endif %}
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="8" class="text-center text-muted">
+                                        <i class="fas fa-inbox fa-2x mb-2"></i><br>
+                                        Aucune ligne d'inventaire
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal pour les observations -->
+<div class="modal fade" id="observationModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Ajouter une observation</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <textarea id="observationText" class="form-control" rows="4" 
+                          placeholder="Saisissez votre observation..."></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-primary" onclick="saveObservation()">Enregistrer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentLigneId = null;
+
+function updateQuantite(ligneId, quantite) {
+    fetch(`/inventaire/api/lignes-inventaire/${ligneId}/`, {
+        method: 'PATCH',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify({
+            quantite_comptee: parseInt(quantite) || 0
+        })
+    })
+    .then(response => {
+        if(response.ok) {
+            location.reload(); // Rechager pour mettre à jour les écarts
+        }
+    });
+}
+
+function addObservation(ligneId) {
+    currentLigneId = ligneId;
+    $('#observationModal').modal('show');
+}
+
+function saveObservation() {
+    const observation = document.getElementById('observationText').value;
+    if(observation.trim()) {
+        fetch(`/inventaire/api/lignes-inventaire/${currentLigneId}/`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify({
+                observations: observation
+            })
+        })
+        .then(response => {
+            if(response.ok) {
+                $('#observationModal').modal('hide');
+                document.getElementById('observationText').value = '';
+            }
+        });
+    }
+}
+</script>
+{% endblock %}

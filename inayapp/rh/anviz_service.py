@@ -20,7 +20,7 @@ def get_last_attendance_sync_date():
 
     # Formater la date au format attendu par l'API Anviz
     last_sync = last_sync.strftime("%Y-%m-%d")
-    # today = (date.today()).strftime("%Y-%m-%d")
+    today = (date.today()).strftime("%Y-%m-%d")
 
     # if last_sync == today:
     #     # Si la date de dernière synchronisation est aujourd'hui, on retourne une date antérieure
@@ -165,7 +165,7 @@ class AnvizAPI:
             headers = {
                 "Accept": "application/json, text/html, */*",
                 "X-Requested-With": "XMLHttpRequest",
-                "Referer": f"{self.base_url}/advance/index.html"
+                "Referer": f"{self.base_url}/advance/index.html",
             }
             response = self.session.get(attendances_url, params=params, headers=headers, timeout=5)
 

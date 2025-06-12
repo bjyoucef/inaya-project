@@ -1,0 +1,187 @@
+
+<!-- templates/stock_list.html -->
+{% extends 'base.html' %}
+
+{% block title %}Gestion des Stocks{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="h3 mb-0">
+                    <i class="fas fa-boxes text-primary"></i>
+                    Gestion des Stocks
+                </h1>
+                <p class="text-muted mb-0">{{ stocks.count }} stock(s) trouvé(s)</p>
+            </div>
+            <div>
+                <a href="{% url 'inventaire:mouvement_create' %}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Nouveau Mouvement
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filtres -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">Recherche</label>
+                <input type="text" class="form-control" name="search" value="{{ request.GET.search }}" 
+                       placeholder="Nom d'item, code-barres...">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Service</label>
+                <select class="form-select" name="service">
+                    <option value="">Tous</option>
+                    {% for service in services %}
+                    <option value="{{ service.id }}" {% if request.GET.service == service.id|stringformat:"s" %}selected{% endif %}>
+                        {{ service.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Salle</label>
+                <select class="form-select" name="salle">
+                    <option value="">Toutes</option>
+                    {% for salle in salles %}
+                    <option value="{{ salle.id }}" {% if request.GET.salle == salle.id|stringformat:"s" %}selected{% endif %}>
+                        {{ salle.nom }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Alertes</label>
+                <select class="form-select" name="alerte">
+                    <option value="">Tous</option>
+                    <option value="true" {% if request.GET.alerte == 'true' %}selected{% endif %}>En alerte</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">&nbsp;</label>
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search"></i> Filtrer
+                    </button>
+                    <a href="{% url 'inventaire:stock_list' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-times"></i> Reset
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Liste des stocks -->
+<div class="card">
+    <div class="card-body">
+        {% if stocks %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Item</th>
+                        <th>Code-barres</th>
+                        <th>Salle/Service</th>
+                        <th>Quantité</th>
+                        <th>Stock Min</th>
+                        <th>Emplacement</th>
+                        <th>Statut</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for stock in stocks %}
+                    <tr {% if stock.est_en_alerte %}class="table-warning"{% elif stock.est_en_rupture %}class="table-danger"{% endif %}>
+                        <td>
+                            <strong>{{ stock.item.nom }}</strong><br>
+                            <small class="text-muted">{{ stock.item.categorie.nom }}</small>
+                        </td>
+                        <td>
+                            <code>{{ stock.item.code_barre }}</code>
+                        </td>
+                        <td>
+                            <strong>{{ stock.salle.nom }}</strong><br>
+                            <small class="text-muted">{{ stock.salle.service.name }}</small>
+                        </td>
+                        <td>
+                            <span class="fs-5 fw-bold 
+                                {% if stock.est_en_rupture %}text-danger
+                                {% elif stock.est_en_alerte %}text-warning
+                                {% else %}text-success{% endif %}">
+                                {{ stock.quantite }}
+                            </span>
+                        </td>
+                        <td>{{ stock.quantite_min }}</td>
+                        <td>{{ stock.emplacement|default:"-" }}</td>
+                        <td>
+                            {% if stock.est_en_rupture %}
+                                <span class="badge bg-danger">Rupture</span>
+                            {% elif stock.est_en_alerte %}
+                                <span class="badge bg-warning">Alerte</span>
+                            {% else %}
+                                <span class="badge bg-success">Normal</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'inventaire:stock_detail' stock.pk %}" 
+                                   class="btn btn-outline-primary" title="Détails">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{% url 'inventaire:barcode_generate' stock.item.pk %}" 
+                                   class="btn btn-outline-secondary" title="Code-barres">
+                                    <i class="fas fa-qrcode"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if is_paginated %}
+        <nav class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}&{{ request.GET.urlencode }}">
+                            Précédent
+                        </a>
+                    </li>
+                {% endif %}
+                
+                <li class="page-item active">
+                    <span class="page-link">
+                        Page {{ page_obj.number }} sur {{ page_obj.paginator.num_pages }}
+                    </span>
+                </li>
+                
+                {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}&{{ request.GET.urlencode }}">
+                            Suivant
+                        </a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-search fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">Aucun stock trouvé</h5>
+            <p class="text-muted">Essayez de modifier vos critères de recherche.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

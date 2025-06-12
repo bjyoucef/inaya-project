@@ -1,0 +1,261 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Rapport de Stock{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.css">
+<style>
+    .stats-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    .chart-container {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        margin-bottom: 30px;
+    }
+    .service-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 15px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        transition: transform 0.3s ease;
+    }
+    .service-card:hover {
+        transform: translateY(-5px);
+    }
+    .value-badge {
+        background: linear-gradient(45deg, #FF6B6B, #4ECDC4);
+        color: white;
+        padding: 5px 15px;
+        border-radius: 20px;
+        font-weight: bold;
+    }
+    .alert-badge {
+        background: #FF6B6B;
+        color: white;
+        padding: 3px 8px;
+        border-radius: 12px;
+        font-size: 0.8em;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-chart-bar me-2"></i>Rapport de Stock</h2>
+        <div>
+            <button class="btn btn-primary" onclick="printReport()">
+                <i class="fas fa-print me-2"></i>Imprimer
+            </button>
+            <button class="btn btn-success" onclick="exportExcel()">
+                <i class="fas fa-file-excel me-2"></i>Exporter Excel
+            </button>
+        </div>
+    </div>
+
+    <!-- Statistiques Globales -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stats-card text-center">
+                <i class="fas fa-boxes fa-2x mb-2"></i>
+                <h4>{{ services_data|length }}</h4>
+                <small>Services</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card text-center">
+                <i class="fas fa-cube fa-2x mb-2"></i>
+                <h4>{% for service in services_data %}{{ service.total_items|add:0 }}{% empty %}0{% endfor %}</h4>
+                <small>Items Total</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card text-center">
+                <i class="fas fa-dollar-sign fa-2x mb-2"></i>
+                <h4>{% for service in services_data %}{{ service.valeur_totale|floatformat:0|add:0 }}{% empty %}0{% endfor %} DA</h4>
+                <small>Valeur Totale</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card text-center">
+                <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                <h4>{% for service in services_data %}{{ service.alertes|add:0 }}{% empty %}0{% endfor %}</h4>
+                <small>Alertes</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Graphiques -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="chart-container">
+                <h5 class="mb-3"><i class="fas fa-pie-chart me-2"></i>Répartition par Service</h5>
+                <canvas id="servicesChart" height="300"></canvas>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="chart-container">
+                <h5 class="mb-3"><i class="fas fa-chart-bar me-2"></i>Valeur par Service</h5>
+                <canvas id="valeurChart" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Détails par Service -->
+    <div class="chart-container">
+        <h5 class="mb-3"><i class="fas fa-hospital me-2"></i>Détails par Service</h5>
+        <div class="row">
+            {% for service_data in services_data %}
+            <div class="col-md-6 col-lg-4">
+                <div class="service-card">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <h6 class="text-primary">{{ service_data.service.name }}</h6>
+                        {% if service_data.alertes > 0 %}
+                        <span class="alert-badge">{{ service_data.alertes }} alertes</span>
+                        {% endif %}
+                    </div>
+                    <div class="mb-2">
+                        <small class="text-muted">Items totaux:</small>
+                        <strong class="float-end">{{ service_data.total_items }}</strong>
+                    </div>
+                    <div class="mb-2">
+                        <small class="text-muted">Valeur totale:</small>
+                        <span class="value-badge float-end">{{ service_data.valeur_totale|floatformat:0 }} DA</span>
+                    </div>
+                    <div class="progress mt-3" style="height: 8px;">
+                        <div class="progress-bar bg-gradient" 
+                             style="width: {% widthratio service_data.total_items 100 100 %}%"></div>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-12">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>Aucune donnée disponible
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Items les plus coûteux -->
+    <div class="chart-container">
+        <h5 class="mb-3"><i class="fas fa-trophy me-2"></i>Top 10 - Items les plus coûteux</h5>
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-primary">
+                    <tr>
+                        <th>Rang</th>
+                        <th>Item</th>
+                        <th>Catégorie</th>
+                        <th>Marque</th>
+                        <th>Prix d'achat</th>
+                        <th>État</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items_couteux %}
+                    <tr>
+                        <td><span class="badge bg-primary">{{ forloop.counter }}</span></td>
+                        <td>
+                            <strong>{{ item.nom }}</strong>
+                            <br><small class="text-muted">{{ item.code_barre }}</small>
+                        </td>
+                        <td>{{ item.categorie.nom }}</td>
+                        <td>{{ item.marque.nom|default:"-" }}</td>
+                        <td>
+                            <span class="value-badge">{{ item.prix_achat|floatformat:2 }} DA</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-{% if item.etat == 'neuf' %}success{% elif item.etat == 'bon' %}info{% elif item.etat == 'moyen' %}warning{% else %}danger{% endif %}">
+                                {{ item.get_etat_display }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted">Aucun item trouvé</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+<script>
+// Graphique répartition par service
+const servicesData = {
+    labels: [{% for service_data in services_data %}'{{ service_data.service.name }}'{% if not forloop.last %},{% endif %}{% endfor %}],
+    datasets: [{
+        data: [{% for service_data in services_data %}{{ service_data.total_items }}{% if not forloop.last %},{% endif %}{% endfor %}],
+        backgroundColor: [
+            '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', 
+            '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F'
+        ]
+    }]
+};
+
+new Chart(document.getElementById('servicesChart'), {
+    type: 'doughnut',
+    data: servicesData,
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom'
+            }
+        }
+    }
+});
+
+// Graphique valeur par service
+const valeurData = {
+    labels: [{% for service_data in services_data %}'{{ service_data.service.name }}'{% if not forloop.last %},{% endif %}{% endfor %}],
+    datasets: [{
+        label: 'Valeur (DA)',
+        data: [{% for service_data in services_data %}{{ service_data.valeur_totale|default:0 }}{% if not forloop.last %},{% endif %}{% endfor %}],
+        backgroundColor: 'rgba(54, 162, 235, 0.5)',
+        borderColor: 'rgba(54, 162, 235, 1)',
+        borderWidth: 2
+    }]
+};
+
+new Chart(document.getElementById('valeurChart'), {
+    type: 'bar',
+    data: valeurData,
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            y: {
+                beginAtZero: true
+            }
+        }
+    }
+});
+
+function printReport() {
+    window.print();
+}
+
+function exportExcel() {
+    // Implémentation pour l'export Excel
+    alert('Fonctionnalité d\'export Excel à implémenter');
+}
+</script>
+{% endblock %}

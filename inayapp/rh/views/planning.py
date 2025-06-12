@@ -209,7 +209,7 @@ def planning(request):
         "pointages": pointages,
         "shifts": Shift.objects.all(),
     }
-    return render(request, "planning.html", context)
+    return render(request, "planning/planning.html", context)
 
 
 @permission_required("rh.creer_planning", raise_exception=True)
@@ -257,8 +257,7 @@ def save_planning(request):
             # Récupération du service
             service_obj = get_object_or_404(Service, name=service_name)
             poste_obj = get_object_or_404(Poste, label=poste_name)
-            print("service_obj",service_obj)
-            print("poste_obj",poste_obj)
+
             # Récupération du shift
             shift_code = request.POST.get("shift")
             shift_obj = None
@@ -427,7 +426,7 @@ def print_planning(request):
     ]
     rendered_html = render(
         request,
-        "planning_pdf.html",
+        "planning/planning_pdf.html",
         {
             "selected_service": selected_service,
             "selected_shift": selected_shift,
@@ -547,7 +546,6 @@ def validate_presence_range(request):
 def get_honoraires_acte(request):
     # On récupère maintenant poste_id
     poste_id = request.GET.get("id_poste")
-    print("********************************************",poste_id)
     if not poste_id:
         return JsonResponse(
             {"success": False, "message": "Paramètre poste_id requis."}, status=400
@@ -556,7 +554,6 @@ def get_honoraires_acte(request):
     try:
         # On filtre sur id_poste (ForeignKey) avec _id
         actes = HonorairesActe.objects.filter(id_poste_id=poste_id)
-        print(actes)
         actes_list = [
             {
                 "id_acte": acte.id_acte,

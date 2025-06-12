@@ -1,0 +1,221 @@
+{% extends 'base.html' %}
+
+{% block title %}Scanner Code-Barres{% endblock %}
+
+{% block extra_css %}
+<style>
+    .scan-container {
+        max-width: 600px;
+        margin: 0 auto;
+    }
+    #scanner-video {
+        width: 100%;
+        border-radius: 10px;
+        background: #f8f9fa;
+        border: 2px dashed #dee2e6;
+    }
+    .scan-result {
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        padding: 20px;
+        margin-top: 20px;
+    }
+    .item-thumb {
+        width: 80px;
+        height: 80px;
+        border-radius: 10px;
+        background: #f8f9fa;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-barcode me-2"></i>Scanner Code-Barres</h2>
+        <a href="{% url 'inventaire:stock_list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Retour
+        </a>
+    </div>
+
+    <div class="scan-container">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="fas fa-camera me-2"></i>Scanner
+                </h6>
+            </div>
+            <div class="card-body text-center">
+                <video id="scanner-video" playsinline></video>
+                <div class="mt-3">
+                    <button id="start-scan" class="btn btn-primary me-2">
+                        <i class="fas fa-play me-2"></i>Démarrer le scan
+                    </button>
+                    <button id="stop-scan" class="btn btn-danger" disabled>
+                        <i class="fas fa-stop me-2"></i>Arrêter
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="scan-result" class="scan-result" style="display: none;">
+            <div class="d-flex align-items-center mb-3">
+                <div class="item-thumb bg-primary text-white me-3">
+                    <i class="fas fa-box"></i>
+                </div>
+                <div>
+                    <h4 id="item-name" class="mb-0"></h4>
+                    <p id="item-barcode" class="text-muted mb-0"></p>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <div class="fw-bold">Détails:</div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><span class="fw-bold">Catégorie:</span> <span id="item-category"></span></p>
+                        <p><span class="fw-bold">Marque:</span> <span id="item-brand"></span></p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><span class="fw-bold">État:</span> <span id="item-state"></span></p>
+                        <p><span class="fw-bold">S/N:</span> <span id="item-serial"></span></p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <div class="fw-bold">Stock:</div>
+                <ul id="stock-list" class="list-group"></ul>
+            </div>
+
+            <div class="text-center">
+                <a id="item-link" href="#" class="btn btn-primary">
+                    <i class="fas fa-external-link-alt me-2"></i>Voir détails
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
+<script>
+    let scannerActive = false;
+    const videoElement = document.getElementById('scanner-video');
+    const startButton = document.getElementById('start-scan');
+    const stopButton = document.getElementById('stop-scan');
+    const resultContainer = document.getElementById('scan-result');
+
+    function initScanner() {
+        Quagga.init({
+            inputStream: {
+                name: "Live",
+                type: "LiveStream",
+                target: videoElement,
+                constraints: {
+                    facingMode: "environment"
+                }
+            },
+            decoder: {
+                readers: ["code_128_reader", "ean_reader"]
+            }
+        }, function(err) {
+            if (err) {
+                console.error(err);
+                alert('Erreur d\'initialisation du scanner: ' + err);
+                return;
+            }
+            startButton.disabled = false;
+        });
+
+        Quagga.onDetected(function(result) {
+            if (scannerActive) {
+                stopScanner();
+                const code = result.codeResult.code;
+                fetchItemDetails(code);
+            }
+        });
+    }
+
+    function startScanner() {
+        Quagga.start();
+        scannerActive = true;
+        startButton.disabled = true;
+        stopButton.disabled = false;
+        resultContainer.style.display = 'none';
+    }
+
+    function stopScanner() {
+        Quagga.stop();
+        scannerActive = false;
+        startButton.disabled = false;
+        stopButton.disabled = true;
+    }
+
+    function fetchItemDetails(barcode) {
+        fetch(`{% url 'inventaire:barcode_scan' %}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: `code_barre=${barcode}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayItemDetails(data);
+            } else {
+                alert(data.error);
+                startScanner();
+            }
+        });
+    }
+
+    function displayItemDetails(data) {
+        document.getElementById('item-name').textContent = data.item.nom;
+        document.getElementById('item-barcode').textContent = data.item.code_barre;
+        document.getElementById('item-category').textContent = data.item.categorie;
+        document.getElementById('item-brand').textContent = data.item.marque || '-';
+        document.getElementById('item-state').textContent = data.item.etat;
+        document.getElementById('item-serial').textContent = data.item.numero_serie || '-';
+        document.getElementById('item-link').href = `{% url 'inventaire:stock_detail' 0 %}`.replace('0', data.item.id);
+        
+        const stockList = document.getElementById('stock-list');
+        stockList.innerHTML = '';
+        
+        if (data.stocks.length > 0) {
+            data.stocks.forEach(stock => {
+                const stockItem = document.createElement('li');
+                stockItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+                stockItem.innerHTML = `
+                    <div>
+                        <strong>${stock.salle}</strong>
+                        <div class="text-muted">${stock.service}</div>
+                    </div>
+                    <span class="badge bg-primary rounded-pill">${stock.quantite}</span>
+                `;
+                stockList.appendChild(stockItem);
+            });
+        } else {
+            stockList.innerHTML = '<li class="list-group-item text-center text-muted">Aucun stock trouvé</li>';
+        }
+        
+        resultContainer.style.display = 'block';
+    }
+
+    // Initialize scanner on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        initScanner();
+        
+        startButton.addEventListener('click', startScanner);
+        stopButton.addEventListener('click', stopScanner);
+    });
+</script>
+{% endblock %}

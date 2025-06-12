@@ -98,7 +98,8 @@ def notification(request):
     nembre_notification_hd = 0
     pending_salary = 0
     pending_leave = 0
-
+    pending_decharges = 0
+    
     if user.is_authenticated:
         id_personnel = user.id
 
@@ -165,9 +166,9 @@ def notification(request):
             ).count()
         else:
             pending_decharges = ''
-        # "nembre_notification_decharge": pending_decharges,
 
     return {
         "nembre_notification_hd": nembre_notification_hd,
         "nembre_notification_rh": pending_salary + pending_leave,
+        "nembre_notification_decharge": pending_decharges,
     }

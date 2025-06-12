@@ -1,0 +1,192 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Nouvelle Demande de Transfert - Inventaire{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4><i class="fas fa-exchange-alt"></i> Nouvelle Demande de Transfert</h4>
+                    <a href="{% url 'inventaire:transfert_list' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Retour
+                    </a>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="transfertForm">
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.item.id_for_label }}" class="form-label">Item *</label>
+                                    {{ form.item }}
+                                    {% if form.item.errors %}
+                                        <div class="text-danger">{{ form.item.errors }}</div>
+                                    {% endif %}
+                                    <div id="item-info" class="mt-2" style="display: none;">
+                                        <div class="alert alert-info">
+                                            <strong>Informations Item:</strong>
+                                            <div id="item-details"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.quantite.id_for_label }}" class="form-label">Quantité *</label>
+                                    {{ form.quantite }}
+                                    {% if form.quantite.errors %}
+                                        <div class="text-danger">{{ form.quantite.errors }}</div>
+                                    {% endif %}
+                                    <div id="stock-info" class="mt-1" style="display: none;">
+                                        <small class="text-muted">Stock disponible: <span id="stock-disponible">0</span></small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.salle_source.id_for_label }}" class="form-label">Salle Source *</label>
+                                    {{ form.salle_source }}
+                                    {% if form.salle_source.errors %}
+                                        <div class="text-danger">{{ form.salle_source.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.salle_destination.id_for_label }}" class="form-label">Salle Destination *</label>
+                                    {{ form.salle_destination }}
+                                    {% if form.salle_destination.errors %}
+                                        <div class="text-danger">{{ form.salle_destination.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group mb-3">
+                            <label for="{{ form.motif.id_for_label }}" class="form-label">Motif *</label>
+                            {{ form.motif }}
+                            {% if form.motif.errors %}
+                                <div class="text-danger">{{ form.motif.errors }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Récapitulatif -->
+                        <div class="card border-info mb-3" id="recap" style="display: none;">
+                            <div class="card-header bg-info text-white">
+                                <h6 class="mb-0"><i class="fas fa-info-circle"></i> Récapitulatif du Transfert</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <p><strong>Item:</strong> <span id="recap-item"></span></p>
+                                        <p><strong>Quantité:</strong> <span id="recap-quantite"></span></p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <p><strong>De:</strong> <span id="recap-source"></span></p>
+                                        <p><strong>Vers:</strong> <span id="recap-destination"></span></p>
+                                    </div>
+                                </div>
+                                <p><strong>Motif:</strong> <span id="recap-motif"></span></p>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <button type="submit" class="btn btn-primary" id="submitBtn">
+                                <i class="fas fa-paper-plane"></i> Envoyer la Demande
+                            </button>
+                            <a href="{% url 'inventaire:transfert_list' %}" class="btn btn-secondary ms-2">
+                                <i class="fas fa-times"></i> Annuler
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const itemSelect = document.getElementById('{{ form.item.id_for_label }}');
+    const salleSourceSelect = document.getElementById('{{ form.salle_source.id_for_label }}');
+    const salleDestinationSelect = document.getElementById('{{ form.salle_destination.id_for_label }}');
+    const quantiteInput = document.getElementById('{{ form.quantite.id_for_label }}');
+    const motifTextarea = document.getElementById('{{ form.motif.id_for_label }}');
+    
+    const itemInfo = document.getElementById('item-info');
+    const stockInfo = document.getElementById('stock-info');
+    const recap = document.getElementById('recap');
+    
+    function updateRecap() {
+        const itemText = itemSelect.options[itemSelect.selectedIndex]?.text || '';
+        const sourceText = salleSourceSelect.options[salleSourceSelect.selectedIndex]?.text || '';
+        const destinationText = salleDestinationSelect.options[salleDestinationSelect.selectedIndex]?.text || '';
+        
+        if (itemText && sourceText && destinationText && quantiteInput.value && motifTextarea.value) {
+            document.getElementById('recap-item').textContent = itemText;
+            document.getElementById('recap-quantite').textContent = quantiteInput.value;
+            document.getElementById('recap-source').textContent = sourceText;
+            document.getElementById('recap-destination').textContent = destinationText;
+            document.getElementById('recap-motif').textContent = motifTextarea.value;
+            recap.style.display = 'block';
+        } else {
+            recap.style.display = 'none';
+        }
+    }
+    
+    function checkStock() {
+        const itemId = itemSelect.value;
+        const salleId = salleSourceSelect.value;
+        
+        if (itemId && salleId) {
+            // Simuler la vérification du stock (dans une vraie app, faire un appel AJAX)
+            stockInfo.style.display = 'block';
+            document.getElementById('stock-disponible').textContent = '10'; // Exemple
+        } else {
+            stockInfo.style.display = 'none';
+        }
+    }
+    
+    // Event listeners
+    [itemSelect, salleSourceSelect, salleDestinationSelect, quantiteInput, motifTextarea].forEach(element => {
+        if (element) {
+            element.addEventListener('change', updateRecap);
+            element.addEventListener('input', updateRecap);
+        }
+    });
+    
+    [itemSelect, salleSourceSelect].forEach(element => {
+        if (element) {
+            element.addEventListener('change', checkStock);
+        }
+    });
+    
+    // Validation
+    document.getElementById('transfertForm').addEventListener('submit', function(e) {
+        const quantite = parseInt(quantiteInput.value);
+        const stockDisponible = parseInt(document.getElementById('stock-disponible').textContent);
+        
+        if (quantite > stockDisponible) {
+            e.preventDefault();
+            alert('La quantité demandée dépasse le stock disponible.');
+            return false;
+        }
+        
+        if (salleSourceSelect.value === salleDestinationSelect.value) {
+            e.preventDefault();
+            alert('La salle source et la salle destination ne peuvent pas être identiques.');
+            return false;
+        }
+    });
+});
+</script>
+{% endblock %}

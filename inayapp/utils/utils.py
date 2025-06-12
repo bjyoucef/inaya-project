@@ -23,7 +23,6 @@ def services_autorises(user):
     """
     # 1) Toutes les permissions de l'utilisateur, au format "app_label.codename"
     user_perms = user.get_all_permissions()
-    print(user_perms)
     # 2) Construire un mapping codename -> Service
     #    (codename sans le préﬁxe "app_label.")
     slug_to_service = {}

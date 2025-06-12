@@ -1,3 +1,4 @@
+<!-- home.html -->
 {% extends "layout.html" %}
 {% load static %}
 {% load permissions_tags %}
@@ -6,82 +7,721 @@
 
 {% block content %}
 <style>
-    /* Adaptation responsive */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Poppins', sans-serif;
+      overflow-x: hidden;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    /* Hero Section */
+    .hero-section {
+      height: 100vh;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      text-align: center;
+      overflow: hidden;
+    }
+
+    .hero-content {
+      z-index: 2;
+      max-width: 800px;
+      padding: 0 20px;
+    }
+
+    .hero-title {
+      font-size: 4rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+      opacity: 0;
+      transform: translateY(50px);
+    }
+
+    .hero-subtitle {
+      font-size: 1.3rem;
+      margin-bottom: 2rem;
+      opacity: 0;
+      transform: translateY(30px);
+    }
+
+    .hero-cta {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+
+    .btn-primary-custom {
+      background: linear-gradient(45deg, #ff6b6b, #ee5a52);
+      border: none;
+      padding: 15px 40px;
+      font-size: 1.1rem;
+      border-radius: 50px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      box-shadow: 0 8px 25px rgba(255, 107, 107, 0.3);
+    }
+
+    .btn-primary-custom:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 12px 35px rgba(255, 107, 107, 0.4);
+    }
+
+    /* Floating particles */
+    .particle {
+      position: absolute;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.1);
+      animation: float 6s ease-in-out infinite;
+    }
+
+    @keyframes float {
+
+      0%,
+      100% {
+        transform: translateY(0px) rotate(0deg);
+      }
+
+      50% {
+        transform: translateY(-20px) rotate(180deg);
+      }
+    }
+
+    /* About Section */
+    .about-section {
+      padding: 100px 0;
+      background: white;
+      position: relative;
+    }
+
+    .section-title {
+      font-size: 3rem;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 3rem;
+      color: #333;
+      opacity: 0;
+      transform: translateY(30px);
+    }
+
+    .about-card {
+      background: white;
+      border-radius: 20px;
+      padding: 40px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+      margin-bottom: 30px;
+      opacity: 0;
+      transform: translateX(-50px);
+      transition: all 0.3s ease;
+    }
+
+    .about-card:hover {
+      transform: translateY(-10px);
+      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.15);
+    }
+
+    .about-icon {
+      width: 80px;
+      height: 80px;
+      background: linear-gradient(45deg, #667eea, #764ba2);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+      font-size: 2rem;
+      color: white;
+    }
+
+    /* Specialities Section */
+    .specialities-section {
+      padding: 100px 0;
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    }
+
 .speciality-card {
-    transition: transform 0.3s ease;
+      background: white;
+      border-radius: 20px;
+      padding: 30px;
     text-align: center;
+      transition: all 0.4s ease;
+      margin-bottom: 30px;
+      opacity: 0;
+      transform: translateY(50px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
 }
 
 .speciality-card:hover {
-    transform: translateY(-10px);
+      transform: translateY(-15px) scale(1.05);
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.2);
 }
 
-@media (max-width: 768px) {
-    .speciality-card img {
-        max-width: 100px;
+    .speciality-icon {
+      width: 100px;
+      height: 100px;
+      margin: 0 auto 20px;
+      background: linear-gradient(45deg, #ff6b6b, #ee5a52);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.5rem;
+      color: white;
+      transition: all 0.3s ease;
     }
-}</style>
-<!-- Bannière originale conservée -->
-<section class="original-banner">
-    <img src="{% static 'assets/img/search-bg.png' %}" class="img-fluid" alt="Bannière Inaya">
+
+    .speciality-card:hover .speciality-icon {
+      transform: rotateY(180deg);
+    }
+
+    .speciality-title {
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 15px;
+    }
+
+    .speciality-description {
+      color: #666;
+      line-height: 1.6;
+    }
+
+    /* Stats Section */
+    .stats-section {
+      padding: 80px 0;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .stat-item {
+      text-align: center;
+      opacity: 0;
+      transform: translateY(30px);
+    }
+
+    .stat-number {
+      font-size: 3rem;
+      font-weight: 700;
+      display: block;
+      margin-bottom: 10px;
+    }
+
+    .stat-label {
+      font-size: 1.1rem;
+      opacity: 0.9;
+    }
+
+    /* Services Section */
+    .services-section {
+      padding: 100px 0;
+      background: white;
+    }
+
+    .service-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 40px;
+      opacity: 0;
+      transform: translateX(-30px);
+    }
+
+    .service-item:nth-child(even) {
+      flex-direction: row-reverse;
+      transform: translateX(30px);
+    }
+
+    .service-icon {
+      width: 80px;
+      height: 80px;
+      background: linear-gradient(45deg, #ff6b6b, #ee5a52);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      color: white;
+      margin: 0 30px;
+      flex-shrink: 0;
+    }
+
+    .service-content h4 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 15px;
+      color: #333;
+    }
+
+    .service-content p {
+      color: #666;
+      line-height: 1.6;
+      margin: 0;
+    }
+
+    /* Footer */
+    .footer {
+      background: #2c3e50;
+      color: white;
+      padding: 40px 0;
+      text-align: center;
+    }
+
+    /* Responsive */
+@media (max-width: 768px) {
+      .hero-title {
+        font-size: 2.5rem;
+      }
+
+      .section-title {
+        font-size: 2rem;
+      }
+
+      .service-item {
+        flex-direction: column !important;
+        text-align: center;
+        transform: translateY(30px) !important;
+      }
+
+      .service-item:nth-child(even) {
+        transform: translateY(30px) !important;
+      }
+
+      .service-icon {
+        margin: 0 0 20px 0;
+      }
+    }
+
+    /* Scroll indicator */
+    .scroll-indicator {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: linear-gradient(45deg, #ff6b6b, #ee5a52);
+      transform-origin: left;
+      transform: scaleX(0);
+      z-index: 9999;
+    }
+
+    /* Animation classes */
+    .fade-in-up {
+      opacity: 1 !important;
+      transform: translateY(0) !important;
+    }
+
+    .fade-in-left {
+      opacity: 1 !important;
+      transform: translateX(0) !important;
+    }
+
+    .fade-in-right {
+      opacity: 1 !important;
+      transform: translateX(0) !important;
+    }
+  </style>
+
+  <!-- Scroll Progress Indicator -->
+  <div class="scroll-indicator" id="scrollIndicator"></div>
+
+  <!-- Hero Section -->
+  <section class="hero-section" id="hero">
+    <!-- Floating Particles -->
+    <div class="particle" style="top: 20%; left: 10%; width: 20px; height: 20px; animation-delay: 0s;"></div>
+    <div class="particle" style="top: 60%; left: 80%; width: 15px; height: 15px; animation-delay: 2s;"></div>
+    <div class="particle" style="top: 30%; left: 70%; width: 25px; height: 25px; animation-delay: 4s;"></div>
+    <div class="particle" style="top: 80%; left: 20%; width: 18px; height: 18px; animation-delay: 1s;"></div>
+    <div class="particle" style="top: 10%; left: 60%; width: 22px; height: 22px; animation-delay: 3s;"></div>
+
+    <div class="hero-content">
+      <h1 class="hero-title" id="heroTitle">Clinique Inaya</h1>
+      <p class="hero-subtitle" id="heroSubtitle">Excellence médicale et innovation technologique au service de votre
+        santé</p>
+      <div class="hero-cta" id="heroCta">
+        <button class="btn btn-primary-custom">
+          <i class="fas fa-calendar-alt me-2"></i>
+          Prendre Rendez-vous
+        </button>
+      </div>
+    </div>
 </section>
 
-
-<!-- Grille des spécialités avec images existantes -->
-<section class="specialities-grid bg-light py-5">
+  <!-- About Section -->
+  <section class="about-section" id="about">
     <div class="container">
-        <div class="row g-4">
-            <!-- Cardiologie -->
-            <div class="col-md-4 col-lg-2">
-                <div class="speciality-card">
-                    <img src="{% static 'assets/img/specialities/specialities-01.png' %}" 
-                         class="img-fluid" 
-                         alt="Cardiologie">
-                    <p class="mt-2 mb-0">Cardiologie</p>
+      <h2 class="section-title" id="aboutTitle">Notre Mission</h2>
+      <div class="row">
+        <div class="col-md-4">
+          <div class="about-card" id="aboutCard1">
+            <div class="about-icon">
+              <i class="fas fa-heart"></i>
+            </div>
+            <h4>Soins de Qualité</h4>
+            <p>Nous offrons des soins médicaux de la plus haute qualité avec une approche personnalisée pour chaque
+              patient.</p>
                 </div>
             </div>
-            
-            <!-- Neurologie -->
-            <div class="col-md-4 col-lg-2">
-                <div class="speciality-card">
-                    <img src="{% static 'assets/img/specialities/specialities-02.png' %}" 
-                         class="img-fluid" 
-                         alt="Neurologie">
-                    <p class="mt-2 mb-0">Neurologie</p>
-                </div>
+        <div class="col-md-4">
+          <div class="about-card" id="aboutCard2">
+            <div class="about-icon">
+              <i class="fas fa-laptop-medical"></i>
             </div>
-            
-            <!-- Orthopédie -->
-            <div class="col-md-4 col-lg-2">
-                <div class="speciality-card">
-                    <img src="{% static 'assets/img/specialities/specialities-03.png' %}" 
-                         class="img-fluid" 
-                         alt="Orthopédie">
-                    <p class="mt-2 mb-0">Orthopédie</p>
+            <h4>Technologie Avancée</h4>
+            <p>Notre système de gestion numérique optimise l'expérience patient et améliore l'efficacité des soins.</p>
+          </div>
                 </div>
+        <div class="col-md-4">
+          <div class="about-card" id="aboutCard3">
+            <div class="about-icon">
+              <i class="fas fa-users"></i>
             </div>
-            
-            <!-- Pédiatrie -->
-            <div class="col-md-4 col-lg-2">
-                <div class="speciality-card">
-                    <img src="{% static 'assets/img/specialities/specialities-04.png' %}" 
-                         class="img-fluid" 
-                         alt="Pédiatrie">
-                    <p class="mt-2 mb-0">Pédiatrie</p>
-                </div>
-            </div>
-            
-            <!-- Dentisterie -->
-            <div class="col-md-4 col-lg-2">
-                <div class="speciality-card">
-                    <img src="{% static 'assets/img/specialities/specialities-05.png' %}" 
-                         class="img-fluid" 
-                         alt="Dentisterie">
-                    <p class="mt-2 mb-0">Dentisterie</p>
+            <h4>Équipe Experte</h4>
+            <p>Une équipe de professionnels dévoués et expérimentés, disponible 24h/24 pour votre bien-être.</p>
                 </div>
             </div>
         </div>
     </div>
 </section>
 
-{% endblock %}
+<!-- Stats Section -->
+  <section class="stats-section" id="stats">
+    <div class="container">
+      <div class="row">
+        <div class="col-md-3">
+          <div class="stat-item" id="stat1">
+            <span class="stat-number" data-count="1500">0</span>
+            <span class="stat-label">Patients Satisfaits</span>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="stat-item" id="stat2">
+            <span class="stat-number" data-count="25">0</span>
+            <span class="stat-label">Médecins Experts</span>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="stat-item" id="stat3">
+            <span class="stat-number" data-count="5">0</span>
+            <span class="stat-label">Années d'Expérience</span>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="stat-item" id="stat4">
+            <span class="stat-number" data-count="99">0</span>
+            <span class="stat-label">% de Réussite</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Specialities Section -->
+  <section class="specialities-section" id="specialities">
+    <div class="container">
+      <h2 class="section-title" id="specialitiesTitle">Nos Spécialités</h2>
+      <div class="row">
+        <div class="col-md-4">
+          <div class="speciality-card" id="spec1">
+            <div class="speciality-icon">
+              <i class="fas fa-heartbeat"></i>
+            </div>
+            <h4 class="speciality-title">Cardiologie</h4>
+            <p class="speciality-description">Diagnostics et traitements avancés pour les maladies cardiovasculaires
+              avec des équipements de pointe.</p>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="speciality-card" id="spec2">
+            <div class="speciality-icon">
+              <i class="fas fa-brain"></i>
+            </div>
+            <h4 class="speciality-title">Neurologie</h4>
+            <p class="speciality-description">Expertise dans le diagnostic et le traitement des troubles du système
+              nerveux central et périphérique.</p>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="speciality-card" id="spec3">
+            <div class="speciality-icon">
+              <i class="fas fa-bone"></i>
+            </div>
+            <h4 class="speciality-title">Orthopédie</h4>
+            <p class="speciality-description">Chirurgie et rééducation spécialisées pour les troubles
+              musculo-squelettiques et traumatiques.</p>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="speciality-card" id="spec4">
+            <div class="speciality-icon">
+              <i class="fas fa-baby"></i>
+            </div>
+            <h4 class="speciality-title">Pédiatrie</h4>
+            <p class="speciality-description">Soins médicaux spécialisés pour les enfants et adolescents dans un
+              environnement adapté.</p>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="speciality-card" id="spec5">
+            <div class="speciality-icon">
+              <i class="fas fa-tooth"></i>
+            </div>
+            <h4 class="speciality-title">Dentisterie</h4>
+            <p class="speciality-description">Soins dentaires complets avec les dernières technologies pour votre santé
+              bucco-dentaire.</p>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="speciality-card" id="spec6">
+            <div class="speciality-icon">
+              <i class="fas fa-eye"></i>
+            </div>
+            <h4 class="speciality-title">Ophtalmologie</h4>
+            <p class="speciality-description">Examens et traitements spécialisés pour préserver et améliorer votre
+              vision.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Services Section -->
+  <section class="services-section" id="services">
+    <div class="container">
+      <h2 class="section-title" id="servicesTitle">Nos Services</h2>
+      <div class="service-item" id="service1">
+        <div class="service-icon">
+          <i class="fas fa-calendar-check"></i>
+        </div>
+        <div class="service-content">
+          <h4>Gestion des Rendez-vous</h4>
+          <p>Système de prise de rendez-vous en ligne simple et efficace, avec notifications automatiques et rappels
+            personnalisés pour une meilleure organisation.</p>
+        </div>
+      </div>
+      <div class="service-item" id="service2">
+        <div class="service-icon">
+          <i class="fas fa-file-medical"></i>
+        </div>
+        <div class="service-content">
+          <h4>Dossiers Médicaux Électroniques</h4>
+          <p>Accès sécurisé à vos dossiers médicaux complets, historique des consultations et prescriptions, disponibles
+            à tout moment.</p>
+        </div>
+      </div>
+      <div class="service-item" id="service3">
+        <div class="service-icon">
+          <i class="fas fa-pills"></i>
+        </div>
+        <div class="service-content">
+          <h4>Pharmacie Intégrée</h4>
+          <p>Gestion complète des prescriptions et médicaments avec suivi automatique des stocks et alertes
+            d'interaction médicamenteuse.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <p>&copy; 2025 Clinique Inaya. Tous droits réservés. | Système de gestion médicale avancé</p>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ScrollMagic/2.0.7/ScrollMagic.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ScrollMagic/2.0.7/plugins/debug.addIndicators.min.js"></script>
+
+  <script>
+    // Initialize ScrollMagic
+    const controller = new ScrollMagic.Controller();
+
+    // Scroll Progress Indicator
+    const progressScene = new ScrollMagic.Scene({
+      triggerElement: 'body',
+      triggerHook: 0,
+      duration: document.body.scrollHeight - window.innerHeight
+    })
+      .on('progress', function (e) {
+        document.getElementById('scrollIndicator').style.transform = `scaleX(${e.progress})`;
+      })
+      .addTo(controller);
+
+    // Hero animations
+    setTimeout(() => {
+      document.getElementById('heroTitle').classList.add('fade-in-up');
+    }, 300);
+
+    setTimeout(() => {
+      document.getElementById('heroSubtitle').classList.add('fade-in-up');
+    }, 600);
+
+    setTimeout(() => {
+      document.getElementById('heroCta').classList.add('fade-in-up');
+    }, 900);
+
+    // About section animations
+    new ScrollMagic.Scene({
+      triggerElement: '#aboutTitle',
+      triggerHook: 0.8
+    })
+      .on('enter', () => {
+        document.getElementById('aboutTitle').classList.add('fade-in-up');
+      })
+      .addTo(controller);
+
+    // About cards animations
+    ['aboutCard1', 'aboutCard2', 'aboutCard3'].forEach((id, index) => {
+      new ScrollMagic.Scene({
+        triggerElement: `#${id}`,
+        triggerHook: 0.8
+      })
+        .on('enter', () => {
+          setTimeout(() => {
+            document.getElementById(id).classList.add('fade-in-left');
+          }, index * 200);
+        })
+        .addTo(controller);
+    });
+
+    // Stats counter animation
+    function animateCounter(element, target) {
+      let current = 0;
+      const increment = target / 100;
+      const timer = setInterval(() => {
+        current += increment;
+        if (current >= target) {
+          current = target;
+          clearInterval(timer);
+        }
+        element.textContent = Math.floor(current);
+      }, 20);
+    }
+
+    // Stats animations
+    ['stat1', 'stat2', 'stat3', 'stat4'].forEach((id, index) => {
+      new ScrollMagic.Scene({
+        triggerElement: `#${id}`,
+        triggerHook: 0.8
+      })
+        .on('enter', () => {
+          setTimeout(() => {
+            const element = document.getElementById(id);
+            element.classList.add('fade-in-up');
+            const numberElement = element.querySelector('.stat-number');
+            const target = parseInt(numberElement.getAttribute('data-count'));
+            animateCounter(numberElement, target);
+          }, index * 200);
+        })
+        .addTo(controller);
+    });
+
+    // Specialities section
+    new ScrollMagic.Scene({
+      triggerElement: '#specialitiesTitle',
+      triggerHook: 0.8
+    })
+      .on('enter', () => {
+        document.getElementById('specialitiesTitle').classList.add('fade-in-up');
+      })
+      .addTo(controller);
+
+    // Speciality cards animations
+    ['spec1', 'spec2', 'spec3', 'spec4', 'spec5', 'spec6'].forEach((id, index) => {
+      new ScrollMagic.Scene({
+        triggerElement: `#${id}`,
+        triggerHook: 0.8
+      })
+        .on('enter', () => {
+          setTimeout(() => {
+            document.getElementById(id).classList.add('fade-in-up');
+          }, index * 150);
+        })
+        .addTo(controller);
+    });
+
+    // Services section
+    new ScrollMagic.Scene({
+      triggerElement: '#servicesTitle',
+      triggerHook: 0.8
+    })
+      .on('enter', () => {
+        document.getElementById('servicesTitle').classList.add('fade-in-up');
+      })
+      .addTo(controller);
+
+    // Service items animations
+    ['service1', 'service2', 'service3'].forEach((id, index) => {
+      new ScrollMagic.Scene({
+        triggerElement: `#${id}`,
+        triggerHook: 0.8
+      })
+        .on('enter', () => {
+          setTimeout(() => {
+            const element = document.getElementById(id);
+            if (index % 2 === 0) {
+              element.classList.add('fade-in-left');
+            } else {
+              element.classList.add('fade-in-right');
+            }
+          }, index * 300);
+        })
+        .addTo(controller);
+    });
+
+    // Smooth scrolling for navigation
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+      anchor.addEventListener('click', function (e) {
+        e.preventDefault();
+        const target = document.querySelector(this.getAttribute('href'));
+        if (target) {
+          target.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start'
+          });
+        }
+      });
+    });
+
+    // Add parallax effect to hero section
+    window.addEventListener('scroll', () => {
+      const scrolled = window.pageYOffset;
+      const hero = document.getElementById('hero');
+      if (hero) {
+        hero.style.transform = `translateY(${scrolled * 0.5}px)`;
+      }
+    });
+
+    // Add floating animation to particles
+    const particles = document.querySelectorAll('.particle');
+    particles.forEach((particle, index) => {
+      particle.style.animationDelay = `${index * 0.5}s`;
+      particle.style.animationDuration = `${4 + Math.random() * 4}s`;
+    });
+
+    // Button click handlers
+    document.querySelectorAll('.btn-primary-custom').forEach(btn => {
+      btn.addEventListener('click', function () {
+        // Add ripple effect
+        const ripple = document.createElement('span');
+        ripple.classList.add('ripple');
+        this.appendChild(ripple);
+
+        setTimeout(() => {
+          ripple.remove();
+        }, 600);
+
+        // Here you would typically redirect or show a modal
+        alert('Redirection vers le système de prise de rendez-vous...');
+      });
+    });
+  </script>
+  {% endblock%}

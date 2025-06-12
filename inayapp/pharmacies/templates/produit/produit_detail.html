@@ -1,58 +1,527 @@
+<!-- produit/produit_detail.html -->
 {% extends "layout.html" %}
+{% load static %}
 {% block content %}
-<div class="container">
-    <div class="card shadow-lg mt-4">
-        <div class="card-header bg-primary text-white">
-            <h2 class="mb-0">Détails du produit</h2>
+
+
+<style>
+    .product-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    .info-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+        border: none;
+        box-shadow: 0 2px 10px rgba(0,0,0,.08);
+    }
+    .info-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0,0,0,.15);
+    }
+    .profit-indicator {
+        border-radius: 50px;
+        padding: 0.5rem 1rem;
+        font-weight: 600;
+    }
+    .profit-positive {
+        background: linear-gradient(45deg, #28a745, #20c997);
+        color: white;
+    }
+    .profit-negative {
+        background: linear-gradient(45deg, #dc3545, #fd7e14);
+        color: white;
+    }
+    .timeline-item {
+        position: relative;
+        padding-left: 2rem;
+        margin-bottom: 1rem;
+    }
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0.5rem;
+        width: 0.75rem;
+        height: 0.75rem;
+        background: #667eea;
+        border-radius: 50%;
+    }
+    .qr-code {
+        border: 2px solid #e9ecef;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        text-align: center;
+        background: #f8f9fa;
+    }
+    .action-buttons .btn {
+        margin: 0.25rem;
+    }
+    .metric-card {
+        background: linear-gradient(45deg, #f8f9fa, #ffffff);
+        border-left: 4px solid #667eea;
+    }
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+    }
+</style>
+
+
+<div class="container mt-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{% url 'pharmacies:produit_list' %}">Produits</a>
+            </li>
+            <li class="breadcrumb-item active">{{ produit.nom }}</li>
+        </ol>
+    </nav>
+
+    <!-- En-tête du produit -->
+    <div class="card mb-4">
+        <div class="card-header product-header text-white">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="mb-1">
+                        <i class="bi bi-box-seam me-2"></i>{{ produit.nom }}
+                    </h1>
+                    <p class="mb-0 opacity-75">
+                        Code: <strong>{{ produit.code_produit }}</strong>
+                        {% if produit.code_barres %}
+                            • Code-barres: <strong>{{ produit.code_barres }}</strong>
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <span class="badge bg-{% if produit.type_produit == 'MED' %}info{% else %}secondary{% endif %} fs-6 me-2">
+                        {{ produit.get_type_produit_display }}
+                    </span>
+                    <span class="badge bg-{% if produit.est_actif %}success{% else %}danger{% endif %} fs-6">
+                        <i class="bi bi-{% if produit.est_actif %}check-circle{% else %}x-circle{% endif %} me-1"></i>
+                        {{ produit.est_actif|yesno:"Actif,Inactif" }}
+                    </span>
+                </div>
+            </div>
         </div>
         
         <div class="card-body">
             <div class="row">
-                <div class="col-md-6">
-                    <dl class="row">
-                        <dt class="col-sm-4">Code produit:</dt>
-                        <dd class="col-sm-8">{{ produit.code_produit }}</dd>
-                        
-                        <dt class="col-sm-4">Nom:</dt>
-                        <dd class="col-sm-8">{{ produit.nom }}</dd>
-                        
-                        <dt class="col-sm-4">Type:</dt>
-                        <dd class="col-sm-8">{{ produit.get_type_produit_display }}</dd>
-                    </dl>
+                <div class="col-md-8">
+                    {% if produit.description %}
+                        <h5 class="text-muted mb-2">Description</h5>
+                        <p class="lead">{{ produit.description }}</p>
+                    {% else %}
+                        <p class="text-muted">Aucune description disponible pour ce produit.</p>
+                    {% endif %}
                 </div>
-                
-                <div class="col-md-6">
-                    <dl class="row">
-                        <dt class="col-sm-4">Prix d'achat:</dt>
-                        <dd class="col-sm-8">{{ produit.prix_achat }} €</dd>
-                        
-                        <dt class="col-sm-4">Prix de vente:</dt>
-                        <dd class="col-sm-8">{{ produit.prix_vente }} €</dd>
-                        
-                        <dt class="col-sm-4">Statut:</dt>
-                        <dd class="col-sm-8">
-                            <span class="badge bg-{% if produit.est_actif %}success{% else %}danger{% endif %}">
-                                {{ produit.est_actif|yesno:"Actif,Inactif" }}
-                            </span>
-                        </dd>
-                    </dl>
+                <div class="col-md-4">
+                    <!-- Indicateur de rentabilité -->
+                    <div class="text-center">
+                        <h6 class="text-muted mb-2">Rentabilité</h6>
+                        <div class="profit-indicator {% if produit.est_rentable %}profit-positive{% else %}profit-negative{% endif %}">
+                            <i class="bi bi-{% if produit.est_rentable %}trending-up{% else %}trending-down{% endif %} me-1"></i>
+                            {% if produit.est_rentable %}Rentable{% else %}Non Rentable{% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Informations principales -->
+        <div class="col-lg-8">
+            <div class="row">
+                <!-- Tarification -->
+                <div class="col-md-6 mb-4">
+                    <div class="card info-card h-100">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0">
+                                <i class="bi bi-currency-euro me-2"></i>Tarification
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row text-center">
+                                <div class="col-6">
+                                    <h6 class="text-muted">Prix d'achat</h6>
+                                    <h4 class="text-primary">{{ produit.prix_achat|floatformat:2 }} €</h4>
+                                </div>
+                                <div class="col-6">
+                                    <h6 class="text-muted">Prix de vente</h6>
+                                    <h4 class="text-success">{{ produit.prix_vente|floatformat:2 }} €</h4>
+                                </div>
+                            </div>
+                            <hr>
+                            <div class="text-center">
+                                <h6 class="text-muted">Marge bénéficiaire</h6>
+                                <h3 class="{% if produit.marge_beneficiaire >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    {{ produit.marge_beneficiaire|floatformat:2 }} €
+                                </h3>
+                                <p class="mb-0 {% if produit.pourcentage_marge_calculee  >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    {{ produit.pourcentage_marge_calculee |floatformat:1 }}% de marge
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Informations générales -->
+                <div class="col-md-6 mb-4">
+                    <div class="card info-card h-100">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="mb-0">
+                                <i class="bi bi-info-circle me-2"></i>Informations
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-12 mb-3">
+                                    <h6 class="text-muted mb-1">Type de produit</h6>
+                                    <span class="badge bg-{% if produit.type_produit == 'MED' %}info{% else %}secondary{% endif %} fs-6">
+                                        {{ produit.get_type_produit_display }}
+                                    </span>
+                                </div>
+                                <div class="col-12 mb-3">
+                                    <h6 class="text-muted mb-1">Code produit</h6>
+                                    <code class="bg-light p-1 rounded">{{ produit.code_produit }}</code>
+                                </div>
+                                {% if produit.code_barres %}
+                                <div class="col-12 mb-3">
+                                    <h6 class="text-muted mb-1">Code-barres</h6>
+                                    <code class="bg-light p-1 rounded">{{ produit.code_barres }}</code>
+                                </div>
+                                {% endif %}
+                                <div class="col-12">
+                                    <h6 class="text-muted mb-1">Statut</h6>
+                                    <span class="badge bg-{% if produit.est_actif %}success{% else %}danger{% endif %}">
+                                        <i class="bi bi-{% if produit.est_actif %}check-circle{% else %}x-circle{% endif %} me-1"></i>
+                                        {{ produit.est_actif|yesno:"Actif,Inactif" }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <div class="mt-4">
-                <h5>Description</h5>
-                <p class="text-muted">{{ produit.description|default:"Aucune description" }}</p>
+            <!-- Métriques et analyses -->
+            <div class="card info-card mb-4">
+                <div class="card-header bg-warning text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-graph-up me-2"></i>Analyses et Métriques
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="stats-grid">
+                        <div class="metric-card p-3 rounded">
+                            <h6 class="text-muted mb-1">Rentabilité</h6>
+                            <h4 class="mb-0 {% if produit.est_rentable %}text-success{% else %}text-danger{% endif %}">
+                                {% if produit.est_rentable %}
+                                    <i class="bi bi-check-circle me-1"></i>Rentable
+                                {% else %}
+                                    <i class="bi bi-x-circle me-1"></i>Non Rentable
+                                {% endif %}
+                            </h4>
+                        </div>
+                        <div class="metric-card p-3 rounded">
+                            <h6 class="text-muted mb-1">Bénéfice unitaire</h6>
+                            <h4 class="mb-0 {% if produit.marge_beneficiaire >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                {{ produit.marge_beneficiaire|floatformat:2 }} €
+                            </h4>
+                        </div>
+                        <div class="metric-card p-3 rounded">
+                            <h6 class="text-muted mb-1">Pourcentage de marge</h6>
+                            <h4 class="mb-0 {% if produit.pourcentage_marge_calculee  >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                {{ produit.pourcentage_marge_calculee |floatformat:1 }}%
+                            </h4>
+                        </div>
+                        <div class="metric-card p-3 rounded">
+                            <h6 class="text-muted mb-1">Ratio de prix</h6>
+                            <h4 class="mb-0 text-info">
+                                {{ produit.prix_vente|floatformat:2 }}/{{ produit.prix_achat|floatformat:2 }}
+                            </h4>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <div class="d-flex justify-content-end gap-2 mt-4">
-                <a href="{% url 'pharmacies:produit_list' %}" class="btn btn-outline-secondary">
-                    <i class="bi bi-arrow-left"></i> Retour
+            <!-- Historique des modifications -->
+            <div class="card info-card">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-clock-history me-2"></i>Historique
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="timeline-item">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="mb-1">Produit créé</h6>
+                                <p class="text-muted mb-0">
+                                    Création du produit dans le système
+                                </p>
+                            </div>
+                            <small class="text-muted">
+                                {{ produit.date_creation|date:"d/m/Y H:i" }}
+                            </small>
+                        </div>
+                    </div>
+                    {% if produit.date_modification != produit.date_creation %}
+                    <div class="timeline-item">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="mb-1">Dernière modification</h6>
+                                <p class="text-muted mb-0">
+                                    Mise à jour des informations
+                                </p>
+                            </div>
+                            <small class="text-muted">
+                                {{ produit.date_modification|date:"d/m/Y H:i" }}
+                            </small>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Colonne droite -->
+        <div class="col-lg-4">
+            <!-- Actions rapides -->
+            <div class="card info-card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-lightning me-2"></i>Actions
+                    </h5>
+                </div>
+                <div class="card-body action-buttons">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'pharmacies:produit_update' produit.pk %}" 
+                           class="btn btn-warning">
+                            <i class="bi bi-pencil-square me-2"></i>Modifier
+                        </a>
+                        <button type="button" class="btn btn-info" onclick="printProduct()">
+                            <i class="bi bi-printer me-2"></i>Imprimer
+                        </button>
+                        <button type="button" class="btn btn-success" onclick="exportProduct()">
+                            <i class="bi bi-download me-2"></i>Exporter
+                        </button>
+                        <hr>
+                        <a href="{% url 'pharmacies:produit_delete' produit.pk %}" 
+                           class="btn btn-danger"
+                           onclick="return confirm('Êtes-vous sûr de vouloir supprimer ce produit ?')">
+                            <i class="bi bi-trash me-2"></i>Supprimer
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Code QR / Code-barres -->
+            <div class="card info-card mb-4">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-qr-code me-2"></i>Code QR
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="qr-code">
+                        <div id="qrcode" class="mb-3"></div>
+                        <p class="text-muted mb-0">
+                            Code QR pour {{ produit.code_produit }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recommandations -->
+            <div class="card info-card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-lightbulb me-2"></i>Recommandations
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if produit.pourcentage_marge_calculee  < 10 %}
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <strong>Marge faible</strong><br>
+                        Considérez augmenter le prix de vente.
+                    </div>
+                    {% endif %}
+                    
+                    {% if not produit.est_actif %}
+                    <div class="alert alert-danger">
+                        <i class="bi bi-x-circle me-2"></i>
+                        <strong>Produit inactif</strong><br>
+                        Ce produit n'est pas visible dans les listes.
+                    </div>
+                    {% endif %}
+                    
+                    {% if not produit.description %}
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <strong>Description manquante</strong><br>
+                        Ajoutez une description pour améliorer la fiche produit.
+                    </div>
+                    {% endif %}
+                    
+                    {% if produit.est_rentable and produit.pourcentage_marge_calculee  >= 20 %}
+                    <div class="alert alert-success">
+                        <i class="bi bi-check-circle me-2"></i>
+                        <strong>Excellent produit</strong><br>
+                        Bonne rentabilité et marge satisfaisante.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Boutons de navigation -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between">
+                <a href="{% url 'pharmacies:produit_list' %}" class="btn btn-outline-secondary btn-lg">
+                    <i class="bi bi-arrow-left me-2"></i>Retour à la liste
                 </a>
-                <a href="{% url 'pharmacies:produit_update' produit.pk %}" class="btn btn-primary">
-                    <i class="bi bi-pencil"></i> Modifier
-                </a>
+                <div>
+                    <a href="{% url 'pharmacies:produit_update' produit.pk %}" class="btn btn-warning btn-lg me-2">
+                        <i class="bi bi-pencil-square me-2"></i>Modifier
+                    </a>
+                    <button type="button" class="btn btn-primary btn-lg" onclick="shareProduct()">
+                        <i class="bi bi-share me-2"></i>Partager
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Scripts -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Génération du code QR
+    const qr = new QRious({
+        element: document.getElementById('qrcode'),
+        value: '{{ produit.code_produit }}',
+        size: 150,
+        background: 'white',
+        foreground: 'black'
+    });
+
+    // Animation des cartes au chargement
+    const cards = document.querySelectorAll('.info-card');
+    cards.forEach((card, index) => {
+        setTimeout(() => {
+            card.style.opacity = '0';
+            card.style.transform = 'translateY(20px)';
+            card.style.transition = 'opacity 0.5s, transform 0.5s';
+            
+            setTimeout(() => {
+                card.style.opacity = '1';
+                card.style.transform = 'translateY(0)';
+            }, 50);
+        }, index * 100);
+    });
+
+    // Raccourcis clavier
+    document.addEventListener('keydown', function(e) {
+        // E pour modifier
+        if (e.key === 'e' || e.key === 'E') {
+            if (!e.ctrlKey && !e.altKey) {
+                window.location.href = "{% url 'pharmacies:produit_update' produit.pk %}";
+            }
+        }
+        
+        // Escape pour retourner à la liste
+        if (e.key === 'Escape') {
+            window.location.href = "{% url 'pharmacies:produit_list' %}";
+        }
+        
+        // Ctrl+P pour imprimer
+        if (e.ctrlKey && e.key === 'p') {
+            e.preventDefault();
+            printProduct();
+        }
+    });
+});
+
+// Fonction d'impression
+function printProduct() {
+    const printContent = `
+        <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto;">
+            <h1>{{ produit.nom }}</h1>
+            <p><strong>Code:</strong> {{ produit.code_produit }}</p>
+            {% if produit.code_barres %}<p><strong>Code-barres:</strong> {{ produit.code_barres }}</p>{% endif %}
+            <p><strong>Type:</strong> {{ produit.get_type_produit_display }}</p>
+            <p><strong>Prix d'achat:</strong> {{ produit.prix_achat|floatformat:2 }} €</p>
+            <p><strong>Prix de vente:</strong> {{ produit.prix_vente|floatformat:2 }} €</p>
+            <p><strong>Marge:</strong> {{ produit.marge_beneficiaire|floatformat:2 }} € ({{ produit.pourcentage_marge_calculee |floatformat:1 }}%)</p>
+            {% if produit.description %}<p><strong>Description:</strong> {{ produit.description }}</p>{% endif %}
+            <p><strong>Statut:</strong> {{ produit.est_actif|yesno:"Actif,Inactif" }}</p>
+        </div>
+    `;
+    
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+        <html>
+            <head>
+                <title>{{ produit.nom }} - Détails</title>
+                <style>
+                    body { margin: 20px; }
+                    @media print { body { margin: 0; } }
+                </style>
+            </head>
+            <body>${printContent}</body>
+        </html>
+    `);
+    printWindow.document.close();
+    printWindow.print();
+}
+
+// Fonction d'export
+function exportProduct() {
+    const data = {
+        nom: '{{ produit.nom }}',
+        code_produit: '{{ produit.code_produit }}',
+        code_barres: '{{ produit.code_barres }}',
+        type_produit: '{{ produit.get_type_produit_display }}',
+        prix_achat: '{{ produit.prix_achat }}',
+        prix_vente: '{{ produit.prix_vente }}',
+        marge: '{{ produit.marge_beneficiaire|floatformat:2 }}',
+        pourcentage_marge: '{{ produit.pourcentage_marge_calculee |floatformat:1 }}',
+        description: '{{ produit.description }}',
+        est_actif: '{{ produit.est_actif }}'
+    };
+    
+    const jsonString = JSON.stringify(data, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'produit_{{ produit.code_produit }}.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+// Fonction de partage
+function shareProduct() {
+    if (navigator.share) {
+        navigator.share({
+            title: '{{ produit.nom }}',
+            text: 'Détails du produit {{ produit.nom }} - Code: {{ produit.code_produit }}',
+            url: window.location.href
+        });
+    } else {
+        // Fallback: copier l'URL
+        navigator.clipboard.writeText(window.location.href).then(() => {
+            alert('Lien copié dans le presse-papier !');
+        });
+    }
+}
+</script>
 {% endblock %}

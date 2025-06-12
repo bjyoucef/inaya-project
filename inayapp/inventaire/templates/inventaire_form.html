@@ -1,0 +1,114 @@
+
+<!-- templates/inventaire_form.html -->
+{% extends 'base.html' %}
+{% load widget_tweaks %}
+
+{% block title %}
+    {% if object %}Modifier Inventaire{% else %}Nouvel Inventaire{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-clipboard-list mr-2"></i>
+                        {% if object %}Modifier Inventaire{% else %}Nouvel Inventaire{% endif %}
+                    </h3>
+                </div>
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="card-body">
+                        {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {{ form.non_field_errors }}
+                        </div>
+                        {% endif %}
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="{{ form.nom.id_for_label }}" class="required">
+                                        {{ form.nom.label }}
+                                    </label>
+                                    {{ form.nom|add_class:"form-control" }}
+                                    {% if form.nom.errors %}
+                                    <div class="text-danger small">{{ form.nom.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="{{ form.salle.id_for_label }}" class="required">
+                                        {{ form.salle.label }}
+                                    </label>
+                                    {{ form.salle|add_class:"form-control" }}
+                                    {% if form.salle.errors %}
+                                    <div class="text-danger small">{{ form.salle.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="{{ form.date_planifiee.id_for_label }}" class="required">
+                                        {{ form.date_planifiee.label }}
+                                    </label>
+                                    {{ form.date_planifiee|add_class:"form-control" }}
+                                    {% if form.date_planifiee.errors %}
+                                    <div class="text-danger small">{{ form.date_planifiee.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="{{ form.participants.id_for_label }}">
+                                        {{ form.participants.label }}
+                                    </label>
+                                    {{ form.participants|add_class:"form-control" }}
+                                    {% if form.participants.errors %}
+                                    <div class="text-danger small">{{ form.participants.errors }}</div>
+                                    {% endif %}
+                                    <small class="form-text text-muted">
+                                        Maintenez Ctrl pour sélectionner plusieurs participants
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="{{ form.observations.id_for_label }}">
+                                {{ form.observations.label }}
+                            </label>
+                            {{ form.observations|add_class:"form-control" }}
+                            {% if form.observations.errors %}
+                            <div class="text-danger small">{{ form.observations.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <div class="row">
+                            <div class="col-6">
+                                <a href="{% url 'inventaire:inventaire_list' %}" class="btn btn-secondary">
+                                    <i class="fas fa-arrow-left mr-1"></i>
+                                    Retour
+                                </a>
+                            </div>
+                            <div class="col-6 text-right">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save mr-1"></i>
+                                    {% if object %}Modifier{% else %}Créer{% endif %}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

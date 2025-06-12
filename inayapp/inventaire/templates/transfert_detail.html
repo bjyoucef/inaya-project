@@ -1,0 +1,219 @@
+{% extends 'base.html' %}
+
+{% block title %}Détails Transfert{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>
+            <i class="fas fa-exchange-alt me-2"></i>
+            Transfert #{{ transfert.id }}
+        </h2>
+        <div>
+            {% if transfert.statut == 'en_attente' %}
+                <form method="post" action="{% url 'inventaire:transfert_approve' transfert.id %}" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" name="action" value="approve" class="btn btn-success me-2">
+                        <i class="fas fa-check me-2"></i>Approuver
+                    </button>
+                    <button type="submit" name="action" value="refuse" class="btn btn-danger">
+                        <i class="fas fa-times me-2"></i>Refuser
+                    </button>
+                </form>
+            {% elif transfert.statut == 'approuve' %}
+                <form method="post" action="{% url 'inventaire:transfert_approve' transfert.id %}" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" name="action" value="execute" class="btn btn-primary">
+                        <i class="fas fa-truck-loading me-2"></i>Exécuter le Transfert
+                    </button>
+                </form>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-info-circle me-2"></i>Détails du Transfert
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Item:</div>
+                        <div class="col-md-8">
+                            {{ transfert.item.nom }} ({{ transfert.item.code_barre }})
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Quantité:</div>
+                        <div class="col-md-8">{{ transfert.quantite }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Statut:</div>
+                        <div class="col-md-8">
+                            <span class="badge bg-{% if transfert.statut == 'en_attente' %}warning{% elif transfert.statut == 'approuve' %}info{% else %}{% if transfert.statut == 'execute' %}success{% else %}danger{% endif %}{% endif %}">
+                                {{ transfert.get_statut_display }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Demandé par:</div>
+                        <div class="col-md-8">{{ transfert.demande_par.get_full_name }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Date demande:</div>
+                        <div class="col-md-8">{{ transfert.date_demande|date:"d/m/Y H:i" }}</div>
+                    </div>
+                    {% if transfert.approuve_par %}
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Approuvé par:</div>
+                        <div class="col-md-8">{{ transfert.approuve_par.get_full_name }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Date approbation:</div>
+                        <div class="col-md-8">{{ transfert.date_approbation|date:"d/m/Y H:i" }}</div>
+                    </div>
+                    {% endif %}
+                    {% if transfert.execute_par %}
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Exécuté par:</div>
+                        <div class="col-md-8">{{ transfert.execute_par.get_full_name }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Date exécution:</div>
+                        <div class="col-md-8">{{ transfert.date_execution|date:"d/m/Y H:i" }}</div>
+                    </div>
+                    {% endif %}
+                    <div class="row mb-3">
+                        <div class="col-md-4 fw-bold">Motif:</div>
+                        <div class="col-md-8">{{ transfert.motif }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-map-marker-alt me-2"></i>Emplacements
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="transfer-path">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <div class="text-center">
+                                <div class="transfer-point bg-primary text-white">
+                                    <i class="fas fa-location-arrow"></i>
+                                </div>
+                                <div class="fw-bold mt-2">Source</div>
+                                <div>{{ transfert.salle_source.nom }}</div>
+                                <div class="text-muted">{{ transfert.salle_source.service.name }}</div>
+                            </div>
+                            <div class="transfer-arrow">
+                                <i class="fas fa-long-arrow-alt-right fa-2x text-muted"></i>
+                            </div>
+                            <div class="text-center">
+                                <div class="transfer-point bg-success text-white">
+                                    <i class="fas fa-map-marker-alt"></i>
+                                </div>
+                                <div class="fw-bold mt-2">Destination</div>
+                                <div>{{ transfert.salle_destination.nom }}</div>
+                                <div class="text-muted">{{ transfert.salle_destination.service.name }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <h6>Stock actuel</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-body text-center">
+                                        <div class="text-muted">Source</div>
+                                        <h3>{{ source_stock.quantite|default:"0" }}</h3>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-body text-center">
+                                        <div class="text-muted">Destination</div>
+                                        <h3>{{ destination_stock.quantite|default:"0" }}</h3>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="fas fa-history me-2"></i>Historique
+            </h6>
+        </div>
+        <div class="card-body">
+            <ul class="timeline">
+                <li>
+                    <div class="timeline-badge bg-primary">
+                        <i class="fas fa-plus"></i>
+                    </div>
+                    <div class="timeline-panel">
+                        <div class="timeline-heading">
+                            <h6 class="timeline-title">Demande créée</h6>
+                            <p class="text-muted">
+                                <small>{{ transfert.date_demande|timesince }} ago</small>
+                            </p>
+                        </div>
+                        <div class="timeline-body">
+                            <p>Demandé par {{ transfert.demande_par.get_full_name }}</p>
+                        </div>
+                    </div>
+                </li>
+                {% if transfert.date_approbation %}
+                <li class="timeline-inverted">
+                    <div class="timeline-badge bg-success">
+                        <i class="fas fa-check"></i>
+                    </div>
+                    <div class="timeline-panel">
+                        <div class="timeline-heading">
+                            <h6 class="timeline-title">Transfert approuvé</h6>
+                            <p class="text-muted">
+                                <small>{{ transfert.date_approbation|timesince }} ago</small>
+                            </p>
+                        </div>
+                        <div class="timeline-body">
+                            <p>Approuvé par {{ transfert.approuve_par.get_full_name }}</p>
+                        </div>
+                    </div>
+                </li>
+                {% endif %}
+                {% if transfert.date_execution %}
+                <li>
+                    <div class="timeline-badge bg-info">
+                        <i class="fas fa-truck-loading"></i>
+                    </div>
+                    <div class="timeline-panel">
+                        <div class="timeline-heading">
+                            <h6 class="timeline-title">Transfert exécuté</h6>
+                            <p class="text-muted">
+                                <small>{{ transfert.date_execution|timesince }} ago</small>
+                            </p>
+                        </div>
+                        <div class="timeline-body">
+                            <p>Exécuté par {{ transfert.execute_par.get_full_name }}</p>
+                        </div>
+                    </div>
+                </li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

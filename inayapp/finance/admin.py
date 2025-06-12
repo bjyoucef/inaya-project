@@ -130,7 +130,6 @@ class TarifActeInline(admin.TabularInline):
 class ActeProduitInline(admin.TabularInline):
     model = ActeProduit
     extra = 0
-    autocomplete_fields = ("produit",)
     fields = ("produit", "quantite_defaut", "get_unite_mesure")
     readonly_fields = ("get_unite_mesure",)
 
@@ -199,7 +198,6 @@ class ConsommationProduitInline(admin.TabularInline):
     extra = 0
     fields = ("produit", "quantite_defaut", "quantite_reelle", "ecart_consommation")
     readonly_fields = ("ecart_consommation",)
-    autocomplete_fields = ("produit",)
 
     def ecart_consommation(self, obj):
         return obj.quantite_reelle - obj.quantite_defaut
@@ -254,7 +252,6 @@ class ActeProduitAdmin(admin.ModelAdmin):
     list_display = ("acte", "produit", "quantite_defaut", "service_associe")
     list_filter = ("acte__service",)
     search_fields = ("acte__code", "produit__nom")
-    autocomplete_fields = ("acte", "produit")
 
     def service_associe(self, obj):
         return obj.acte.service.name

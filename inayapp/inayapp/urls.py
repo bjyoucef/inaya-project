@@ -16,6 +16,7 @@ urlpatterns = [
     path("update-theme/", update_theme, name="update_theme"),
     path("", include("accueil.urls")),
     path("admin/", admin.site.urls),
+    path("export/", include("export_data.urls")),
     path("helpdesk/", include("helpdesk.urls")),
     path("documents/", include("documents.urls")),
     path("annuaire/", include("annuaire.urls")),
@@ -25,6 +26,8 @@ urlpatterns = [
     path("medecin/", include("medecin.urls")),
     path("medical/", include(("medical.urls", "medical"), namespace="medical")),
     path("pharmacies/", include("pharmacies.urls")),
+    path("api-auth/", include("rest_framework.urls")),
+    path("inventaire/", include(("inventaire.urls", "inventaire"), namespace="inventaire")),
 ]
 
 

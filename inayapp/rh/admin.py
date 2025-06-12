@@ -1,94 +1,185 @@
-from django.contrib import admin, messages
-from django.contrib.admin.models import LogEntry
-from django.contrib.auth.models import User
-from django.contrib.contenttypes.models import ContentType
-from django.utils.crypto import get_random_string
-from django.utils.encoding import force_str
-from django.utils.text import slugify
-from django.utils.translation import gettext as _
-from import_export.admin import ImportExportModelAdmin
+from django.contrib import admin
+from .models import (
+    Personnel,
+    Employee,
+    Planning,
+    Pointage,
+    SalaryAdvanceRequest,
+    LeaveRequest,
+    Poste,
+    GlobalSalaryConfig,
+    IRGBracket,
+    HonorairesActe,
+    PointagesActes,
+    ShiftType,
+)
 
-from .models import AnvizConfiguration, HonorairesActe, Personnel, Poste, JourFerie
-from .resources import PersonnelResource, PosteResource
+
+# ─── Employee ────────────────────────────────────────────────────────────────
+class PersonnelInline(admin.StackedInline):
+    model = Personnel
+    fk_name = "employee"
+    max_num = 1
+    can_delete = False
+    fields = ("nom_prenom", "poste", "service", "telephone", "salaire")
+    readonly_fields = ("created_at", "updated_at")
 
 
-from import_export.admin import ImportExportModelAdmin
+# in admin.py
 
 
-class PatchedImportExportAdmin(ImportExportModelAdmin):
-    """
-    Surcharge _create_log_entry pour ne rien logger
-    (évite toute incompatibilité avec LogEntryManager.log_actions).
-    """
+# admin.py
 
-    def _create_log_entry(self, *args, **kwargs):
-        # On ne fait rien. Si besoin, vous pouvez créer manuellement un LogEntry ici.
-        return
+from django.utils import timezone
+from datetime import timedelta
+
+
+class PointageInline(admin.TabularInline):
+    model = Pointage
+    extra = 0
+    readonly_fields = ("check_time", "synced_at")
+    fields = ("check_time",)
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        # show only pointages from the last 30 days
+        cutoff = timezone.now() - timedelta(days=1)
+        return qs.filter(check_time__gte=cutoff).order_by("-check_time")
+
+
+@admin.register(Employee)
+class EmployeeAdmin(admin.ModelAdmin):
+    list_display = (
+        "name",
+        "anviz_id",
+        "shift_type",
+        "last_updated",
+    )
+    search_fields = ("name", "anviz_id")
+    list_filter = ("shift_type",)
+    date_hierarchy = "last_updated"
+    ordering = ("-last_updated",)
+    inlines = [PersonnelInline, PointageInline]
+    autocomplete_fields = ("shift_type",)
+    readonly_fields = ("last_updated",)
+
+
+# ─── Personnel ───────────────────────────────────────────────────────────────
+class PlanningInline(admin.TabularInline):
+    model = Planning
+    fk_name = "employee"
+    extra = 0
+    fields = ("shift_date", "shift", "service", "prix", "paiement")
+    raw_id_fields = ("service", "shift")
+    date_hierarchy = "shift_date"
+
+
+class SalaryAdvanceRequestInline(admin.TabularInline):
+    model = SalaryAdvanceRequest
+    extra = 0
+    fields = ("amount", "request_date", "payment_date", "status", "reason")
+    readonly_fields = ("created_at", "updated_at")
+    date_hierarchy = "request_date"
+
+
+class LeaveRequestInline(admin.TabularInline):
+    model = LeaveRequest
+    extra = 0
+    fields = ("start_date", "end_date", "leave_type", "status", "reason")
+    date_hierarchy = "start_date"
 
 
 @admin.register(Personnel)
-class PersonnelAdmin(PatchedImportExportAdmin):
-    resource_class = PersonnelResource
-    list_display = ("nom_prenom", "service", "poste", "salaire", "get_username")
-    search_fields = ("nom_prenom", "service__name", "poste__label")
-
-    def save_model(self, request, obj, form, change):
-        # Lors de la création d'un nouveau Personnel, générer automatiquement l'utilisateur
-        if not change and not obj.user:
-            # Extraire prénom et nom
-            parts = obj.nom_prenom.split()
-            first_name = parts[0] if parts else ""
-            last_name = " ".join(parts[1:]) if len(parts) > 1 else ""
-
-            # Générer un username à partir de nom_prenom
-            base_username = slugify(obj.nom_prenom)
-            username = base_username
-            counter = 1
-            while User.objects.filter(username=username).exists():
-                username = f"{base_username}{counter}"
-                counter += 1
-
-            # Générer un mot de passe temporaire
-            temp_password = get_random_string(length=12)
-            # Créer l'utilisateur
-            user = User.objects.create_user(
-                username=username,
-                password=temp_password,
-                first_name=first_name,
-                last_name=last_name,
-            )
-            # Associer à l'objet Personnel
-            obj.user = user
-            # Stocker le mot de passe temporaire pour l'afficher dans le message
-            obj._temp_password = temp_password
-
-        # Sauvegarde de l'objet Personnel (lié à l'user si créé)
-        super().save_model(request, obj, form, change)
-
-        # Afficher un message de succès si nouvel utilisateur créé
-        if not change and hasattr(obj, "_temp_password"):
-            messages.success(
-                request,
-                f"Utilisateur créé: **{obj.user.username}**, mot de passe temporaire: **{obj._temp_password}**",
-            )
-
-    def get_username(self, obj):
-        return obj.user.username if obj.user else "-"
-
-    get_username.short_description = "Nom d'utilisateur"
+class PersonnelAdmin(admin.ModelAdmin):
+    list_display = (
+        "nom_prenom",
+        "poste",
+        "service",
+        "telephone",
+        "salaire",
+        "statut_activite",
+    )
+    search_fields = ("nom_prenom", "telephone")
+    list_filter = ("poste", "service", "statut_activite", "use_in_planning")
+    date_hierarchy = "created_at"
+    ordering = ("nom_prenom",)
+    inlines = [PlanningInline, SalaryAdvanceRequestInline, LeaveRequestInline]
+    raw_id_fields = ("user", "employee")
+    readonly_fields = ("created_at", "updated_at")
 
 
-@admin.register(AnvizConfiguration)
-class AnvizDeviceConfigAdmin(admin.ModelAdmin):
-    list_display = ('name', 'ip_address', 'username', 'is_active', 'last_modified')
+# ─── Planning ────────────────────────────────────────────────────────────────
+class PointagesActesInline(admin.TabularInline):
+    model = PointagesActes
+    extra = 1
+    fields = ("id_acte", "nbr_actes")
+    raw_id_fields = ("id_acte",)
 
 
-admin.site.register(HonorairesActe)
-admin.site.register(JourFerie)
+@admin.register(Planning)
+class PlanningAdmin(admin.ModelAdmin):
+    list_display = ("shift_date", "employee", "shift", "service", "paiement")
+    search_fields = ("employee__nom_prenom", "service__name")
+    list_filter = ("shift", "service")
+    date_hierarchy = "shift_date"
+    inlines = [PointagesActesInline]
+    raw_id_fields = ("employee", "service", "shift", "id_created_par")
+
+
+# ─── Poste & HonorairesActe ─────────────────────────────────────────────────
+class HonorairesActeInline(admin.TabularInline):
+    model = HonorairesActe
+    extra = 1
+    fields = ("name_acte", "prix_acte")
 
 
 @admin.register(Poste)
-class PosteAdmin(PatchedImportExportAdmin):
-    resource_class = PosteResource
+class PosteAdmin(admin.ModelAdmin):
     list_display = ("label",)
     search_fields = ("label",)
+    inlines = [HonorairesActeInline]
+
+
+# ─── GlobalSalaryConfig & IRGBracket ────────────────────────────────────────
+class IRGBracketInline(admin.TabularInline):
+    model = IRGBracket
+    extra = 1
+    fields = ("min_amount", "max_amount", "tax_rate")
+
+
+@admin.register(GlobalSalaryConfig)
+class GlobalSalaryConfigAdmin(admin.ModelAdmin):
+    list_display = (
+        "update_date",
+        "updated_by",
+        "cnas_employer_rate",
+        "cnas_employee_rate",
+    )
+    list_filter = ("updated_by",)
+    date_hierarchy = "update_date"
+    inlines = [IRGBracketInline]
+    readonly_fields = ("update_date",)
+
+
+# ─── SalaryAdvanceRequest & LeaveRequest ────────────────────────────────────
+@admin.register(SalaryAdvanceRequest)
+class SalaryAdvanceRequestAdmin(admin.ModelAdmin):
+    list_display = ("personnel", "amount", "request_date", "payment_date", "status")
+    search_fields = ("personnel__nom_prenom",)
+    list_filter = ("status",)
+    date_hierarchy = "request_date"
+    raw_id_fields = ("personnel",)
+
+
+@admin.register(LeaveRequest)
+class LeaveRequestAdmin(admin.ModelAdmin):
+    list_display = ("personnel", "leave_type", "start_date", "end_date", "status")
+    search_fields = ("personnel__nom_prenom",)
+    list_filter = ("leave_type", "status")
+    date_hierarchy = "start_date"
+    raw_id_fields = ("personnel",)
+
+
+@admin.register(ShiftType)
+class ShiftTypeAdmin(admin.ModelAdmin):
+    search_fields = ("name",)

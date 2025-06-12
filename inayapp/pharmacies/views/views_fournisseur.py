@@ -1,21 +1,21 @@
 # pharmacies/views/views_fournisseur.py
 
+import logging
+
 from django.contrib import messages
 from django.contrib.auth.mixins import (LoginRequiredMixin,
                                         PermissionRequiredMixin)
 from django.db import transaction
 from django.forms import modelform_factory
+from django.http import HttpResponse
 from django.urls import reverse_lazy
 from django.views import View
 from django.views.generic import (CreateView, DeleteView, DetailView, ListView,
                                   UpdateView)
 from openpyxl import Workbook
 
-from django.http import HttpResponse
 from ..forms import FournisseurForm, OrdrePaiementForm
 from ..models import Fournisseur, OrdrePaiement
-
-import logging
 
 logger = logging.getLogger(__name__)
 

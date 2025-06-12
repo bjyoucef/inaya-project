@@ -1,0 +1,129 @@
+<!-- templates/base.html -->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Gestion Inventaire - Clinique{% endblock %}</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .sidebar {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .sidebar .nav-link {
+            color: rgba(255,255,255,0.8);
+            transition: all 0.3s;
+        }
+        .sidebar .nav-link:hover, .sidebar .nav-link.active {
+            color: white;
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+        }
+        .card {
+            border: none;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+        .card:hover {
+            transform: translateY(-2px);
+        }
+        .status-badge {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+        }
+        .alert-stock {
+            background: linear-gradient(45deg, #ff6b6b, #feca57);
+            color: white;
+        }
+        .navbar-brand {
+            font-weight: bold;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{% url 'inventaire:dashboard' %}">
+                <i class="fas fa-hospital"></i> Inventaire Clinique
+            </a>
+            <div class="navbar-nav ms-auto">
+                <div class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-user-circle"></i> {{ user.username }}
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="#"><i class="fas fa-user"></i> Profil</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{% url 'admin:logout' %}"><i class="fas fa-sign-out-alt"></i> Déconnexion</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-2 sidebar p-3">
+                <nav class="nav flex-column">
+                    <a class="nav-link mb-2" href="{% url 'inventaire:dashboard' %}">
+                        <i class="fas fa-tachometer-alt me-2"></i> Tableau de bord
+                    </a>
+                    <a class="nav-link mb-2" href="{% url 'inventaire:stock_list' %}">
+                        <i class="fas fa-boxes me-2"></i> Gestion Stock
+                    </a>
+                    <a class="nav-link mb-2" href="{% url 'inventaire:stock_alerts' %}">
+                        <i class="fas fa-exclamation-triangle me-2"></i> Alertes Stock
+                    </a>
+                    <a class="nav-link mb-2" href="{% url 'inventaire:mouvement_list' %}">
+                        <i class="fas fa-exchange-alt me-2"></i> Mouvements
+                    </a>
+                    <a class="nav-link mb-2" href="{% url 'inventaire:transfert_list' %}">
+                        <i class="fas fa-truck me-2"></i> Transferts
+                    </a>
+                    <a class="nav-link mb-2" href="{% url 'inventaire:inventaire_list' %}">
+                        <i class="fas fa-clipboard-list me-2"></i> Inventaires
+                    </a>
+                    <!-- Ajout du lien pour les maintenances -->
+                    <a class="nav-link mb-2" href="{% url 'inventaire:maintenance_list' %}">
+                        <i class="fas fa-tools me-2"></i> Maintenances
+                    </a>
+                    <a class="nav-link mb-2" href="{% url 'inventaire:barcode_scan' %}">
+                        <i class="fas fa-qrcode me-2"></i> Scanner
+                    </a>
+                    <hr class="my-3">
+                    <a class="nav-link mb-2" href="{% url 'inventaire:stock_report' %}">
+                        <i class="fas fa-chart-bar me-2"></i> Rapports
+                    </a>
+                </nav>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-md-10">
+                <div class="p-4">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    {% block content %}{% endblock %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

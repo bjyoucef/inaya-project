@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Nouveau Mouvement - Inventaire{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4><i class="fas fa-exchange-alt"></i> Nouveau Mouvement de Stock</h4>
+                    <a href="{% url 'inventaire:mouvement_list' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Retour
+                    </a>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="mouvementForm">
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.stock.id_for_label }}" class="form-label">Stock *</label>
+                                    {{ form.stock }}
+                                    {% if form.stock.errors %}
+                                        <div class="text-danger">{{ form.stock.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.type_mouvement.id_for_label }}" class="form-label">Type de Mouvement *</label>
+                                    {{ form.type_mouvement }}
+                                    {% if form.type_mouvement.errors %}
+                                        <div class="text-danger">{{ form.type_mouvement.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.quantite.id_for_label }}" class="form-label">Quantité *</label>
+                                    {{ form.quantite }}
+                                    {% if form.quantite.errors %}
+                                        <div class="text-danger">{{ form.quantite.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6" id="salle-destination-group" style="display: none;">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.salle_destination.id_for_label }}" class="form-label">Salle de Destination</label>
+                                    {{ form.salle_destination }}
+                                    {% if form.salle_destination.errors %}
+                                        <div class="text-danger">{{ form.salle_destination.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row" id="cout-reparation-group" style="display: none;">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.cout_reparation.id_for_label }}" class="form-label">Coût de Réparation</label>
+                                    {{ form.cout_reparation }}
+                                    {% if form.cout_reparation.errors %}
+                                        <div class="text-danger">{{ form.cout_reparation.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group mb-3">
+                            <label for="{{ form.motif.id_for_label }}" class="form-label">Motif</label>
+                            {{ form.motif }}
+                            {% if form.motif.errors %}
+                                <div class="text-danger">{{ form.motif.errors }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="form-group">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Enregistrer le Mouvement
+                            </button>
+                            <a href="{% url 'inventaire:mouvement_list' %}" class="btn btn-secondary ms-2">
+                                <i class="fas fa-times"></i> Annuler
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const typeMouvementSelect = document.getElementById('{{ form.type_mouvement.id_for_label }}');
+    const salleDestinationGroup = document.getElementById('salle-destination-group');
+    const coutReparationGroup = document.getElementById('cout-reparation-group');
+    
+    function toggleFields() {
+        const selectedType = typeMouvementSelect.value;
+        
+        // Afficher salle destination pour transfert
+        if (selectedType === 'transfert') {
+            salleDestinationGroup.style.display = 'block';
+        } else {
+            salleDestinationGroup.style.display = 'none';
+        }
+        
+        // Afficher coût pour réparation
+        if (selectedType === 'reparation') {
+            coutReparationGroup.style.display = 'block';
+        } else {
+            coutReparationGroup.style.display = 'none';
+        }
+    }
+    
+    typeMouvementSelect.addEventListener('change', toggleFields);
+    toggleFields(); // Initial call
+});
+</script>
+{% endblock %}

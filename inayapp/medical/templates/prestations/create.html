@@ -16,11 +16,25 @@
     padding: 15px;
     margin-bottom: 15px;
   }
+  /* Ajoutez ceci dans votre balise <style> */
+#history-content .list-group-item {
+  border-left: 3px solid var(--bs-primary);
+  transition: all 0.2s;
+}
+
+#history-content .list-group-item:hover {
+  background-color: #f8f9fa;
+  transform: translateX(2px);
+}
+
+#refresh-history {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+}
 </style>
 
 <link rel="stylesheet" href="{% static 'css/choices.min.css' %}" />
-
-<div class="container-lg">
+<div>
   <div class="d-flex align-items-center justify-content-between mb-3">
     <div>
       <h1 class="h2 mb-0 text-primary">
@@ -37,19 +51,23 @@
     >
       <i class="bi bi-arrow-left me-2"></i>Retour
     </a>
-  </div>
+    </div>
 
-  {% if errors %}
-  <div class="alert alert-danger mb-4">
-    <h4 class="alert-heading">Erreurs de validation</h4>
-    <ul class="mb-0">
-      {% for e in errors %}
-      <li>{{ e }}</li>
-      {% endfor %}
-    </ul>
-  </div>
-  {% endif %}
+  <div class="row g-4">  <!-- Nouvelle ligne principale -->
+    <!-- Colonne formulaire (8 colonnes) -->
+    <div class="col-lg-9">
+      {% if errors %}
+      <div class="alert alert-danger mb-4">
+        <h4 class="alert-heading">Erreurs de validation</h4>
+        <ul class="mb-0">
+          {% for e in errors %}
+          <li>{{ e }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
 
+        
   <form method="post">
     {% csrf_token %}
 
@@ -57,22 +75,26 @@
       <div class="card-header bg-primary text-white">
         Informations Générales
       </div>
+
       <div class="card-body">
         <div class="row g-3">
           <div class="col-md-6">
             <label for="patientSelect" class="form-label">Patient</label>
-            <select
-              id="patientSelect"
-              name="patient"
-              class="form-select"
-              required
-            >
-              <option value="">Choisir un patient...</option>
-              {% for p in patients %}
-              <option value="{{ p.id }}">{{ p.nom_complet }}</option>
-              {% endfor %}
-            </select>
+
+              <select
+                id="patientSelect"
+                name="patient"
+                class="form-select"
+                required
+              >
+                <option value="">Choisir un patient...</option>
+                {% for p in patients %}
+                <option value="{{ p.id }}">{{ p.nom_complet }}</option>
+                {% endfor %}
+              </select>
+
           </div>
+
           <div class="col-md-6">
             <label for="medecinSelect" class="form-label">Médecin</label>
             <select
@@ -238,8 +260,115 @@
       <button type="submit" class="btn btn-success">Enregistrer</button>
     </div>
   </form>
+    </div>
+
+    <!-- Colonne historique (4 colonnes) -->
+    <div class="col-lg-3">
+      <div class="card shadow-sm h-100">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+          <span>Historique des prestations</span>
+          <button id="refresh-history" class="btn btn-sm btn-light">
+            <i class="bi bi-arrow-repeat"></i>
+          </button>
+        </div>
+        <div class="card-body p-0">
+          <div id="history-content" class="p-3">
+            <div class="text-center py-4">
+              <div class="spinner-border text-primary" role="status"></div>
+              <p class="mt-2 text-muted">Chargement...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
+<script>
+ // Activer/désactiver le bouton selon la sélection
+document.getElementById('patientSelect').addEventListener('change', function() {
+  loadPatientHistory();
+});
+
+// Bouton de rafraîchissement
+document.getElementById('refresh-history').addEventListener('click', loadPatientHistory);
+
+// Fonction de chargement de l'historique
+function loadPatientHistory() {
+  const patientId = document.getElementById('patientSelect').value;
+  const historyContent = document.getElementById('history-content');
+  
+  if (!patientId) {
+    historyContent.innerHTML = `
+      <div class="alert alert-info text-center">
+        <i class="bi bi-info-circle me-2"></i>
+        Veuillez sélectionner un patient
+      </div>`;
+    return;
+  }
+  
+  historyContent.innerHTML = `
+    <div class="text-center py-4">
+      <div class="spinner-border text-primary" role="status"></div>
+      <p class="mt-2 text-muted">Chargement de l'historique...</p>
+    </div>`;
+  
+  fetch(`/medical/prestations/history/${patientId}/`)
+    .then(r => r.json())
+    .then(data => {
+      let html = `<h6 class="mb-3">Patient: <strong>${data.patient}</strong></h6>`;
+      
+      if (data.prestations.length === 0) {
+        html += `<div class="alert alert-info">Aucune prestation trouvée</div>`;
+      } else {
+        html += `<div class="list-group" style="max-height: 75vh; overflow-y: auto;">`;
+        
+        data.prestations.forEach(p => {
+          html += `
+          <div class="list-group-item mb-2">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <div class="fw-bold">${p.date}</div>
+                <div class="small text-muted">${p.medecin}</div>
+              </div>
+              <span class="badge bg-primary">${p.statut}</span>
+            </div>
+            
+            <div class="mt-2 small">Actes:</div>
+            <ul class="mb-1 small">`;
+          
+          p.actes.forEach(a => {
+            html += `<li>${a.libelle} - ${a.tarif.toFixed(2)} DA</li>`;
+          });
+          
+          html += `</ul>
+            <div class="text-end fw-bold mt-2">Total: ${p.total.toFixed(2)} DA</div>
+          </div>`;
+        });
+        html += `</div>`;
+      }
+      
+      historyContent.innerHTML = html;
+    })
+    .catch(error => {
+      historyContent.innerHTML = `
+        <div class="alert alert-danger">
+          <i class="bi bi-exclamation-triangle me-2"></i>
+          Erreur lors du chargement de l'historique
+        </div>`;
+    });
+}
+
+// Charger l'historique au démarrage si patient pré-sélectionné
+document.addEventListener('DOMContentLoaded', () => {
+  // ... (le reste de votre code JS) ...
+  
+  // Charger l'historique si un patient est déjà sélectionné
+  if (document.getElementById('patientSelect').value) {
+    loadPatientHistory();
+  }
+});
+</script>
 <script src="{% static 'js/choices.min.js' %}"></script>
 <script>
   // Récupération de la liste globale des produits et des actes

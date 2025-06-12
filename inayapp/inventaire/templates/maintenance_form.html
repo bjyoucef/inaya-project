@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if object %}Modifier Maintenance{% else %}Nouvelle Maintenance{% endif %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h2 class="mb-4">
+        <i class="fas fa-tools me-2"></i>
+        {% if object %}Modifier Maintenance{% else %}Créer une Maintenance{% endif %}
+    </h2>
+
+    <div class="card shadow">
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Équipement</label>
+                            {{ form.item }}
+                            {% if form.item.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.item.errors|first }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Type de Maintenance</label>
+                            {{ form.type_maintenance }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-8">
+                        <div class="form-group">
+                            <label class="form-label">Titre</label>
+                            {{ form.titre }}
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label class="form-label">Date Planifiée</label>
+                            {{ form.date_planifiee }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <div class="form-group">
+                        <label class="form-label">Description</label>
+                        {{ form.description }}
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Technicien</label>
+                            {{ form.technicien }}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Coût estimé (DA)</label>
+                            {{ form.cout }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-end mt-4">
+                    <a href="{% url 'inventaire:maintenance_list' %}" class="btn btn-outline-secondary me-2">
+                        <i class="fas fa-times me-2"></i>Annuler
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>Enregistrer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Initialiser les sélecteurs avec select2
+    $(document).ready(function() {
+        $('select').select2({
+            theme: 'bootstrap-5'
+        });
+        
+        // Initialiser le datepicker
+        $('[name="date_planifiee"]').flatpickr({
+            dateFormat: "d/m/Y",
+            locale: "fr"
+        });
+    });
+</script>
+{% endblock %}

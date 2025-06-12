@@ -1,0 +1,405 @@
+
+
+{% for emp_data in report %}
+
+<!-- Exemple d'employé -->
+  <div class="employee-header">
+    <div style="display: flex; align-items: center">
+      <div class="employee-avatar">
+        {{ emp_data.personnel.nom_prenom|slice:":1"|upper }}
+      </div>
+      <div class="employee-info">
+        <h2 class="employee-name">{{ emp_data.personnel.nom_prenom }}</h2>
+        <div class="employee-badges">
+          <div class="badge">
+            <i class="fas fa-building"></i>
+            {{ emp_data.personnel.service.name|default:"Non affecté" }}
+          </div>
+          <div class="badge">
+            <i class="fas fa-user-tag"></i>
+            {{ emp_data.personnel.poste.label|default_if_none:"Poste non défini" }}
+          </div>
+          <div class="badge">
+            <i class="fas fa-id-badge"></i>
+            # {{ emp_data.personnel.employee.anviz_id|default:"NC" }}
+          </div>
+          <div class="badge">
+            <i class="fas fa-coins"></i>
+            # {{ emp_data.totals.taux_horaire|floatformat:2 }} DZD/H
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+  <div class="stats-section">
+    <!-- Indicateur de présence -->
+    <div class="presence-indicator">
+      <div class="presence-header d-flex justify-content-between">
+        <div class="presence-title">
+          <i class="fas fa-calendar-check"></i>
+          Taux de présence
+        </div>
+        <div class="presence-percentage" data-target="{{ emp_data.totals.taux_presence }}">
+          0.0%
+        </div>
+      </div>
+      <div class="progress-bar mb-3">
+        <div
+          class="progress-fill"
+          style="width: {{ emp_data.totals.taux_presence|floatformat:0 }}%"
+        ></div>
+      </div>
+
+
+    <!-- Métriques principales -->
+    <div class="row m-auto">
+      <div class="metric-card col-3">
+        <div class="metric-header">
+          <div class="metric-icon">
+            <i class="fas fa-clock"></i>
+          </div>
+          <div class="metric-title">Heures Travaillées</div>
+        </div>
+        <div class="metric-value">
+          {{ emp_data.totals.regular_hours_formatted }}
+        </div>
+        <span style="color: #059669">
+          + {{ emp_data.salaire.salaire_base|floatformat:2 }} DZD
+        </span>
+
+        <div
+          style="
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid rgba(45, 55, 72, 0.1);
+          "
+        >
+          <div
+            style="
+              display: flex;
+              justify-content: space-between;
+              font-size: 0.875rem;
+              color: #4a5568;
+              margin-bottom: 4px;
+            "
+          >
+            <span>Ind. repas</span>
+            <span style="color: #059669; font-weight: 600"
+              >+ {{ emp_data.salaire.indemnites.repas|floatformat:2 }} DZD</span
+            >
+          </div>
+          <div
+            style="
+              display: flex;
+              justify-content: space-between;
+              font-size: 0.875rem;
+              color: #4a5568;
+            "
+          >
+            <span>Ind. transport</span>
+            <span style="color: #059669; font-weight: 600"
+              >+ {{ emp_data.salaire.indemnites.transport|floatformat:2 }}
+              DZD</span
+            >
+          </div>
+        </div>
+      </div>
+
+      <!-- Modifier la section Heures Supplémentaires -->
+      <div class="metric-card col-3">
+        <div class="metric-header">
+          <div class="metric-icon">
+            <i class="fas fa-stopwatch"></i>
+          </div>
+          <div class="metric-title">Heures Supplémentaires</div>
+        </div>
+        
+        <div class="metric-value">
+          {{ emp_data.totals.validated_regular_formatted }}
+        </div>
+        <span style="color: #059669">
+          +{{ emp_data.totals.validated_overtime_amount|floatformat:2 }} DZD
+        </span>
+
+      </div>
+
+
+      <div class="metric-card col-3">
+        <div class="metric-header">
+          <div class="metric-icon">
+            <i class="fas fa-calendar-alt"></i>
+          </div>
+          <div class="metric-title">Jours Fériés</div>
+        </div>
+        
+        <div class="metric-value">
+          {{ emp_data.totals.holidays_count }} jour(s)
+        </div>
+        <span style="color: #059669"
+        >
+        +{{ emp_data.totals.paid_holidays_amount|default:0|floatformat:2 }} DZD</span
+      >
+      <div
+      style="
+        border-top: 1px solid rgba(45, 55, 72, 0.1);
+        padding-top: 8px;
+      "
+    >
+        <div style="margin-top: 16px">
+          <div
+            style="
+              display: flex;
+              justify-content: space-between;
+              font-weight: 600;
+              margin-bottom: 8px;
+            "
+          >
+            <span class="public-holiday-overtime"
+              >
+              + {{ emp_data.totals.validated_holiday_formatted }}</span
+            >
+            <span class="public-holiday-amount" style="color: #059669"
+              >
+              +{{ emp_data.totals.public_holiday_overtime_amount|default:0|floatformat:2 }} DZD</span
+            >
+          </div>
+
+
+
+
+          </div>
+        </div>
+      </div>
+
+      <div class="metric-card col-3">
+        <div class="metric-header">
+          <div class="metric-icon">
+            <i class="fas fa-exclamation-triangle"></i>
+          </div>
+          <div class="metric-title">Absences & Retards</div>
+        </div>
+        <div class="metric-value">{{ emp_data.totals.absence }} absence(s)</div>
+        <div
+          style="
+            margin-top: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+          "
+        >
+          <div style="display: flex; justify-content: space-between">
+            <span style="color: #dc2626; font-weight: 600"
+              >-{{ emp_data.totals.absence_amount|floatformat:2 }} DZD</span
+            >
+          </div>
+          <div
+          style="
+            border-top: 1px solid rgba(45, 55, 72, 0.1);
+            padding-top: 8px;
+          "
+        >
+          <div
+            style="
+              display: flex;
+              justify-content: space-between;
+              font-size: 0.875rem;
+            "
+          >
+            <span>{{ emp_data.totals.late_formatted }} retard</span>
+            <span style="color: #dc2626; font-weight: 600"
+              >-{{ emp_data.totals.late_amount|floatformat:2 }} DZD</span
+            >
+          </div>
+          <div
+            style="
+              display: flex;
+              justify-content: space-between;
+              font-size: 0.875rem;
+            "
+          >
+            <span>{{ emp_data.totals.early_formatted }} départ</span>
+            <span style="color: #dc2626; font-weight: 600"
+              >-{{ emp_data.totals.early_leave_amount|floatformat:2 }} DZD</span
+            >
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+    <!-- Salaire net -->
+    <div class="salary-card">
+
+
+      <div class="deductions d-flex justify-content-between">
+        <div class="deduction-item">
+          <div class="deduction-label">IRG</div>
+          <div class="deduction-value">
+            -{{ emp_data.salaire.deductions.irg|floatformat:2 }} DZD
+          </div>
+          <div class="deduction-label">CNAS</div>
+          <div class="deduction-value">
+            -{{ emp_data.salaire.deductions.cnas|floatformat:2 }} DZD
+          </div>
+        </div>
+        <div class="deduction-item">
+          <div class="deduction-label">
+            <i class="fas fa-wallet"></i>
+            Salaire Net à Payer
+          </div>
+          <div class="salary-amount">
+            {{ emp_data.salaire.salaire_net|floatformat:2 }} DZD
+          </div>
+        </div>
+        <div class="deduction-item">
+          <div class="deduction-label">
+            <i class="fas fa-wallet"></i>
+            Avances Sur Salaire
+          </div>
+          <div class="salary-amount">
+            {{ emp_data.salaire.avances|floatformat:2 }} DZD
+          </div>
+        </div>
+        <div class="deduction-item">
+          <div class="deduction-label">
+            <i class="fas fa-wallet"></i>
+            Salaire Net à Payer Après Avance
+          </div>
+          <div class="salary-amount">
+            {{ emp_data.salaire.salaire_net_apres_avance|floatformat:2 }} DZD
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Détails journaliers -->
+    <div class="daily-details">
+      <div class="section-header">
+        <div class="section-title">
+          <i class="fas fa-calendar-day"></i>
+          Détails Journaliers
+        </div>
+        <div class="days-count">{{ emp_data.days|length }} jours analysés</div>
+      </div>
+
+      <div class="daily-table">
+        <div class="table-header">
+          <div>Date</div>
+          <div>Plages Horaires</div>
+          <div>Total</div>
+          <div>Statut</div>
+        </div>
+        {% for day in emp_data.days %}
+        <!-- Exemple de lignes -->
+        <div
+          class="table-row 
+          {% if not day.entries and not day.is_absent %} repos
+          {% elif day.is_holiday %} holiday 
+          {% elif day.is_weekend %} weekend 
+          {% elif day.is_absent %} absent 
+          {% endif %}"
+        >
+          <div class="date-cell">
+            <div class="date-main">{{ day.date|date:"d/m/Y" }}</div>
+            <div class="date-sub">{{ day.date|date:"l"|capfirst }}</div>
+          </div>
+
+          <div class="time-ranges">
+            {% for pair in day.pairs %}
+              <div class="time-pair">
+                {# Entrée #}
+                {% if pair.0 %}
+                  <div class="time-entry {% if not pair.1 %}single-entry{% endif %}">
+                    <span class="time-value">
+                      {{ pair.0.check_time|time:"H:i" }}
+                    </span>
+                    {% if day.early_overtime != '-' %}
+                      <div class="overtime-chip">
+                        ⏪ {{ day.early_overtime }}
+                      </div>
+                    {% endif %}
+                  </div>
+                {% endif %}
+
+                  {# Sortie #}
+                {% if pair.1 %}
+                  <div class="time-entry {% if not pair.0 %}single-entry{% endif %}">
+                    <span class="time-value">
+                      {{ pair.1.check_time|time:"H:i" }}
+                    </span>
+                    {% if day.late_overtime != '-' %}
+                        <div class="overtime-chip">
+                          ⏩ {{ day.late_overtime }}
+                        </div>
+                    {% endif %}
+                  </div>
+                {% endif %}
+              </div>
+            {% endfor %}
+          </div>
+
+          <div class="total-cell">
+            <div class="total-main">{{ day.total|default:"-" }}</div>
+            {% if day.overtime != '-' %}
+            <div class="total-details">
+              <div class="detail-item detail-overtime">{{ day.overtime }}</div>
+            </div>
+            {% endif %} {% if day.late_minutes != '-' %}
+            <div class="total-details">
+              <div class="detail-item detail-late">
+                Retard: {{ day.late_minutes }}
+              </div>
+            </div>
+            {% endif %} {% if day.early_leave_minutes != '-' %}
+            <div class="total-details">
+              <div class="detail-item detail-late">
+                Départ: {{ day.early_leave_minutes }}
+              </div>
+            </div>
+            {% endif %}
+          </div>
+
+          <div>
+            {% if not day.entries and not day.is_absent %}
+            <div class="status-badge status-repos">
+              <i class="fas fa-bed"></i>
+              Repos
+            </div>
+            {% elif day.is_holiday %}
+            <div class="status-badge status-holiday">
+              <i class="fas fa-flag"></i>
+              Férié
+            </div>
+            {% elif day.is_weekend %}
+            <div class="status-badge status-weekend">
+              <i class="fas fa-umbrella-beach"></i>
+              Week-end
+            </div>
+            {% elif day.is_absent %}
+            <div class="status-badge status-absent">
+              <i class="fas fa-bed"></i>
+              Absence
+            </div>
+
+            {% elif day.late_minutes != '-' %}
+            <div class="status-badge status-late">
+              <i class="fas fa-clock"></i>
+              Retard
+            </div>
+            {% else %}
+            <div class="status-badge status-present">
+              <i class="fas fa-check-circle"></i>
+              Conforme
+            </div>
+            {% endif %}
+          </div>
+        </div>
+
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endfor %}
+

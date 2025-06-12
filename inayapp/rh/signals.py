@@ -52,3 +52,5 @@ def create_user_for_personnel(sender, instance, created, **kwargs):
         
         except Exception as e:
             raise ValidationError(f"Une erreur est survenue lors de la création de l'utilisateur: {str(e)}")
+
+

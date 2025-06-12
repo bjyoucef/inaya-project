@@ -6,15 +6,23 @@ from django.db import models
 from django.urls import reverse
 from django.utils import timezone
 
+from decimal import Decimal
+from django.db import models
+from django.urls import reverse
+from django.core.validators import MinValueValidator, MaxValueValidator, RegexValidator
+from django.utils import timezone
+from django.core.exceptions import ValidationError
+from django.db import transaction
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
+import uuid
+from datetime import datetime, timedelta
 from ..models import MouvementStock, Stock
 
 
 class Achat(models.Model):
     livraison = models.ForeignKey(
-        'BonLivraison', 
-        on_delete=models.SET_NULL,
-        null=True,
-        related_name='achats'
+        "BonLivraison", on_delete=models.SET_NULL, null=True, related_name="achats"
     )
     service_destination = models.ForeignKey(
         "medical.Service", on_delete=models.PROTECT, verbose_name="Service destinataire"
@@ -36,8 +44,7 @@ class Achat(models.Model):
     numero_lot = models.CharField(
         max_length=50, blank=True, null=True, verbose_name="Numéro de lot"
     )
-    date_peremption = models.DateTimeField(verbose_name="Date de péremption"
-    )
+    date_peremption = models.DateTimeField(verbose_name="Date de péremption")
 
     class Meta:
         verbose_name = "Achat"
@@ -99,9 +106,8 @@ class BonCommande(models.Model):
         "Fournisseur", on_delete=models.PROTECT, related_name="commandes"
     )
     numero_commande = models.CharField(max_length=50, unique=True, default=uuid.uuid4)
-    date_commande = models.DateTimeField( auto_now_add=True)
-    date_livraison_prevue = models.DateTimeField(
-    )
+    date_commande = models.DateTimeField(auto_now_add=True)
+    date_livraison_prevue = models.DateTimeField()
     statut = models.CharField(
         max_length=20, choices=STATUT_CHOICES, default="BROUILLON"
     )
@@ -139,8 +145,7 @@ class LigneCommande(models.Model):
     produit = models.ForeignKey("Produit", on_delete=models.PROTECT)
     quantite = models.PositiveIntegerField()
     prix_unitaire = models.DecimalField(max_digits=10, decimal_places=2)
-    date_peremption = models.DateTimeField(
-    )
+    date_peremption = models.DateTimeField()
     numero_lot = models.CharField(max_length=50, blank=True, null=True)
 
     class Meta:
@@ -151,12 +156,14 @@ class LigneCommande(models.Model):
     def montant(self):
         return self.quantite * self.prix_unitaire
 
+
 # pharmacies/models/commande.py
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 import uuid
 from django.db import models, transaction
+
 
 class BonLivraison(models.Model):
     commande = models.ForeignKey(
@@ -186,7 +193,10 @@ class BonLivraison(models.Model):
         return f"BL {self.numero_bl} - {self.commande.numero_commande}"
 
     def clean(self):
-        if not hasattr(self, 'commande') or self.commande.statut not in ["VALIDE", "LIVRE"]:
+        if not hasattr(self, "commande") or self.commande.statut not in [
+            "VALIDE",
+            "LIVRE",
+        ]:
             raise ValidationError("La commande doit être validée avant livraison")
 
     def save(self, *args, **kwargs):

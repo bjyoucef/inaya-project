@@ -8,5 +8,5 @@ class MedecinAdmin(admin.ModelAdmin):
         "personnel__user__first_name",
         "personnel__user__last_name",
     )
-    autocomplete_fields = ("personnel",)
+    # autocomplete_fields = ("personnel",)
     list_display = ("personnel", "specialite")

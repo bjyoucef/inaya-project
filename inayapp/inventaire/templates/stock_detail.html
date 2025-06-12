@@ -1,0 +1,259 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Détail Stock - {{ stock.item.nom }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- En-tête -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-0">Détail du Stock</h2>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'inventaire:dashboard' %}">Tableau de bord</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'inventaire:stock_list' %}">Stocks</a></li>
+                    <li class="breadcrumb-item active">{{ stock.item.nom }}</li>
+                </ol>
+            </nav>
+        </div>
+        <div>
+            <a href="{% url 'inventaire:mouvement_create' %}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Nouveau Mouvement
+            </a>
+            <a href="{% url 'inventaire:barcode_generate' stock.item.id %}" class="btn btn-outline-secondary" target="_blank">
+                <i class="fas fa-qrcode"></i> Code-barres
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Informations générales -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-info-circle"></i> Informations Générales
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <tr>
+                            <td><strong>Nom :</strong></td>
+                            <td>{{ stock.item.nom }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Code-barres :</strong></td>
+                            <td><code>{{ stock.item.code_barre }}</code></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Catégorie :</strong></td>
+                            <td>
+                                <span class="badge badge-info">{{ stock.item.categorie.nom }}</span>
+                            </td>
+                        </tr>
+                        {% if stock.item.marque %}
+                        <tr>
+                            <td><strong>Marque :</strong></td>
+                            <td>{{ stock.item.marque.nom }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if stock.item.numero_serie %}
+                        <tr>
+                            <td><strong>N° Série :</strong></td>
+                            <td><code>{{ stock.item.numero_serie }}</code></td>
+                        </tr>
+                        {% endif %}
+                        <tr>
+                            <td><strong>État :</strong></td>
+                            <td>
+                                <span class="badge badge-{% if stock.item.etat == 'neuf' %}success{% elif stock.item.etat == 'bon' %}primary{% elif stock.item.etat == 'moyen' %}warning{% else %}danger{% endif %}">
+                                    {{ stock.item.get_etat_display }}
+                                </span>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Localisation -->
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-map-marker-alt"></i> Localisation
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Service :</strong> {{ stock.salle.service.name }}</p>
+                    <p><strong>Salle :</strong> {{ stock.salle.nom }}</p>
+                    {% if stock.emplacement %}
+                    <p><strong>Emplacement :</strong> {{ stock.emplacement }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Informations stock -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-boxes"></i> Informations Stock
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <h3 class="text-primary">{{ stock.quantite }}</h3>
+                            <small class="text-muted">Quantité actuelle</small>
+                        </div>
+                        <div class="col-4">
+                            <h3 class="text-warning">{{ stock.quantite_min }}</h3>
+                            <small class="text-muted">Seuil d'alerte</small>
+                        </div>
+                        <div class="col-4">
+                            <h3 class="text-success">{{ stock.quantite_max }}</h3>
+                            <small class="text-muted">Stock maximum</small>
+                        </div>
+                    </div>
+                    
+                    {% if stock.est_en_rupture %}
+                    <div class="alert alert-danger mt-3">
+                        <i class="fas fa-exclamation-triangle"></i> Stock en rupture !
+                    </div>
+                    {% elif stock.est_en_alerte %}
+                    <div class="alert alert-warning mt-3">
+                        <i class="fas fa-exclamation-triangle"></i> Stock en alerte !
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Informations financières -->
+            {% if stock.item.prix_achat %}
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-dollar-sign"></i> Informations Financières
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Prix d'achat :</strong> {{ stock.item.prix_achat }} DA</p>
+                    <p><strong>Valeur stock :</strong> 
+                        <span class="text-success font-weight-bold">
+                            {% widthratio stock.item.prix_achat 1 stock.quantite %} DA
+                        </span>
+                    </p>
+                    {% if stock.item.date_achat %}
+                    <p><strong>Date d'achat :</strong> {{ stock.item.date_achat|date:"d/m/Y" }}</p>
+                    {% endif %}
+                    {% if stock.item.date_garantie %}
+                    <p><strong>Garantie jusqu'au :</strong> {{ stock.item.date_garantie|date:"d/m/Y" }}
+                        {% if stock.item.est_sous_garantie %}
+                        <span class="badge badge-success">Sous garantie</span>
+                        {% else %}
+                        <span class="badge badge-danger">Garantie expirée</span>
+                        {% endif %}
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Actions rapides -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-cogs"></i> Actions Rapides
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#entreeModal">
+                            <i class="fas fa-plus"></i> Entrée Stock
+                        </button>
+                        <button class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#sortieModal">
+                            <i class="fas fa-minus"></i> Sortie Stock
+                        </button>
+                        <button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#transfertModal">
+                            <i class="fas fa-exchange-alt"></i> Transfert
+                        </button>
+                        <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#perteModal">
+                            <i class="fas fa-exclamation-triangle"></i> Déclarer Perte
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {% if stock.item.description %}
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-file-alt"></i> Description
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p>{{ stock.item.description }}</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Historique des mouvements -->
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-history"></i> Historique des Mouvements
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Type</th>
+                            <th>Quantité</th>
+                            <th>Motif</th>
+                            <th>Utilisateur</th>
+                            <th>Statut</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for mouvement in mouvements %}
+                        <tr>
+                            <td>{{ mouvement.date_mouvement|date:"d/m/Y H:i" }}</td>
+                            <td>
+                                <span class="badge badge-{% if mouvement.type_mouvement == 'entree' %}success{% elif mouvement.type_mouvement == 'sortie' %}warning{% elif mouvement.type_mouvement == 'transfert' %}info{% else %}danger{% endif %}">
+                                    {{ mouvement.get_type_mouvement_display }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if mouvement.type_mouvement == 'entree' %}+{% else %}-{% endif %}{{ mouvement.quantite }}
+                            </td>
+                            <td>{{ mouvement.motif|default:"-" }}</td>
+                            <td>{{ mouvement.created_by.username|default:"-" }}</td>
+                            <td>
+                                <span class="badge badge-{% if mouvement.statut == 'valide' %}success{% elif mouvement.statut == 'en_attente' %}warning{% else %}secondary{% endif %}">
+                                    {{ mouvement.get_statut_display }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center text-muted">Aucun mouvement enregistré</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modals pour actions rapides -->
+{% include 'modals/mouvement_modals.html' %}
+{% endblock %}

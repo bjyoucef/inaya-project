@@ -1,0 +1,381 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Mouvements de Stock{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- En-tête -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-0">Mouvements de Stock</h2>
+            <p class="text-muted">Historique de tous les mouvements</p>
+        </div>
+        <div>
+            <a href="{% url 'inventaire:mouvement_create' %}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Nouveau Mouvement
+            </a>
+            <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#filtresModal">
+                <i class="fas fa-filter"></i> Filtres
+            </button>
+        </div>
+    </div>
+
+    <!-- Statistiques rapides -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div>
+                            <h4 class="mb-0">{{ mouvements|length }}</h4>
+                            <small>Total mouvements</small>
+                        </div>
+                        <div class="ms-auto">
+                            <i class="fas fa-exchange-alt fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div>
+                            <h4 class="mb-0">{{ mouvements.entrees|length|default:0 }}</h4>
+                            <small>Entrées</small>
+                        </div>
+                        <div class="ms-auto">
+                            <i class="fas fa-arrow-down fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div>
+                            <h4 class="mb-0">{{ mouvements.sorties|length|default:0 }}</h4>
+                            <small>Sorties</small>
+                        </div>
+                        <div class="ms-auto">
+                            <i class="fas fa-arrow-up fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div>
+                            <h4 class="mb-0">{{ mouvements.transferts|length|default:0 }}</h4>
+                            <small>Transferts</small>
+                        </div>
+                        <div class="ms-auto">
+                            <i class="fas fa-exchange-alt fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tableau des mouvements -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-list"></i> Liste des Mouvements
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover" id="mouvementsTable">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Type</th>
+                            <th>Item</th>
+                            <th>Salle</th>
+                            <th>Quantité</th>
+                            <th>Motif</th>
+                            <th>Utilisateur</th>
+                            <th>Statut</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for mouvement in mouvements %}
+                        <tr>
+                            <td>
+                                <div>
+                                    <strong>{{ mouvement.date_mouvement|date:"d/m/Y" }}</strong><br>
+                                    <small class="text-muted">{{ mouvement.date_mouvement|date:"H:i" }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge badge-{% if mouvement.type_mouvement == 'entree' %}success{% elif mouvement.type_mouvement == 'sortie' %}warning{% elif mouvement.type_mouvement == 'transfert' %}info{% elif mouvement.type_mouvement == 'inventaire' %}primary{% else %}danger{% endif %}">
+                                    {{ mouvement.get_type_mouvement_display }}
+                                </span>
+                            </td>
+                            <td>
+                                <div>
+                                    <strong>{{ mouvement.stock.item.nom }}</strong><br>
+                                    <small class="text-muted">{{ mouvement.stock.item.code_barre }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div>
+                                    <strong>{{ mouvement.stock.salle.nom }}</strong><br>
+                                    <small class="text-muted">{{ mouvement.stock.salle.service.name }}</small>
+                                </div>
+                                {% if mouvement.salle_destination %}
+                                <div class="mt-1">
+                                    <i class="fas fa-arrow-right text-info"></i>
+                                    <small class="text-info">{{ mouvement.salle_destination.nom }}</small>
+                                </div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="{% if mouvement.type_mouvement == 'entree' %}text-success{% elif mouvement.type_mouvement in 'sortie,perte,vol,casse' %}text-danger{% else %}text-info{% endif %}">
+                                    {% if mouvement.type_mouvement == 'entree' %}+{% elif mouvement.type_mouvement in 'sortie,perte,vol,casse' %}-{% endif %}{{ mouvement.quantite }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if mouvement.motif %}
+                                    <span title="{{ mouvement.motif }}">
+                                        {{ mouvement.motif|truncatechars:30 }}
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if mouvement.created_by %}
+                                    <div>
+                                        <strong>{{ mouvement.created_by.get_full_name|default:mouvement.created_by.username }}</strong><br>
+                                        <small class="text-muted">{{ mouvement.created_at|date:"d/m H:i" }}</small>
+                                    </div>
+                                {% else %}
+                                    <span class="text-muted">Système</span>
+                                {% endif %}
+                                {% if mouvement.validated_by %}
+                                <div class="mt-1">
+                                    <i class="fas fa-check text-success"></i>
+                                    <small class="text-success">{{ mouvement.validated_by.username }}</small>
+                                </div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge badge-{% if mouvement.statut == 'valide' %}success{% elif mouvement.statut == 'en_attente' %}warning{% elif mouvement.statut == 'en_cours' %}info{% elif mouvement.statut == 'termine' %}primary{% else %}secondary{% endif %}">
+                                    {{ mouvement.get_statut_display }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    {% if mouvement.statut == 'en_attente' %}
+                                    <button class="btn btn-sm btn-success" onclick="validerMouvement({{ mouvement.id }})" title="Valider">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-danger" onclick="annulerMouvement({{ mouvement.id }})" title="Annuler">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                    {% endif %}
+                                    <button class="btn btn-sm btn-outline-info" onclick="voirDetails({{ mouvement.id }})" title="Détails">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="9" class="text-center text-muted py-4">
+                                <i class="fas fa-inbox fa-3x mb-3"></i><br>
+                                Aucun mouvement enregistré
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if is_paginated %}
+            <nav aria-label="Navigation des pages">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1">&laquo; Première</a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Précédente</a>
+                        </li>
+                    {% endif %}
+                    
+                    {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ num }}</span>
+                            </li>
+                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}">Suivante</a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">Dernière &raquo;</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Modal Filtres -->
+<div class="modal fade" id="filtresModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Filtres de Recherche</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="get">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Type de mouvement</label>
+                        <select name="type_mouvement" class="form-select">
+                            <option value="">Tous les types</option>
+                            <option value="entree">Entrée</option>
+                            <option value="sortie">Sortie</option>
+                            <option value="transfert">Transfert</option>
+                            <option value="inventaire">Inventaire</option>
+                            <option value="perte">Perte</option>
+                            <option value="vol">Vol</option>
+                            <option value="casse">Casse</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Statut</label>
+                        <select name="statut" class="form-select">
+                            <option value="">Tous les statuts</option>
+                            <option value="en_attente">En attente</option>
+                            <option value="valide">Validé</option>
+                            <option value="annule">Annulé</option>
+                        </select>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="form-label">Date début</label>
+                            <input type="date" name="date_debut" class="form-control">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Date fin</label>
+                            <input type="date" name="date_fin" class="form-control">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                    <button type="submit" class="btn btn-primary">Appliquer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Détails Mouvement -->
+<div class="modal fade" id="detailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Détails du Mouvement</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="detailsContent">
+                <!-- Contenu chargé dynamiquement -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function validerMouvement(id) {
+    if (confirm('Êtes-vous sûr de vouloir valider ce mouvement ?')) {
+        // Ajax call to validate movement
+        fetch(`/inventaire/api/mouvements/${id}/valider/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Erreur lors de la validation');
+            }
+        });
+    }
+}
+
+function annulerMouvement(id) {
+    if (confirm('Êtes-vous sûr de vouloir annuler ce mouvement ?')) {
+        fetch(`/inventaire/api/mouvements/${id}/annuler/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Erreur lors de l\'annulation');
+            }
+        });
+    }
+}
+
+function voirDetails(id) {
+    fetch(`/inventaire/api/mouvements/${id}/`)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('detailsContent').innerHTML = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Informations générales</h6>
+                        <p><strong>Type:</strong> ${data.type_mouvement}</p>
+                        <p><strong>Quantité:</strong> ${data.quantite}</p>
+                        <p><strong>Date:</strong> ${data.date_mouvement}</p>
+                        <p><strong>Statut:</strong> ${data.statut}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Item concerné</h6>
+                        <p><strong>Nom:</strong> ${data.stock.item.nom}</p>
+                        <p><strong>Code-barres:</strong> ${data.stock.item.code_barre}</p>
+                        <p><strong>Salle:</strong> ${data.stock.salle.nom}</p>
+                    </div>
+                </div>
+                ${data.motif ? `<div class="mt-3"><h6>Motif</h6><p>${data.motif}</p></div>` : ''}
+            `;
+            new bootstrap.Modal(document.getElementById('detailsModal')).show();
+        });
+}
+</script>
+{% endblock %}

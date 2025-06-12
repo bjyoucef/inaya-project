@@ -1,0 +1,257 @@
+{% extends "layout.html" %}
+{% load static %}
+{% load custom_filters %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="main-content">
+            <!-- En-tête -->
+            <div class="d-flex align-items-center mb-4">
+                <a href="{% url 'detail_demande_heures_sup' demande.pk %}" class="btn btn-outline-secondary me-3">
+                    <i class="fas fa-arrow-left"></i>
+                </a>
+                <div>
+                    <h2 class="mb-1">
+                        <i class="fas fa-edit me-2"></i>Modifier la demande
+                        <span class="text-primary">{{ demande.numero_demande }}</span>
+                    </h2>
+                    <p class="text-muted mb-0">
+                        Statut actuel : 
+                        <span class="badge status-{{ demande.statut }}">
+                            {{ demande.get_statut_display }}
+                        </span>
+                    </p>
+                </div>
+            </div>
+            
+            <!-- Formulaire -->
+            <form method="post" id="demandeForm" novalidate>
+                {% csrf_token %}
+                
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-calendar-alt me-2"></i>Période des heures supplémentaires
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="date_debut" class="form-label required">
+                                    <i class="fas fa-play text-success me-1"></i>Date et heure de début
+                                </label>
+                                <input type="datetime-local" class="form-control" id="date_debut" name="date_debut" 
+                                       value="{{ demande.date_debut|date:'Y-m-d\TH:i' }}" required>
+                                <div class="invalid-feedback">
+                                    Veuillez saisir la date et heure de début.
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="date_fin" class="form-label required">
+                                    <i class="fas fa-stop text-danger me-1"></i>Date et heure de fin
+                                </label>
+                                <input type="datetime-local" class="form-control" id="date_fin" name="date_fin" 
+                                       value="{{ demande.date_fin|date:'Y-m-d\TH:i' }}" required>
+                                <div class="invalid-feedback">
+                                    Veuillez saisir la date et heure de fin.
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Calcul automatique des heures -->
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="alert alert-info" id="duree-info">
+                                    <i class="fas fa-calculator me-2"></i>
+                                    <strong>Durée calculée :</strong> 
+                                    <span id="duree-text">{{ demande.nombre_heures }}h</span>
+                                    <span class="ms-2">(<span id="heures-decimales">{{ demande.nombre_heures }}</span> heures)</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Motif -->
+                <div class="mb-4">
+                    <label for="motif" class="form-label required">
+                        <i class="fas fa-tag me-1"></i>Motif
+                    </label>
+                    <select class="form-select" id="motif" name="motif" required>
+                        {% for value, label in motifs %}
+                            <option value="{{ value }}" {% if demande.motif == value %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    <div class="invalid-feedback">
+                        Veuillez sélectionner un motif.
+                    </div>
+                </div>
+                
+                <!-- Description -->
+                <div class="mb-4">
+                    <label for="description" class="form-label">
+                        <i class="fas fa-align-left me-1"></i>Description détaillée
+                    </label>
+                    <textarea class="form-control" id="description" name="description" rows="4"
+                              placeholder="Décrivez les circonstances et la nécessité de ces heures supplémentaires...">{{ demande.description }}</textarea>
+                </div>
+                
+                <!-- Boutons d'action -->
+                <div class="d-flex justify-content-between">
+                    <a href="{% url 'detail_demande_heures_sup' demande.pk %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-times me-1"></i>Annuler
+                    </a>
+                    
+                    <button type="submit" class="btn btn-primary" id="btn-submit">
+                        <i class="fas fa-save me-1"></i>Enregistrer les modifications
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    .required::after {
+        content: " *";
+        color: red;
+    }
+    
+    .form-control:invalid {
+        border-color: #dc3545;
+    }
+    
+    .form-control:valid {
+        border-color: #198754;
+    }
+    
+    .status-en_attente { background-color: #ffc107; color: #000; }
+    .status-approuvee { background-color: #198754; color: #fff; }
+    .status-refusee { background-color: #dc3545; color: #fff; }
+    .status-annulee { background-color: #6c757d; color: #fff; }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('demandeForm');
+    const dateDebutInput = document.getElementById('date_debut');
+    const dateFinInput = document.getElementById('date_fin');
+    const dureeText = document.getElementById('duree-text');
+    const heuresDecimales = document.getElementById('heures-decimales');
+    
+    // Calcul automatique de la durée
+    function calculateDuration() {
+        const dateDebut = dateDebutInput.value;
+        const dateFin = dateFinInput.value;
+        
+        if (dateDebut && dateFin) {
+            const debut = new Date(dateDebut);
+            const fin = new Date(dateFin);
+            
+            if (fin > debut) {
+                // Calcul via AJAX
+                fetch("{% url 'calcul_heures_ajax' %}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({
+                        date_debut: dateDebut,
+                        date_fin: dateFin
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.heures) {
+                        dureeText.textContent = data.duree_formatee;
+                        heuresDecimales.textContent = data.heures;
+                    }
+                })
+                .catch(error => {
+                    console.error('Erreur calcul:', error);
+                });
+            } else {
+                dureeText.textContent = 'Date de fin invalide';
+            }
+        }
+    }
+    
+    // Écouteurs pour le calcul de durée
+    dateDebutInput.addEventListener('change', calculateDuration);
+    dateFinInput.addEventListener('change', calculateDuration);
+    
+    // Validation du formulaire
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // Validation personnalisée
+        let isValid = true;
+        const requiredFields = [dateDebutInput, dateFinInput, document.getElementById('motif')];
+        
+        requiredFields.forEach(field => {
+            if (!field.value.trim()) {
+                field.classList.add('is-invalid');
+                isValid = false;
+            } else {
+                field.classList.remove('is-invalid');
+                field.classList.add('is-valid');
+            }
+        });
+        
+        // Validation des dates
+        if (dateDebutInput.value && dateFinInput.value) {
+            const debut = new Date(dateDebutInput.value);
+            const fin = new Date(dateFinInput.value);
+            
+            if (fin <= debut) {
+                dateFinInput.classList.add('is-invalid');
+                isValid = false;
+                alert('La date de fin doit être postérieure à la date de début.');
+                return;
+            }
+        }
+        
+        if (isValid) {
+            // Animation du bouton de soumission
+            const btnSubmit = document.getElementById('btn-submit');
+            btnSubmit.innerHTML = '<span class="loading-spinner me-2"></span>Enregistrement...';
+            btnSubmit.disabled = true;
+            
+            // Soumission du formulaire
+            this.submit();
+        }
+    });
+    
+    // Mise à jour automatique de la date de fin minimale
+    dateDebutInput.addEventListener('change', function() {
+        if (this.value) {
+            dateFinInput.min = this.value;
+            if (dateFinInput.value && dateFinInput.value <= this.value) {
+                dateFinInput.value = '';
+            }
+        }
+    });
+
+    // Fonction pour récupérer le cookie CSRF
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+});
+</script>
+{% endblock %}

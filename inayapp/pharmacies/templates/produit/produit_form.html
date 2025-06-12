@@ -1,56 +1,342 @@
+<!-- produit/produit_form.html -->
 {% extends "layout.html" %}
+{% load static %}
 {% block content %}
-<div class="container mt-5">
-    <div class="card shadow-lg">
-        <div class="card-header bg-primary text-white">
-            <h2 class="mb-0">
-                {% if object %}Modifier{% else %}Créer{% endif %} un produit
-            </h2>
-        </div>
-        
-        <div class="card-body">
-            <form method="post" class="needs-validation" novalidate>
-                {% csrf_token %}
-                
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        {% include 'includes/form_field.html' with field=form.nom %}
-                        {% include 'includes/form_field.html' with field=form.code_produit %}
-                        {% include 'includes/form_field.html' with field=form.code_barres %}
-                        {% include 'includes/form_field.html' with field=form.type_produit %}
-                    </div>
-                    
-                    <div class="col-md-6">
-                        <div class="row">
-                            <div class="col-md-6">
-                                {% include 'includes/form_field.html' with field=form.prix_achat %}
-                            </div>
-                            <div class="col-md-6">
-                                {% include 'includes/form_field.html' with field=form.prix_vente %}
-                            </div>
-                        </div>
-                        {% include 'includes/form_field.html' with field=form.description %}
-                        
-                        <div class="form-check form-switch mt-3">
-                            {{ form.est_actif }}
-                            <label class="form-check-label" for="{{ form.est_actif.id_for_label }}">
-                                Produit actif
-                            </label>
-                        </div>
-                    </div>
+
+
+
+
+<style>
+    .form-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+    .form-control:focus, .form-select:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    }
+    .profit-calculator {
+        background: linear-gradient(135deg, #28a745, #20c997);
+    }
+    .form-floating label {
+        color: #6c757d;
+    }
+    .invalid-feedback {
+        display: block;
+    }
+    .card-shadow {
+        box-shadow: 0 10px 30px rgba(0,0,0,.1);
+    }
+</style>
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <!-- Breadcrumb -->
+            <nav aria-label="breadcrumb" class="mb-4">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item">
+                        <a href="{% url 'pharmacies:produit_list' %}">Produits</a>
+                    </li>
+                    {% if object %}
+                        <li class="breadcrumb-item">
+                            <a href="{% url 'pharmacies:produit_detail' object.pk %}">{{ object.nom }}</a>
+                        </li>
+                        <li class="breadcrumb-item active">Modifier</li>
+                    {% else %}
+                        <li class="breadcrumb-item active">Nouveau</li>
+                    {% endif %}
+                </ol>
+            </nav>
+
+            <div class="card card-shadow">
+                <div class="card-header form-header text-white">
+                    <h2 class="mb-0">
+                        <i class="bi bi-{% if object %}pencil-square{% else %}plus-circle{% endif %} me-2"></i>
+                        {% if object %}Modifier le produit{% else %}Créer un nouveau produit{% endif %}
+                    </h2>
                 </div>
 
-                <div class="d-flex justify-content-between mt-4">
-                    <a href="{% if object %}{% url 'pharmacies:produit_detail' object.pk %}{% else %}{% url 'pharmacies:produit_list' %}{% endif %}" 
-                       class="btn btn-outline-secondary">
-                        <i class="bi bi-arrow-left"></i> Annuler
-                    </a>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-save"></i> Enregistrer
-                    </button>
+                <div class="card-body p-4">
+                    <!-- Calculateur de marge (si modification) -->
+                    {% if object %}
+                    <div class="alert profit-calculator text-white mb-4">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <h5 class="mb-1">
+                                    <i class="bi bi-calculator me-2"></i>Analyse de Rentabilité
+                                </h5>
+                                <p class="mb-0">
+                                    Marge: <strong>{{ object.marge_beneficiaire|floatformat:2 }} €</strong> 
+                                    ({{ object.pourcentage_marge|floatformat:1 }}%)
+                                </p>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <span class="badge bg-{% if object.est_rentable %}success{% else %}danger{% endif %} fs-6">
+                                    {% if object.est_rentable %}Rentable{% else %}Non Rentable{% endif %}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Messages d'erreur globaux -->
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            {{ form.non_field_errors }}
+                        </div>
+                    {% endif %}
+
+                    <form method="post" class="needs-validation" novalidate id="produitForm">
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <!-- Colonne gauche -->
+                            <div class="col-md-6">
+                                <h5 class="text-primary mb-3">
+                                    <i class="bi bi-info-circle me-2"></i>Informations Générales
+                                </h5>
+
+                                <!-- Nom du produit -->
+                                <div class="form-floating mb-3">
+                                    {{ form.nom }}
+                                    <label for="{{ form.nom.id_for_label }}">{{ form.nom.label }}</label>
+                                    {% if form.nom.errors %}
+                                        <div class="invalid-feedback">{{ form.nom.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+
+                                <!-- Code produit -->
+                                <div class="form-floating mb-3">
+                                    {{ form.code_produit }}
+                                    <label for="{{ form.code_produit.id_for_label }}">{{ form.code_produit.label }}</label>
+                                    {% if form.code_produit.errors %}
+                                        <div class="invalid-feedback">{{ form.code_produit.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+
+                                <!-- Code-barres -->
+                                <div class="form-floating mb-3">
+                                    {{ form.code_barres }}
+                                    <label for="{{ form.code_barres.id_for_label }}">{{ form.code_barres.label }}</label>
+                                    {% if form.code_barres.errors %}
+                                        <div class="invalid-feedback">{{ form.code_barres.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+
+                                <!-- Type de produit -->
+                                <div class="form-floating mb-3">
+                                    {{ form.type_produit }}
+                                    <label for="{{ form.type_produit.id_for_label }}">{{ form.type_produit.label }}</label>
+                                    {% if form.type_produit.errors %}
+                                        <div class="invalid-feedback">{{ form.type_produit.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- Colonne droite -->
+                            <div class="col-md-6">
+                                <h5 class="text-success mb-3">
+                                    <i class="bi bi-currency-euro me-2"></i>Tarification
+                                </h5>
+
+                                <!-- Prix d'achat et de vente -->
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-floating mb-3">
+                                            {{ form.prix_achat }}
+                                            <label for="{{ form.prix_achat.id_for_label }}">{{ form.prix_achat.label }}</label>
+                                            {% if form.prix_achat.errors %}
+                                                <div class="invalid-feedback">{{ form.prix_achat.errors.0 }}</div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-floating mb-3">
+                                            {{ form.prix_vente }}
+                                            <label for="{{ form.prix_vente.id_for_label }}">{{ form.prix_vente.label }}</label>
+                                            {% if form.prix_vente.errors %}
+                                                <div class="invalid-feedback">{{ form.prix_vente.errors.0 }}</div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Calculateur de marge en temps réel -->
+                                <div class="card bg-light mb-3">
+                                    <div class="card-body">
+                                        <h6 class="card-title">
+                                            <i class="bi bi-calculator me-2"></i>Calcul de Marge
+                                        </h6>
+                                        <div id="margeCalculator">
+                                            <p class="mb-1">
+                                                <strong>Marge:</strong> 
+                                                <span id="margeValue">0.00 €</span>
+                                            </p>
+                                            <p class="mb-0">
+                                                <strong>Pourcentage:</strong> 
+                                                <span id="pourcentageValue">0.0%</span>
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Description -->
+                                <div class="form-floating mb-3">
+                                    {{ form.description }}
+                                    <label for="{{ form.description.id_for_label }}">{{ form.description.label }}</label>
+                                    {% if form.description.errors %}
+                                        <div class="invalid-feedback">{{ form.description.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+
+                                <!-- Statut actif -->
+                                {% comment %} <div class="form-check form-switch mb-3">
+                                    {{ form.est_actif }}
+                                    <label class="form-check-label" for="{{ form.est_actif.id_for_label }}">
+                                        <strong>{{ form.est_actif.label }}</strong>
+                                        <br><small class="text-muted">Le produit sera visible dans les listes</small>
+                                    </label>
+                                </div> {% endcomment %}
+                            </div>
+                        </div>
+
+                        <!-- Boutons d'action -->
+                        <div class="row">
+                            <div class="col-12">
+                                <hr class="my-4">
+                                <div class="d-flex justify-content-between">
+                                    <a href="{% if object %}{% url 'pharmacies:produit_detail' object.pk %}{% else %}{% url 'pharmacies:produit_list' %}{% endif %}"
+                                       class="btn btn-outline-secondary btn-lg">
+                                        <i class="bi bi-arrow-left me-2"></i>Annuler
+                                    </a>
+                                    
+                                    <div>
+                                        {% if object %}
+                                        <button type="button" class="btn btn-outline-info btn-lg me-2" 
+                                                onclick="previewChanges()">
+                                            <i class="bi bi-eye me-2"></i>Aperçu
+                                        </button>
+                                        {% endif %}
+                                        
+                                        <button type="submit" class="btn btn-primary btn-lg">
+                                            <i class="bi bi-save me-2"></i>
+                                            {% if object %}Enregistrer les modifications{% else %}Créer le produit{% endif %}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
                 </div>
-            </form>
+            </div>
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const prixAchatInput = document.getElementById('{{ form.prix_achat.id_for_label }}');
+    const prixVenteInput = document.getElementById('{{ form.prix_vente.id_for_label }}');
+    const margeValueSpan = document.getElementById('margeValue');
+    const pourcentageValueSpan = document.getElementById('pourcentageValue');
+
+    // Calculateur de marge en temps réel
+    function calculateMarge() {
+        const prixAchat = parseFloat(prixAchatInput.value) || 0;
+        const prixVente = parseFloat(prixVenteInput.value) || 0;
+        
+        const marge = prixVente - prixAchat;
+        const pourcentage = prixAchat > 0 ? (marge / prixAchat) * 100 : 0;
+        
+        margeValueSpan.textContent = marge.toFixed(2) + ' €';
+        margeValueSpan.className = marge >= 0 ? 'text-success' : 'text-danger';
+        
+        pourcentageValueSpan.textContent = pourcentage.toFixed(1) + '%';
+        pourcentageValueSpan.className = pourcentage >= 0 ? 'text-success' : 'text-danger';
+        
+        // Avertissement si marge faible
+        const calculator = document.getElementById('margeCalculator');
+        const existingWarning = calculator.querySelector('.text-warning');
+        if (existingWarning) {
+            existingWarning.remove();
+        }
+        
+        if (pourcentage > 0 && pourcentage < 10) {
+            const warning = document.createElement('p');
+            warning.className = 'mb-0 text-warning small';
+            warning.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i>Marge faible détectée';
+            calculator.appendChild(warning);
+        }
+    }
+
+    // Écouteurs pour le calcul en temps réel
+    prixAchatInput.addEventListener('input', calculateMarge);
+    prixVenteInput.addEventListener('input', calculateMarge);
+    
+    // Calcul initial
+    calculateMarge();
+
+    // Validation du formulaire
+    const form = document.getElementById('produitForm');
+    form.addEventListener('submit', function(e) {
+        if (!form.checkValidity()) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        form.classList.add('was-validated');
+    });
+
+    // Auto-génération du code produit (optionnel)
+    const nomInput = document.getElementById('{{ form.nom.id_for_label }}');
+    const codeInput = document.getElementById('{{ form.code_produit.id_for_label }}');
+    
+    {% if not object %}
+    nomInput.addEventListener('blur', function() {
+        if (!codeInput.value && nomInput.value) {
+            // Générer un code basé sur le nom
+            const code = nomInput.value
+                .toUpperCase()
+                .replace(/[^A-Z0-9]/g, '')
+                .substring(0, 8) + 
+                Math.floor(Math.random() * 100).toString().padStart(2, '0');
+            codeInput.value = code;
+        }
+    });
+    {% endif %}
+
+    // Raccourcis clavier
+    document.addEventListener('keydown', function(e) {
+        // Ctrl+S pour sauvegarder
+        if (e.ctrlKey && e.key === 's') {
+            e.preventDefault();
+            form.submit();
+        }
+        
+        // Escape pour annuler
+        if (e.key === 'Escape') {
+            window.location.href = "{% if object %}{% url 'pharmacies:produit_detail' object.pk %}{% else %}{% url 'pharmacies:produit_list' %}{% endif %}";
+        }
+    });
+});
+
+// Fonction pour prévisualiser les modifications
+function previewChanges() {
+    const formData = new FormData(document.getElementById('produitForm'));
+    const previewData = {};
+    
+    for (let [key, value] of formData.entries()) {
+        previewData[key] = value;
+    }
+    
+    alert('Aperçu des modifications:\n\n' + 
+          'Nom: ' + previewData['nom'] + '\n' +
+          'Code: ' + previewData['code_produit'] + '\n' +
+          'Prix de vente: ' + previewData['prix_vente'] + ' €\n' +
+          'Type: ' + previewData['type_produit']);
+}
+</script>
 {% endblock %}

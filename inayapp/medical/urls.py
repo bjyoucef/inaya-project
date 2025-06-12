@@ -32,11 +32,14 @@ urlpatterns = [
         name="prestation_delete",
     ),
     path("get-tarif/", views.GetTarifView.as_view(), name="get_tarif"),
-    
-    
     path(
         "get-acte-produits/<int:acte_id>/",
         GetActeProduitsView.as_view(),
         name="get_acte_produits",
+    ),
+    path(
+        "prestations/history/<int:patient_id>/",
+        views.PatientPrestationHistoryView.as_view(),
+        name="patient_prestation_history",
     ),
 ]

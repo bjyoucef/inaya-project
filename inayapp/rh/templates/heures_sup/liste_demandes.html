@@ -1,0 +1,364 @@
+<!-- templates/heures_sup/liste_demandes.html -->
+{% extends "layout.html" %} 
+{% load static %} 
+{% load custom_filters %} 
+
+{% block content %}
+
+<div class="row">    
+    <!-- Contenu principal -->
+    <div class="col-lg-9">
+        <div class="main-content">
+            <!-- En-tête -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2 class="mb-1">
+                        <i class="fas fa-list me-2"></i>Demandes d'heures supplémentaires
+                    </h2>
+                    <p class="text-muted mb-0">
+                        {{ page_obj.paginator.count }} demande{{ page_obj.paginator.count|pluralize }}
+                        {% if filters.search or filters.statut or filters.motif or filters.personnel or filters.date_debut or filters.date_fin %}
+                            (filtrées)
+                        {% endif %}
+                    </p>
+                          <!-- Information de pagination et sélecteur -->
+        {% if total_count > 0 %}
+        <div class="d-flex align-items-center gap-3">
+        <div class="text-muted small">
+            Affichage de {{ page_obj.start_index }} à {{ page_obj.end_index }}
+            sur {{ total_count }} prestation{{ total_count|pluralize }}
+        </div>
+    
+        <div class="d-flex align-items-center gap-2">
+                <label class="form-label small text-muted mb-0">Par page :</label>
+                <select class="form-select form-select-sm" style="width: auto;"
+                    onchange="changeItemsPerPage(this.value)">
+                    <option value="10" {% if items_per_page == 10 %}selected{% endif %}>10</option>
+                    <option value="25" {% if items_per_page == 25 %}selected{% endif %}>25</option>
+                    <option value="50" {% if items_per_page == 50 %}selected{% endif %}>50</option>
+                    <option value="100" {% if items_per_page == 100 %}selected{% endif %}>100</option>
+            </select>
+        </div>
+    </div>
+        {% endif %}
+                </div>
+                <a href="{% url 'creer_demande_heures_sup' %}" class="btn btn-primary">
+                    <i class="fas fa-plus me-1"></i>Nouvelle demande
+                </a>
+            </div>
+            
+            {% if page_obj %}
+                <!-- Tableau des demandes -->
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>N° Demande</th>
+                                <th>Personnel</th>
+                                <th>Période</th>
+                                <th>Heures</th>
+                                <th>Motif</th>
+                                <th>Statut</th>
+                                <th>Créée le</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for demande in page_obj %}
+                                <tr>
+                                    <td>
+                                        <strong class="text-primary">{{ demande.numero_demande }}</strong>
+                                        {% if demande.est_en_retard %}
+                                            <span class="badge bg-danger ms-1">
+                                                <i class="fas fa-exclamation-triangle"></i>
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar-sm bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 32px; height: 32px;">
+                                                {{ demande.personnel_demandeur.nom_prenom|first|upper }}
+                                            </div>
+                                            <div>
+                                                <div class="fw-medium">{{ demande.personnel_demandeur.nom_prenom }}</div>
+                                                {% if demande.personnel_demandeur.poste %}
+                                                    <small class="text-muted">{{ demande.personnel_demandeur.poste.label }}</small>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="small">
+                                            <div><i class="fas fa-play text-success"></i> {{ demande.date_debut|date:"d/m/y H:i" }}</div>
+                                            <div><i class="fas fa-stop text-danger"></i> {{ demande.date_fin|date:"d/m/y H:i" }}</div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">{{ demande.nombre_heures }}h</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-light text-dark">
+                                            {{ demande.get_motif_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge status-{{ demande.statut }}">
+                                            {% if demande.statut == 'en_attente' %}
+                                                <i class="fas fa-clock me-1"></i>
+                                            {% elif demande.statut == 'approuvee' %}
+                                                <i class="fas fa-check me-1"></i>
+                                            {% elif demande.statut == 'refusee' %}
+                                                <i class="fas fa-times me-1"></i>
+                                            {% elif demande.statut == 'annulee' %}
+                                                <i class="fas fa-ban me-1"></i>
+                                            {% endif %}
+                                            {{ demande.get_statut_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="small text-muted">
+                                            {{ demande.created_at }}<br>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{% url 'detail_demande_heures_sup' demande.pk %}" 
+                                               class="btn btn-outline-primary" title="Voir détails">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            {% if demande.peut_etre_modifiee %}
+                                                <a href="{% url 'modifier_demande_heures_sup' demande.pk %}" 
+                                                   class="btn btn-outline-warning" title="Modifier">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Navigation de pagination -->
+{% if is_paginated %}
+<nav aria-label="Navigation des prestations" class="mt-4">
+    <ul class="pagination justify-content-center">
+
+        <!-- Bouton Première page -->
+        {% if page_obj.has_previous %}
+        <li class="page-item">
+                <a class="page-link" href="javascript:void(0)" onclick="goToPage(1)" title="Première page">
+                <i class="fas fa-angle-double-left"></i>
+            </a>
+        </li>
+        {% endif %}
+
+        <!-- Bouton Précédent -->
+        {% if page_obj.has_previous %}
+        <li class="page-item">
+                <a class="page-link" href="javascript:void(0)" onclick="goToPage({{ page_obj.previous_page_number }})"
+                    title="Page précédente">
+                <i class="fas fa-angle-left"></i>
+            </a>
+        </li>
+        {% else %}
+        <li class="page-item disabled">
+            <span class="page-link">
+                <i class="fas fa-angle-left"></i>
+            </span>
+        </li>
+        {% endif %}
+
+            <!-- Numéros de pages avec logique d'affichage intelligent -->
+        {% for page_num in page_obj.paginator.page_range %}
+        {% if page_num == page_obj.number %}
+        <li class="page-item active">
+            <span class="page-link">{{ page_num }}</span>
+        </li>
+        {% elif page_num > page_obj.number|add:'-3' and page_num < page_obj.number|add:'3' %} <li class="page-item">
+                <a class="page-link" href="javascript:void(0)" onclick="goToPage({{ page_num }})">{{ page_num }}</a>
+            </li>
+            {% elif page_num == 1 or page_num == page_obj.paginator.num_pages %}
+            <li class="page-item">
+                    <a class="page-link" href="javascript:void(0)" onclick="goToPage({{ page_num }})">{{ page_num }}</a>
+            </li>
+            {% elif page_num == page_obj.number|add:'-4' or page_num == page_obj.number|add:'4' %}
+            <li class="page-item disabled">
+                <span class="page-link">...</span>
+            </li>
+            {% endif %}
+            {% endfor %}
+
+            <!-- Bouton Suivant -->
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                    <a class="page-link" href="javascript:void(0)" onclick="goToPage({{ page_obj.next_page_number }})"
+                        title="Page suivante">
+                    <i class="fas fa-angle-right"></i>
+                </a>
+            </li>
+            {% else %}
+            <li class="page-item disabled">
+                <span class="page-link">
+                    <i class="fas fa-angle-right"></i>
+                </span>
+            </li>
+            {% endif %}
+
+            <!-- Bouton Dernière page -->
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                    <a class="page-link" href="javascript:void(0)"
+                        onclick="goToPage({{ page_obj.paginator.num_pages }})" title="Dernière page">
+                    <i class="fas fa-angle-double-right"></i>
+                </a>
+            </li>
+            {% endif %}
+
+    </ul>
+</nav>
+{% endif %}
+                
+            {% else %}
+                <!-- Aucun résultat -->
+                <div class="text-center py-5">
+                    <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                    <h4 class="text-muted">Aucune demande trouvée</h4>
+                    <p class="text-muted">
+                        {% if filters.search or filters.statut or filters.motif or filters.personnel or filters.date_debut or filters.date_fin %}
+                            Essayez de modifier vos critères de recherche.
+                        {% else %}
+                            Commencez par créer votre première demande d'heures supplémentaires.
+                        {% endif %}
+                    </p>
+                    <a href="{% url 'creer_demande_heures_sup' %}" class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i>Créer une demande
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    <div class="col-lg-3">
+        <div>
+            <h5 class="mb-3">
+                <i class="fas fa-filter me-2"></i>Filtres
+            </h5>
+            
+            <form method="get" id="filterForm">
+                <!-- Recherche -->
+                <div class="mb-3">
+                    <label for="search" class="form-label">Recherche</label>
+                    <input type="text" class="form-control" id="search" name="search" 
+                           value="{{ filters.search }}" placeholder="N° demande, nom, description...">
+                </div>
+                
+                <!-- Statut -->
+                <div class="mb-3">
+                    <label for="statut" class="form-label">Statut</label>
+                    <select class="form-select" id="statut" name="statut">
+                        <option value="">Tous les statuts</option>
+                        {% for value, label in statuts %}
+                            <option value="{{ value }}" {% if filters.statut == value %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Motif -->
+                <div class="mb-3">
+                    <label for="motif" class="form-label">Motif</label>
+                    <select class="form-select" id="motif" name="motif">
+                        <option value="">Tous les motifs</option>
+                        {% for value, label in motifs %}
+                            <option value="{{ value }}" {% if filters.motif == value %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Personnel -->
+                <div class="mb-3">
+                    <label for="personnel" class="form-label">Personnel</label>
+                    <select class="form-select" id="personnel" name="personnel">
+                        <option value="">Tout le personnel</option>
+                        {% for p in personnels %}
+                            <option value="{{ p.id_personnel }}" {% if filters.personnel == p.id_personnel|stringformat:"s" %}selected{% endif %}>
+                                {{ p.nom_prenom }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Période -->
+                <div class="row">
+                    <div class="col-12 mb-2">
+                        <label class="form-label">Période</label>
+                    </div>
+                    <div class="col-12 mb-2">
+                        <input type="date" class="form-control form-control-sm" name="date_debut" 
+                               value="{{ filters.date_debut }}" placeholder="Date début">
+                    </div>
+                    <div class="col-12 mb-3">
+                        <input type="date" class="form-control form-control-sm" name="date_fin" 
+                               value="{{ filters.date_fin }}" placeholder="Date fin">
+                    </div>
+                </div>
+                
+                <!-- Boutons -->
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search me-1"></i>Filtrer
+                    </button>
+                    <a href="{% url 'liste_demandes_heures_sup' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-times me-1"></i>Réinitialiser
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+</div>
+
+<script>
+    // Fonction pour changer le nombre d'éléments par page
+    function changeItemsPerPage(perPage) {
+        const url = new URL(window.location);
+        url.searchParams.set('per_page', perPage);
+        url.searchParams.delete('page'); // Reset à la page 1
+        window.location.href = url.toString();
+    }
+
+    // Fonction pour aller à une page spécifique en préservant les filtres
+    function goToPage(pageNumber) {
+        const url = new URL(window.location);
+        url.searchParams.set('page', pageNumber);
+        window.location.href = url.toString();
+    }
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-submit du formulaire de filtre lors des changements
+    const filterForm = document.getElementById('filterForm');
+    const filterInputs = filterForm.querySelectorAll('select, input[type="date"]');
+    
+    filterInputs.forEach(input => {
+        input.addEventListener('change', function() {
+            filterForm.submit();
+        });
+    });
+    
+    // Recherche avec délai
+    const searchInput = document.getElementById('search');
+    let searchTimeout;
+    
+    searchInput.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            filterForm.submit();
+        }, 500);
+    });
+});
+</script>
+{% endblock %}

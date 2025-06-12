@@ -1,0 +1,501 @@
+<!-- export_data/templates/export_data/index.html -->
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container-xl py-1">
+    <div class="row g-4">
+        <!-- Section principale d'export -->
+        <div class="col-lg-8">
+            <form method="post" id="exportForm">
+                {% csrf_token %}
+                
+                <!-- Sélection du format -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white py-3">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-file-export me-2"></i>
+                            Format d'Export
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <div class="format-option">
+                                    <input class="form-check-input" type="radio" name="export_format" 
+                                           id="format_csv" value="csv" checked>
+                                    <label class="card h-100 cursor-pointer border" for="format_csv">
+                                        <div class="card-body text-center py-4">
+                                            <div class="text-success mb-3">
+                                                <i class="fas fa-file-csv fa-2x"></i>
+                                            </div>
+                                            <h6 class="card-title">CSV</h6>
+                                            <p class="card-text small text-muted">Compatible Excel, simple et universel</p>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <div class="format-option">
+                                    <input class="form-check-input" type="radio" name="export_format" 
+                                           id="format_excel" value="excel">
+                                    <label class="card h-100 cursor-pointer border" for="format_excel">
+                                        <div class="card-body text-center py-4">
+                                            <div class="text-success mb-3">
+                                                <i class="fas fa-file-excel fa-2x"></i>
+                                            </div>
+                                            <h6 class="card-title">Excel</h6>
+                                            <p class="card-text small text-muted">Feuilles séparées par modèle</p>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <div class="format-option">
+                                    <input class="form-check-input" type="radio" name="export_format" 
+                                           id="format_json" value="json">
+                                    <label class="card h-100 cursor-pointer border" for="format_json">
+                                        <div class="card-body text-center py-4">
+                                            <div class="text-info mb-3">
+                                                <i class="fas fa-file-code fa-2x"></i>
+                                            </div>
+                                            <h6 class="card-title">JSON</h6>
+                                            <p class="card-text small text-muted">Format structuré pour développeurs</p>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sélection des modèles -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white py-3">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-list-check me-2"></i>
+                                Sélection des Modèles
+                            </h5>
+
+                            <div class="d-flex flex-wrap gap-3">
+                                <div class="bg-white bg-opacity-25 rounded-pill px-3 py-1">
+                                    <div class="fw-bold text-center">{{ all_models|length }}</div>
+                                    <div class="small">Applications</div>
+                                </div>
+                                <div class="bg-white bg-opacity-25 rounded-pill px-3 py-1">
+                                    <div class="fw-bold text-center" id="totalRecords">0</div>
+                                    <div class="small">Enregistrements</div>
+                                </div>
+                            </div>
+
+                            <div class="d-flex gap-2">
+                                <span class="badge bg-white text-primary py-2 px-3" id="selectedCount">0 sélectionné(s)</span>
+                                <button type="button" class="btn btn-sm btn-outline-light" onclick="toggleAllModels()">
+                                    <i class="fas fa-check-double me-1"></i>
+                                    <span id="toggleText">Tout sélectionner</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        {% for app_label, app_info in all_models.items %}
+                        <div class="app-section mb-4">
+                            <div class="d-flex align-items-center mb-3">
+                                <i class="fas fa-folder-open me-2 text-muted"></i>
+                                <h6 class="mb-0 fw-bold">
+                                    {{ app_info.verbose_name }}
+                                    <span class="badge bg-secondary ms-2">
+                                        {{ app_info.models|length }} modèle{{ app_info.models|length|pluralize }}
+                                    </span>
+                                </h6>
+                            </div>
+                            
+                            <div class="row g-3">
+                                {% for model in app_info.models %}
+                                <div class="col-lg-6">
+                                    <div class="model-item">
+                                        <div class="card border model-card">
+                                            <div class="card-body">
+                                                <div class="d-flex gap-3">
+                                                    <div class="mt-1">
+                                                        <input class="form-check-input model-checkbox" 
+                                                               type="checkbox"
+                                                               name="model_{{ app_label }}.{{ model.name }}"
+                                                               id="model_{{ app_label }}_{{ model.name }}" 
+                                                               data-app="{{ app_label }}"
+                                                               data-model="{{ model.name }}"
+                                                               data-count="{{ model.count }}">
+                                                    </div>
+                                                    <div class="flex-grow-1">
+                                                        <div class="fw-bold mb-1">{{ model.verbose_name }}</div>
+                                                        <div class="small text-muted">
+                                                            <i class="fas fa-table me-1"></i>
+                                                            {{ model.count }} enregistrement{{ model.count|pluralize }}
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <button type="button" 
+                                                                class="btn btn-sm btn-outline-primary preview-btn"
+                                                                data-app="{{ app_label }}" 
+                                                                data-model="{{ model.name }}"
+                                                                data-bs-toggle="tooltip" 
+                                                                title="Prévisualiser les données">
+                                                            <i class="fas fa-eye"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Section de prévisualisation -->
+                                        <div class="preview-section collapse" id="preview_{{ app_label }}_{{ model.name }}">
+                                            <div class="card mt-2">
+                                                <div class="card-body">
+                                                    <div class="preview-loading text-center py-4">
+                                                        <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                                        Chargement des données...
+                                                    </div>
+                                                    <div class="preview-content"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">Aucun modèle disponible</h5>
+                            <p class="text-muted">Aucun modèle n'a été trouvé dans votre projet.</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="text-center py-3">
+                    <button type="submit" class="btn btn-primary btn-lg px-5 py-3 fw-bold" id="exportBtn">
+                        <span class="btn-content">
+                            <i class="fas fa-download me-2"></i>
+                            Exporter les Données
+                        </span>
+                        <span class="btn-loading d-none">
+                            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                            Export en cours...
+                        </span>
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            
+            <!-- Aide et conseils -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-light py-3">
+                    <h6 class="card-title mb-0 fw-bold">
+                        <i class="fas fa-lightbulb me-2 text-info"></i>
+                        Conseils
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item d-flex align-items-center border-0 px-0">
+                            <i class="fas fa-check-circle text-success me-2"></i>
+                            <span>Utilisez CSV pour Excel et Google Sheets</span>
+                        </li>
+                        <li class="list-group-item d-flex align-items-center border-0 px-0">
+                            <i class="fas fa-check-circle text-success me-2"></i>
+                            <span>JSON est idéal pour les API</span>
+                        </li>
+                        <li class="list-group-item d-flex align-items-center border-0 px-0">
+                            <i class="fas fa-check-circle text-success me-2"></i>
+                            <span>Excel permet plusieurs feuilles</span>
+                        </li>
+                        <li class="list-group-item d-flex align-items-center border-0 px-0">
+                            <i class="fas fa-info-circle text-info me-2"></i>
+                            <span>Prévisualisez avant d'exporter</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            <!-- Historique des exports -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-light py-3">
+                    <h6 class="card-title mb-0 fw-bold">
+                        <i class="fas fa-history me-2 text-warning"></i>
+                        Historique des Exports
+                    </h6>
+                </div>
+                
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        {% for history in export_history %}
+                        <div class="list-group-item">
+                            <div class="d-flex align-items-center">
+                                <div class="bg-light rounded p-2 me-3">
+                                    <i class="fas fa-file-download text-primary"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="small text-muted">{{ history.created_at|date:"d/m/Y à H:i" }}</div>
+                                    <div class="d-flex gap-2 mt-1">
+                                        <span class="badge bg-{% if history.export_format == 'csv' %}success{% elif history.export_format == 'excel' %}success{% else %}info{% endif %}">
+                                            {{ history.export_format|upper }}
+                                        </span>
+                                        <span class="small">{{ history.records_count }} enreg.</span>
+                                    </div>
+                                </div>
+                                <button class="btn btn-sm btn-outline-secondary">
+                                    <i class="fas fa-download"></i>
+                                </button>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-inbox fa-2x text-muted mb-3"></i>
+                            <div class="text-muted">Aucun export effectué</div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+// Variables globales
+let selectedModelsCount = 0;
+let totalRecordsSelected = 0;
+
+// Calculer le total des enregistrements
+function updateTotalRecords() {
+    let total = 0;
+    {% for app_label, app_info in all_models.items %}
+        {% for model in app_info.models %}
+        total += {{ model.count }};
+        {% endfor %}
+    {% endfor %}
+    document.getElementById('totalRecords').textContent = total.toLocaleString();
+}
+
+// Mettre à jour le compteur de sélection
+function updateSelectedCount() {
+    const checkboxes = document.querySelectorAll('.model-checkbox:checked');
+    selectedModelsCount = checkboxes.length;
+    totalRecordsSelected = 0;
+    
+    checkboxes.forEach(cb => {
+        totalRecordsSelected += parseInt(cb.dataset.count || 0);
+    });
+    
+    document.getElementById('selectedCount').textContent = `${selectedModelsCount} sélectionné(s)`;
+}
+
+// Tout sélectionner/désélectionner
+function toggleAllModels() {
+    const checkboxes = document.querySelectorAll('.model-checkbox');
+    const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+    const button = document.querySelector('#toggleText');
+    
+    checkboxes.forEach(cb => {
+        cb.checked = !allChecked;
+        toggleModelCard(cb);
+    });
+
+    button.textContent = allChecked ? 'Tout sélectionner' : 'Tout désélectionner';
+    updateSelectedCount();
+}
+
+// Gérer l'apparence des cartes de modèles
+function toggleModelCard(checkbox) {
+    const modelCard = checkbox.closest('.model-card');
+    if (checkbox.checked) {
+        modelCard.classList.add('border-primary', 'bg-light');
+    } else {
+        modelCard.classList.remove('border-primary', 'bg-light');
+    }
+}
+
+// Prévisualisation des données
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialiser les tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+
+    // Gestionnaire pour les checkboxes
+    document.querySelectorAll('.model-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            toggleModelCard(this);
+            updateSelectedCount();
+        });
+    });
+
+    // Gestionnaire pour les boutons de prévisualisation
+    document.querySelectorAll('.preview-btn').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            const app = this.dataset.app;
+            const model = this.dataset.model;
+            const previewDiv = document.getElementById(`preview_${app}_${model}`);
+            const collapse = new bootstrap.Collapse(previewDiv, {toggle: true});
+            
+            // Si déjà ouvert, on ne recharge pas
+            if (previewDiv.classList.contains('show')) return;
+            
+            // Requête AJAX
+            fetch('{% url "export_data:model_preview" %}', {
+                method: 'GET',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({app, model})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    let html = `
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="mb-0">
+                                <i class="fas fa-table me-2"></i>
+                                Aperçu de ${data.total_count} enregistrements
+                            </h6>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" 
+                                    data-bs-toggle="collapse" data-bs-target="#preview_${app}_${model}">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    `;
+
+                    if (data.data && data.data.length > 0) {
+                        html += '<div class="table-responsive"><table class="table table-sm table-hover">';
+                        html += '<thead><tr class="table-light">';
+                        
+                        data.fields.forEach(field => {
+                            html += `<th>${field}</th>`;
+                        });
+                        html += '</tr></thead><tbody>';
+                        
+                        data.data.forEach(row => {
+                            html += '<tr>';
+                            data.fields.forEach(field => {
+                                let value = row[field] || '-';
+                                if (typeof value === 'string' && value.length > 50) {
+                                    value = value.substring(0, 50) + '...';
+                                }
+                                html += `<td>${value}</td>`;
+                            });
+                            html += '</tr>';
+                        });
+                        
+                        html += '</tbody></table></div>';
+
+                        if (data.total_count > data.data.length) {
+                            html += `
+                                <div class="small text-muted text-center mt-2">
+                                    Affichage de ${data.data.length} sur ${data.total_count} enregistrements
+                                </div>
+                            `;
+                        }
+                    } else {
+                        html += `
+                            <div class="text-center py-4">
+                                <i class="fas fa-inbox fa-2x text-muted mb-3"></i>
+                                <div class="text-muted">Aucun enregistrement trouvé</div>
+                            </div>
+                        `;
+                    }
+
+                    previewDiv.querySelector('.preview-content').innerHTML = html;
+                } else {
+                    previewDiv.querySelector('.preview-content').innerHTML = `
+                        <div class="alert alert-danger mb-0">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Erreur: ${data.error || 'Erreur inconnue'}
+                        </div>
+                    `;
+                }
+            })
+            .catch(error => {
+                previewDiv.querySelector('.preview-content').innerHTML = `
+                    <div class="alert alert-danger mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Erreur de chargement: ${error.message}
+                    </div>
+                `;
+            })
+            .finally(() => {
+                previewDiv.querySelector('.preview-loading').classList.add('d-none');
+            });
+        });
+    });
+
+    // Gestionnaire pour le formulaire d'export
+    document.getElementById('exportForm').addEventListener('submit', function(e) {
+        if (selectedModelsCount === 0) {
+            e.preventDefault();
+            alert('Veuillez sélectionner au moins un modèle à exporter.');
+            return false;
+        }
+        
+        const format = document.querySelector('input[name="export_format"]:checked').value.toUpperCase();
+        if (!confirm(`Confirmer l'export de ${selectedModelsCount} modèle(s) en format ${format} ?\n\nTotal: ${totalRecordsSelected.toLocaleString()} enregistrements`)) {
+            e.preventDefault();
+            return false;
+        }
+
+        // Afficher le spinner
+        const btn = document.getElementById('exportBtn');
+        btn.querySelector('.btn-content').classList.add('d-none');
+        btn.querySelector('.btn-loading').classList.remove('d-none');
+        btn.disabled = true;
+    });
+
+    // Initialiser
+    updateTotalRecords();
+    updateSelectedCount();
+});
+</script>
+
+<style>
+    .format-option .form-check-input {
+        position: absolute;
+        opacity: 0;
+    }
+    
+    .format-option .form-check-input:checked + label {
+        border-color: #0d6efd !important;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+    
+    .model-checkbox {
+        cursor: pointer;
+    }
+    
+    .preview-section .preview-loading {
+        display: block;
+    }
+    
+    .preview-section.collapse:not(.show) .preview-loading {
+        display: none !important;
+    }
+    
+    .preview-section .preview-content {
+        display: none;
+    }
+    
+    .preview-section.show .preview-content {
+        display: block;
+    }
+    
+    .cursor-pointer {
+        cursor: pointer;
+    }
+</style>
+{% endblock %}

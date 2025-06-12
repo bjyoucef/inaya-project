@@ -273,63 +273,6 @@ body {
     text-align: center;
 }
 
-/* ---------------------------------------------
-   Table Style
---------------------------------------------- */
-.dataTables_wrapper {
-    width: 100%;
-    -webkit-box-sizing: border-box;
-    box-sizing: border-box;
-}
-
-/* Style des boutons de pagination */
-.dataTables_wrapper .dataTables_paginate .paginate_button {
-    background-color: #7a6ad8;
-    color: white !important;
-    border-radius: 5px;
-    margin: 2px;
-    padding: 5px 10px;
-    border: none;
-    -webkit-transition: background-color 0.3s ease-in-out;
-    -o-transition: background-color 0.3s ease-in-out;
-    transition: background-color 0.3s ease-in-out;
-}
-
-.dataTables_wrapper .dataTables_paginate .paginate_button:hover {
-    background-color: #5a4ac9;
-}
-
-/* Style de la barre de recherche */
-.dataTables_wrapper .dataTables_filter input {
-    border: 1px solid #7a6ad8;
-    border-radius: 5px;
-    padding: 5px 10px;
-    outline: none;
-}
-
-/* Style du thead */
-.dataTables_wrapper thead {
-    background-color: #7a6ad8;
-    color: white;
-}
-
-/* Style des lignes */
-.dataTables_wrapper tbody tr:nth-child(odd) {
-    background-color: #f3f3f3;
-}
-
-.dataTables_wrapper tbody tr:hover {
-    background-color: #e2e6ea;
-}
-
-/* Ajout d'un padding dans les cellules */
-.dataTable td,
-.dataTable th {
-    padding: 10px;
-    text-align: left;
-}
-
-
 
 /* Style pour la barre d'en-tête des modals */
 .modal-header {
@@ -505,10 +448,7 @@ video.fullscreen {
     /* Optionnel pour centrer aussi horizontalement */
 }
 
-.dataTables_wrapper {
-    width: 100%;
-    overflow-x: auto;
-}
+
 
 
 .icon-cell {

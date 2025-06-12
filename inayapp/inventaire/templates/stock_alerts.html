@@ -1,0 +1,146 @@
+
+<!-- templates/stock_alerts.html -->
+{% extends 'base.html' %}
+
+{% block title %}Alertes Stock{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="h3 mb-0">
+            <i class="fas fa-exclamation-triangle text-warning"></i>
+            Alertes Stock
+        </h1>
+        <p class="text-muted">Stocks nécessitant votre attention immédiate</p>
+    </div>
+</div>
+
+{% if stocks_alerte %}
+<div class="alert alert-warning">
+    <i class="fas fa-exclamation-triangle"></i>
+    <strong>{{ stocks_alerte.count }} stock(s)</strong> nécessite(nt) un réapprovisionnement.
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Priorité</th>
+                        <th>Item</th>
+                        <th>Salle/Service</th>
+                        <th>Stock Actuel</th>
+                        <th>Stock Min</th>
+                        <th>Recommandé</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for stock in stocks_alerte %}
+                    <tr class="{% if stock.est_en_rupture %}table-danger{% else %}table-warning{% endif %}">
+                        <td>
+                            {% if stock.est_en_rupture %}
+                                <span class="badge bg-danger">CRITIQUE</span>
+                            {% else %}
+                                <span class="badge bg-warning">ALERTE</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <strong>{{ stock.item.nom }}</strong><br>
+                            <small class="text-muted">{{ stock.item.categorie.nom }}</small><br>
+                            <code class="small">{{ stock.item.code_barre }}</code>
+                        </td>
+                        <td>
+                            <strong>{{ stock.salle.nom }}</strong><br>
+                            <small class="text-muted">{{ stock.salle.service.name }}</small>
+                        </td>
+                        <td>
+                            <span class="fs-4 fw-bold {% if stock.est_en_rupture %}text-danger{% else %}text-warning{% endif %}">
+                                {{ stock.quantite }}
+                            </span>
+                        </td>
+                        <td>{{ stock.quantite_min }}</td>
+                        <td>
+                            <span class="text-success fw-bold">{{ stock.quantite_max }}</span>
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <button type="button" class="btn btn-primary" onclick="creerMouvement({{ stock.id }})">
+                                    <i class="fas fa-plus"></i> Réappro
+                                </button>
+                                <a href="{% url 'inventaire:transfert_create' %}" class="btn btn-info">
+                                    <i class="fas fa-exchange-alt"></i> Transfert
+                                </a>
+                                <a href="{% url 'inventaire:stock_detail' stock.pk %}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% else %}
+<div class="card">
+    <div class="card-body text-center py-5">
+        <i class="fas fa-check-circle fa-4x text-success mb-4"></i>
+        <h4 class="text-success">Excellent !</h4>
+        <p class="text-muted">Tous les stocks sont à des niveaux normaux.</p>
+        <a href="{% url 'inventaire:stock_list' %}" class="btn btn-primary">
+            <i class="fas fa-boxes"></i> Voir tous les stocks
+        </a>
+    </div>
+</div>
+{% endif %}
+
+<!-- Modal pour créer un mouvement -->
+<div class="modal fade" id="mouvementModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="mouvementForm" method="post" action="{% url 'inventaire:mouvement_create' %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Réapprovisionnement</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="stock" id="stockId">
+                    <div class="mb-3">
+                        <label class="form-label">Type de mouvement</label>
+                        <select class="form-select" name="type_mouvement" required>
+                            <option value="entree">Entrée de stock</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Quantité</label>
+                        <input type="number" class="form-control" name="quantite" min="1" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Motif</label>
+                        <textarea class="form-control" name="motif" rows="3" 
+                                  placeholder="Réapprovisionnement suite à alerte stock..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-primary">Créer le mouvement</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function creerMouvement(stockId) {
+    document.getElementById('stockId').value = stockId;
+    new bootstrap.Modal(document.getElementById('mouvementModal')).show();
+}
+</script>
+{% endblock %}

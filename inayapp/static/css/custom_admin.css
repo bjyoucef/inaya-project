@@ -1,0 +1,80 @@
+:root {
+    --primary-color: #17c1e8;
+    --secondary-color: #8392ab;
+    --success-color: #82d616;
+    --danger-color: #ea0606;
+    --warning-color: #fbcf33;
+    --info-color: #17c1e8;
+    --dark-color: #344767;
+}
+
+/* Header personnalisé */
+.navbar-brand {
+    font-weight: 700;
+    color: var(--primary-color) !important;
+}
+
+/* Sidebar personnalisé */
+.sidenav .navbar-brand {
+    padding: 1rem 0;
+}
+
+/* Cards et widgets */
+.card {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    border: none;
+    border-radius: 12px;
+}
+
+/* Boutons personnalisés */
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary-color) 0%, #1171ef 100%);
+    border: none;
+    border-radius: 8px;
+}
+
+.btn-success {
+    background: linear-gradient(135deg, var(--success-color) 0%, #66bb6a 100%);
+    border: none;
+    border-radius: 8px;
+}
+
+/* Tables */
+.table thead th {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+    font-weight: 600;
+    color: var(--dark-color);
+}
+
+/* Dashboard widgets */
+.dashboard-widget {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .sidenav {
+        transform: translateX(-250px);
+    }
+
+    .main-content {
+        margin-left: 0;
+    }
+}
+
+/* Animation pour les transitions */
+.card,
+.btn,
+.form-control {
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 15px -3px rgba(0, 0, 0, 0.1);
+}

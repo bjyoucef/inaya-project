@@ -1,6 +1,7 @@
 /* ---------------------------------------------
    Styles généraux
 --------------------------------------------- */
+
 html,
 body {
     height: 100%;
@@ -22,7 +23,7 @@ body {
     display: flex;
     padding-top: 0px;
     /* Ajustez cette valeur selon la hauteur de votre navbar */
-    background-color: #f8f9fa;
+    background-color: #ffffff;
     /* Couleur de fond douce */
 }
 
@@ -273,61 +274,6 @@ body {
     text-align: center;
 }
 
-/* ---------------------------------------------
-   Table Style
---------------------------------------------- */
-.dataTables_wrapper {
-    width: 100%;
-    -webkit-box-sizing: border-box;
-    box-sizing: border-box;
-}
-
-/* Style des boutons de pagination */
-.dataTables_wrapper .dataTables_paginate .paginate_button {
-    background-color: #7a6ad8;
-    color: white !important;
-    border-radius: 5px;
-    margin: 2px;
-    padding: 5px 10px;
-    border: none;
-    -webkit-transition: background-color 0.3s ease-in-out;
-    -o-transition: background-color 0.3s ease-in-out;
-    transition: background-color 0.3s ease-in-out;
-}
-
-.dataTables_wrapper .dataTables_paginate .paginate_button:hover {
-    background-color: #5a4ac9;
-}
-
-/* Style de la barre de recherche */
-.dataTables_wrapper .dataTables_filter input {
-    border: 1px solid #7a6ad8;
-    border-radius: 5px;
-    padding: 5px 10px;
-    outline: none;
-}
-
-/* Style du thead */
-.dataTables_wrapper thead {
-    background-color: #7a6ad8;
-    color: white;
-}
-
-/* Style des lignes */
-.dataTables_wrapper tbody tr:nth-child(odd) {
-    background-color: #f3f3f3;
-}
-
-.dataTables_wrapper tbody tr:hover {
-    background-color: #e2e6ea;
-}
-
-/* Ajout d'un padding dans les cellules */
-.dataTable td,
-.dataTable th {
-    padding: 10px;
-    text-align: left;
-}
 
 
 
@@ -503,11 +449,6 @@ video.fullscreen {
     vertical-align: middle;
     text-align: start;
     /* Optionnel pour centrer aussi horizontalement */
-}
-
-.dataTables_wrapper {
-    width: 100%;
-    overflow-x: auto;
 }
 
 
@@ -965,8 +906,9 @@ calendar {
         margin-top: 50px;
         /* Réduire l'espacement supérieur pour les smartphones */
     }
+        .navbar {
 
-    .navbar {
+
         display: -webkit-box;
         display: -ms-flexbox;
         display: flex;
@@ -1056,4 +998,77 @@ calendar {
 [title] {
     cursor: help;
     position: relative;
+}
+
+
+/* Status badges */
+.status-en_attente {
+    background-color: #ffc107;
+    color: #000;
+}
+
+.status-approuvee {
+    background-color: #198754;
+    color: #fff;
+}
+
+.status-refusee {
+    background-color: #dc3545;
+    color: #fff;
+}
+
+.status-annulee {
+    background-color: #6c757d;
+    color: #fff;
+}
+
+/* Timeline */
+.timeline {
+    position: relative;
+    padding-left: 30px;
+    list-style: none;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 1.5rem;
+}
+
+.timeline-badge {
+    position: absolute;
+    left: -30px;
+    top: 0;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+}
+
+.timeline-content {
+    background: #f8f9fa;
+    border-left: 2px solid #dee2e6;
+    padding: 0.5rem 1rem;
+    border-radius: 0 0.25rem 0.25rem 0;
+}
+
+/* Avatars */
+.avatar-xs {
+    width: 24px;
+    height: 24px;
+    font-size: 0.6rem;
+}
+
+.avatar-sm {
+    width: 32px;
+    height: 32px;
+    font-size: 0.8rem;
+}
+
+.avatar-lg {
+    width: 64px;
+    height: 64px;
+    font-size: 1.5rem;
 }

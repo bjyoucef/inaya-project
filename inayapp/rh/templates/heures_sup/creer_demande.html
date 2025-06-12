@@ -1,0 +1,564 @@
+{% extends "layout.html" %}
+{% load static %}
+
+{% block content %}
+
+<style>
+    :root {
+        --primary: #4361ee;
+        --primary-light: #4895ef;
+        --primary-dark: #3f37c9;
+        --secondary: #7209b7;
+        --success: #4cc9f0;
+        --warning: #f72585;
+        --light: #f8f9fa;
+        --dark: #1d3557;
+        --gray: #8d99ae;
+    }
+    
+    body {
+        background: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%);
+        min-height: 100vh;
+        font-family: 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+    }
+    
+    .card {
+        border: none;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 15px 35px rgba(67, 97, 238, 0.15);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        background: linear-gradient(to bottom right, rgba(255,255,255,0.9), rgba(245,247,250,0.9));
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255,255,255,0.5);
+    }
+    
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 20px 40px rgba(67, 97, 238, 0.2);
+    }
+    
+    .card-header {
+        background: linear-gradient(120deg, var(--primary), var(--primary-dark));
+        padding: 1.5rem 2rem;
+        border-bottom: none;
+        color: white;
+    }
+    
+    .btn-primary {
+        background: linear-gradient(120deg, var(--primary), var(--primary-light));
+        border: none;
+        padding: 12px 28px;
+        font-weight: 600;
+        border-radius: 10px;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(67, 97, 238, 0.3);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .btn-primary:before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+        transition: 0.5s;
+    }
+    
+    .btn-primary:hover {
+        background: linear-gradient(120deg, var(--primary-dark), var(--primary));
+        transform: translateY(-3px);
+        box-shadow: 0 7px 20px rgba(67, 97, 238, 0.4);
+    }
+    
+    .btn-primary:hover:before {
+        left: 100%;
+    }
+    
+    .btn-outline-secondary {
+        transition: all 0.3s ease;
+        border-radius: 10px;
+        padding: 10px 20px;
+    }
+    
+    .btn-outline-secondary:hover {
+        background: #f0f4f8;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    }
+    
+    .form-control, .form-select, .input-group-text {
+        border-radius: 10px;
+        padding: 14px 16px;
+        transition: all 0.3s ease;
+        border: 1px solid #e2e8f0;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 0.25rem rgba(67, 97, 238, 0.2);
+    }
+    
+    .input-group-text {
+        background: linear-gradient(to bottom, #f8f9fa, #e9ecef);
+        border-color: #e2e8f0;
+        color: var(--primary);
+        font-size: 1.1rem;
+    }
+    
+    .preset-btn {
+        transition: all 0.3s ease;
+        border-radius: 8px;
+        padding: 8px 16px;
+        font-weight: 500;
+    }
+    
+    .preset-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    #duration-display {
+        background: linear-gradient(135deg, rgba(72, 149, 239, 0.1) 0%, rgba(67, 97, 238, 0.15) 100%);
+        border-radius: 16px;
+        padding: 1.5rem;
+        margin: 1.5rem 0;
+        text-align: center;
+        border: 2px dashed var(--primary);
+        transition: all 0.4s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    #duration-display:before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 70%);
+        transform: rotate(30deg);
+    }
+    
+    #duration-display:hover {
+        transform: scale(1.02);
+        box-shadow: 0 8px 25px rgba(67, 97, 238, 0.15);
+    }
+    
+    .alert {
+        border-radius: 12px;
+        padding: 1rem 1.5rem;
+        border: none;
+    }
+    
+    .alert-warning {
+        background: linear-gradient(135deg, rgba(247, 37, 133, 0.1), rgba(247, 37, 133, 0.05));
+        color: #d90429;
+        border-left: 4px solid var(--warning);
+    }
+    
+    .alert-danger {
+        background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(239, 68, 68, 0.05));
+        color: #d90429;
+        border-left: 4px solid #ef4444;
+    }
+    
+    .form-label {
+        font-weight: 600;
+        color: var(--dark);
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+    }
+    
+    .form-label i {
+        margin-right: 10px;
+        width: 30px;
+        height: 30px;
+        background: rgba(67, 97, 238, 0.1);
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--primary);
+    }
+    
+    .flatpickr-input {
+        background-color: white;
+        font-weight: 500;
+    }
+    
+    .header-icon {
+        background: rgba(255,255,255,0.2);
+        width: 50px;
+        height: 50px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 15px;
+    }
+    
+    .divider {
+        height: 60px;
+        width: 1px;
+        background: rgba(255,255,255,0.3);
+        margin: 0 20px;
+    }
+    
+    .time-divider {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--gray);
+        font-size: 1.5rem;
+    }
+    
+    .glow {
+        animation: glow 2s infinite alternate;
+    }
+    
+    @keyframes glow {
+        from { box-shadow: 0 0 0px rgba(67, 97, 238, 0.5); }
+        to { box-shadow: 0 0 15px rgba(67, 97, 238, 0.8); }
+    }
+    
+    .fade-in {
+        animation: fadeIn 0.6s ease forwards;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .submit-btn {
+        position: relative;
+        overflow: hidden;
+        z-index: 1;
+    }
+    
+    .submit-btn:after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 0;
+        height: 100%;
+        background: rgba(255,255,255,0.2);
+        transition: width 0.4s;
+        z-index: -1;
+    }
+    
+    .submit-btn:hover:after {
+        width: 100%;
+    }
+</style>
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card fade-in">
+                <div class="card-body p-4 p-lg-5">
+                    <div class="d-flex align-items-center mb-5">
+                        <a href="{% url 'liste_demandes_heures_sup' %}" class="btn btn-light btn-circle btn-lg me-3 shadow-sm">
+                            <i class="fas fa-arrow-left text-primary"></i>
+                        </a>
+                        <div class="d-flex align-items-center">
+                            <div class="header-icon">
+                                <i class="fas fa-plus-circle fa-lg text-white"></i>
+                            </div>
+                            <div>
+                                <h2 class="fw-bold mb-1 text-dark">Nouvelle demande</h2>
+                                <p class="text-muted mb-0">Sélection intuitive des dates et heures</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <form method="post" id="demandeForm" novalidate>
+                        {% csrf_token %}
+                        
+                        <div class="row g-4 mb-4">
+                            <!-- Personnel -->
+                            <div class="col-md-6">
+                                <label for="personnel_demandeur">
+                                    <i class="fas fa-user"></i>Personnel
+                                </label>
+                                <div class="form-floating">
+                                    <select class="form-select shadow-sm" id="personnel_demandeur" name="personnel_demandeur" required>
+                                        <option value="">Sélectionnez un personnel</option>
+                                        {% for p in personnels %}
+                                        <option 
+                                            value="{{ p.id_personnel }}" 
+                                            {% if form_data.personnel_demandeur == p.id_personnel|stringformat:"s" %}
+                                            selected
+                                            {% endif %}>
+                                            {{ p.nom_prenom }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                    <div class="invalid-feedback">Sélection obligatoire</div>
+                                </div>
+                            </div>
+                            
+                            <!-- Motif -->
+                            <div class="col-md-6">
+                                <label for="motif">
+                                    <i class="fas fa-tag"></i>Motif
+                                </label>
+                                <div class="form-floating">
+                                    <select class="form-select shadow-sm" id="motif" name="motif" required>
+                                        <option value="">Sélectionnez un motif</option>
+                                        {% for v, l in motifs %}
+                                        <option value="{{ v }}" {% if form_data.motif == v %}selected{% endif %}>{{ l }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <div class="invalid-feedback">Sélection obligatoire</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Dates Section -->
+                        <div class="mb-5">
+                            <div class="row g-4 align-items-center">
+                                <!-- Date début -->
+                                <div class="col-md-5">
+                                    <label class="form-label">
+                                        <i class="fas fa-play-circle text-success"></i>Début
+                                    </label>
+                                    <div class="input-group shadow-sm">
+                                        <span class="input-group-text bg-white"><i class="fas fa-calendar-alt"></i></span>
+                                        <input type="text" class="form-control flatpickr" id="date_debut" name="date_debut"
+                                            placeholder="YYYY-MM-DD HH:MM" required value="{{ form_data.date_debut }}">
+                                    </div>
+                                </div>
+                                
+                                <!-- Arrow divider -->
+                                <div class="col-md-2 d-flex justify-content-center">
+                                    <div class="time-divider">
+                                        <i class="fas fa-arrow-right fa-2x text-primary"></i>
+                                    </div>
+                                </div>
+                                
+                                <!-- Date fin -->
+                                <div class="col-md-5">
+                                    <label class="form-label">
+                                        <i class="fas fa-stop-circle text-danger"></i>Fin
+                                    </label>
+                                    <div class="input-group shadow-sm">
+                                        <span class="input-group-text bg-white"><i class="fas fa-calendar-alt"></i></span>
+                                        <input type="text" class="form-control flatpickr" id="date_fin" name="date_fin"
+                                            placeholder="YYYY-MM-DD HH:MM" required value="{{ form_data.date_fin }}">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Preset buttons -->
+                            <div class="row mt-4">
+                                <div class="col-12">
+                                    <p class="text-muted mb-2"><small>Prédéfinir les heures :</small></p>
+                                    <div class="d-flex flex-wrap gap-2">
+                                        <button type="button" class="btn btn-outline-primary preset-btn" data-time="08:00">
+                                            <i class="fas fa-clock me-1"></i> 08:00
+                                        </button>
+                                        <button type="button" class="btn btn-outline-primary preset-btn" data-time="17:00">
+                                            <i class="fas fa-clock me-1"></i> 17:00
+                                        </button>
+                                        <button type="button" class="btn btn-outline-primary preset-btn" data-time="19:00">
+                                            <i class="fas fa-clock me-1"></i> 19:00
+                                        </button>
+                                        <button type="button" class="btn btn-outline-primary preset-btn" data-duration="1">
+                                            <i class="fas fa-plus-circle me-1"></i> +1h
+                                        </button>
+                                        <button type="button" class="btn btn-outline-primary preset-btn" data-duration="2">
+                                            <i class="fas fa-plus-circle me-1"></i> +2h
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Duration display -->
+                        <div class="mb-4 fade-in" id="duration-container">
+                            <div class="bg-white rounded-4 shadow-sm p-4 text-center" id="duration-display">
+                                <i class="fas fa-hourglass-half fa-2x text-primary mb-3"></i>
+                                <p class="text-muted mb-1">Durée totale</p>
+                                <h2 class="fw-bold text-primary display-5" id="duration-hours">0h 00m</h2>
+                            </div>
+                        </div>
+                        
+                        <!-- Alerts -->
+                        <div class="mb-4">
+                            <div class="alert alert-warning d-none fade-in" id="conflict-warning">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                <span id="conflict-message">Majoration nocturne.</span>
+                            </div>
+                            
+                            <div class="alert alert-danger d-none fade-in" id="validation-feedback">
+                                <i class="fas fa-times-circle me-2"></i>
+                                <span id="validation-message">Durée >10h, justifier.</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Description -->
+                        <div class="mb-4">
+                            <label class="form-label">
+                                <i class="fas fa-align-left text-primary"></i>Description
+                            </label>
+                            <div class="form-floating">
+                                <textarea class="form-control shadow-sm" placeholder="Description..." id="description" name="description"
+                                    style="height:120px">{{ form_data.description }}</textarea>
+                                <label for="description">Décrivez la raison de cette demande...</label>
+                            </div>
+                        </div>
+                        
+                        <!-- Buttons -->
+                        <div class="d-flex justify-content-end pt-3">
+                            <a href="{% url 'liste_demandes_heures_sup' %}" class="btn btn-outline-secondary me-3 px-4 py-2">
+                                <i class="fas fa-times me-2"></i> Annuler
+                            </a>
+                            <button type="submit" class="btn btn-primary px-4 py-2 submit-btn" id="btn-submit">
+                                <i class="fas fa-paper-plane me-2"></i> Soumettre
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/fr.js"></script>
+<script src="{% static 'js/choices.min.js' %}"></script>
+<script>
+            // Initialiser Choices.js pour les selects
+            new Choices("#personnel_demandeur", {
+                searchEnabled: true,
+                removeItemButton: true,
+                placeholder: true,
+
+            });
+            
+            new Choices("#motif", {
+                searchEnabled: true,
+                removeItemButton: true,
+                placeholder: true,
+
+            });
+    document.addEventListener('DOMContentLoaded', () => {
+        // Configuration Flatpickr
+        const config = {
+            enableTime: true,
+            dateFormat: 'Y-m-d H:i',
+            time_24hr: true,
+            locale: 'fr',
+            minuteIncrement: 15,
+            disableMobile: true
+        };
+        
+        const startPicker = flatpickr('#date_debut', config);
+        const endPicker = flatpickr('#date_fin', config);
+        const durationDisplay = document.getElementById('duration-hours');
+        const warning = document.getElementById('conflict-warning');
+        const validation = document.getElementById('validation-feedback');
+        const durationContainer = document.getElementById('duration-container');
+
+
+
+        function updateDuration() {
+            const start = startPicker.selectedDates[0];
+            const end = endPicker.selectedDates[0];
+            
+            if (start && end && end > start) {
+                const diff = (end - start) / 36e5;
+                const h = Math.floor(diff);
+                const m = Math.round((diff - h) * 60);
+                durationDisplay.textContent = `${h}h ${m.toString().padStart(2, '0')}m`;
+                
+                // Afficher le conteneur de durée
+                durationContainer.classList.remove('d-none');
+                
+                // Réinitialiser les alertes
+                warning.classList.add('d-none');
+                validation.classList.add('d-none');
+                
+                // Vérifier les conflits
+                if (end.getHours() >= 22 || end.getHours() < 6) {
+                    warning.classList.remove('d-none');
+                    document.getElementById('conflict-message').textContent = 
+                        'Majoration nocturne applicable (22h - 6h).';
+                }
+                
+                if (diff > 10) {
+                    validation.classList.remove('d-none');
+                    document.getElementById('validation-message').textContent = 
+                        `Durée de ${h}h ${m}m (>10h), une justification détaillée est requise.`;
+                }
+            } else {
+                durationContainer.classList.add('d-none');
+            }
+        }
+
+        startPicker.config.onChange.push(updateDuration);
+        endPicker.config.onChange.push(updateDuration);
+
+        // Boutons prédéfinis
+        document.querySelectorAll('.preset-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const time = btn.dataset.time;
+                const duration = btn.dataset.duration;
+                
+                if (time) {
+                    if (startPicker.selectedDates.length) {
+                        const [hours, minutes] = time.split(':');
+                        const newDate = new Date(startPicker.selectedDates[0]);
+                        newDate.setHours(parseInt(hours), parseInt(minutes));
+                        startPicker.setDate(newDate);
+                    } else {
+                        const now = new Date();
+                        const [hours, minutes] = time.split(':');
+                        now.setHours(parseInt(hours), parseInt(minutes));
+                        startPicker.setDate(now);
+                    }
+                }
+                
+                if (duration && startPicker.selectedDates[0]) {
+                    const endDate = new Date(startPicker.selectedDates[0]);
+                    endDate.setHours(endDate.getHours() + parseInt(duration));
+                    endPicker.setDate(endDate);
+                }
+                
+                updateDuration();
+            });
+        });
+
+        // Validation du formulaire
+        const form = document.getElementById('demandeForm');
+        form.addEventListener('submit', e => {
+            const start = startPicker.selectedDates[0];
+            const end = endPicker.selectedDates[0];
+            
+            if (!start || !end || end <= start) {
+                e.preventDefault();
+                alert('Veuillez sélectionner des dates de début et de fin valides (la fin doit être après le début).');
+                
+                // Animation pour indiquer les champs problématiques
+                document.querySelectorAll('#date_debut, #date_fin').forEach(el => {
+                    el.classList.remove('is-invalid');
+                    void el.offsetWidth; // Déclencher le reflow
+                    el.classList.add('is-invalid');
+                });
+            } else {
+                const btnSubmit = document.getElementById('btn-submit');
+                btnSubmit.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Envoi en cours...';
+                btnSubmit.disabled = true;
+            }
+        });
+    });
+</script>
+{% endblock %}

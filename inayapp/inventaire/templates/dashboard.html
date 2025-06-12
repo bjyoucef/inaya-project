@@ -1,0 +1,228 @@
+
+<!-- templates/dashboard.html -->
+{% extends 'base.html' %}
+
+{% block title %}Tableau de bord - Inventaire{% endblock %}
+
+{% block content %}
+
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="h3 mb-0">
+            <i class="fas fa-tachometer-alt text-primary"></i>
+            Tableau de bord - Inventaire
+        </h1>
+        <p class="text-muted">Vue d'ensemble du système d'inventaire</p>
+    </div>
+</div>
+
+<!-- Statistiques -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Total Items</h6>
+                        <h3 class="mb-0">{{ total_items }}</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-cubes fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Stocks Actifs</h6>
+                        <h3 class="mb-0">{{ total_stocks }}</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-boxes fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Alertes Stock</h6>
+                        <h3 class="mb-0">{{ stocks_alerte }}</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-exclamation-triangle fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-danger text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Ruptures</h6>
+                        <h3 class="mb-0">{{ stocks_rupture }}</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-ban fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Actions rapides -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-bolt"></i> Actions Rapides</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="d-grid gap-2">
+                            <a href="{% url 'inventaire:mouvement_create' %}" class="btn btn-primary">
+                                <i class="fas fa-plus-circle"></i> Nouveau Mouvement
+                            </a>
+                            <a href="{% url 'inventaire:transfert_create' %}" class="btn btn-info">
+                                <i class="fas fa-exchange-alt"></i> Demande de Transfert
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-grid gap-2">
+                            <a href="{% url 'inventaire:inventaire_create' %}" class="btn btn-success">
+                                <i class="fas fa-clipboard-list"></i> Nouvel Inventaire
+                            </a>
+                            <a href="{% url 'inventaire:barcode_scan' %}" class="btn btn-warning">
+                                <i class="fas fa-qrcode"></i> Scanner Code-barres
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Alertes importantes -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-warning text-white">
+                <h6 class="mb-0"><i class="fas fa-bell"></i> Demandes en Attente</h6>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6">
+                        <h4 class="text-warning">{{ transferts_attente }}</h4>
+                        <small>Transferts</small>
+                    </div>
+                    <div class="col-6">
+                        <h4 class="text-info">{{ maintenances_cours }}</h4>
+                        <small>Maintenances</small>
+                    </div>
+                </div>
+                <hr>
+                <a href="{% url 'inventaire:transfert_list' %}" class="btn btn-sm btn-outline-warning me-2">
+                    Voir Transferts
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        {% if stocks_alerte > 0 %}
+        <div class="card border-warning">
+            <div class="card-header bg-warning text-white">
+                <h6 class="mb-0"><i class="fas fa-exclamation-triangle"></i> Stocks en Alerte</h6>
+            </div>
+            <div class="card-body">
+                <p class="text-warning mb-2">
+                    <strong>{{ stocks_alerte }}</strong> stock(s) nécessite(nt) votre attention
+                </p>
+                <a href="{% url 'inventaire:stock_alerts' %}" class="btn btn-warning btn-sm">
+                    <i class="fas fa-eye"></i> Voir les Alertes
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Mouvements récents -->
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-history"></i> Mouvements Récents</h5>
+                <a href="{% url 'inventaire:mouvement_list' %}" class="btn btn-sm btn-outline-primary">
+                    Voir tout
+                </a>
+            </div>
+            <div class="card-body">
+                {% if mouvements_recents %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Type</th>
+                                <th>Item</th>
+                                <th>Quantité</th>
+                                <th>Statut</th>
+                                <th>Utilisateur</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for mouvement in mouvements_recents %}
+                            <tr>
+                                <td>{{ mouvement.date_mouvement|date:"d/m/Y H:i" }}</td>
+                                <td>
+                                    <span class="badge bg-secondary">
+                                        {{ mouvement.get_type_mouvement_display }}
+                                    </span>
+                                </td>
+                                <td>{{ mouvement.stock.item.nom }}</td>
+                                <td>
+                                    {% if mouvement.type_mouvement == 'entree' %}
+                                        <span class="text-success">+{{ mouvement.quantite }}</span>
+                                    {% else %}
+                                        <span class="text-danger">-{{ mouvement.quantite }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if mouvement.statut == 'valide' %}
+                                        <span class="badge bg-success">Validé</span>
+                                    {% elif mouvement.statut == 'en_attente' %}
+                                        <span class="badge bg-warning">En attente</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ mouvement.get_statut_display }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ mouvement.created_by.username|default:"Système" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">Aucun mouvement récent</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

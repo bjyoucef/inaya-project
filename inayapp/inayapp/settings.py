@@ -31,7 +31,9 @@ ALLOWED_HOSTS = [
     "127.0.0.1",
     "localhost",
     "192.168.10.254",
+    "192.168.0.102",
     "192.168.10.0/24",  # autoriser tout le réseau (moins sécurisé) :
+    "192.168.0.0/24",  # autoriser tout le réseau (moins sécurisé) :
 ]
 INTERNAL_IPS = ["127.0.0.1"]
 # Application definition
@@ -58,6 +60,7 @@ INSTALLED_APPS = [
     "crispy_forms",
     "crispy_bootstrap5",
     "import_export",
+    "rest_framework",
 ]
 INSTALLED_APPS += [
     "accueil",
@@ -70,8 +73,10 @@ INSTALLED_APPS += [
     "medecin.apps.MedecinConfig",
     "medical.apps.MedicalConfig",
     "pharmacies",
+    "export_data",
+    "inventaire",
 ]
-
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 5000
 THUMBNAIL_HIGH_RESOLUTION = True
 THUMBNAIL_PROCESSORS = (
     'easy_thumbnails.processors.colorspace',
@@ -114,7 +119,6 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
-                "django.template.context_processors.request",
                 "accueil.context_processors.get_menu_groups",
                 "accueil.context_processors.get_menu_items",
                 "accueil.context_processors.navbar_context",
@@ -130,7 +134,11 @@ WSGI_APPLICATION = "inayapp.wsgi.application"
 MEDIA_URL = "/files/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "files")
 
+# Taille max des fichiers (optionnel)
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10 Mo
 
+
+# Maintenance mode settings
 MAINTENANCE_MODE = False
 # MAINTENANCE_MODE_IGNORE_SUPERUSER = True  # Les superusers peuvent accéder au site
 # MAINTENANCE_MODE_IGNORE_STAFF = True  # Les utilisateurs avec is_staff=True sont autorisés

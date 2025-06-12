@@ -126,7 +126,6 @@ def add_decharge_multiple(request):
         messages.error(
             request, "Une erreur est survenue lors de l'ajout des décharges."
         )
-        print(f"Erreur : {e}")
 
     return redirect(reverse("planning"))
 
