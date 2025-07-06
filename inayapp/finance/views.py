@@ -15,7 +15,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 from finance.models import Decharges, Payments
 from medecin.models import Medecin
-from medical.models import PrestationActe
+from medical.models import PrestationActe, Prestation
 from num2words import num2words
 from patients.models import Patient
 from rh.models import Personnel, Planning
@@ -296,6 +296,18 @@ def payment_delete(request, pk):
 def export_decharge_pdf(request, decharge_id):
     decharge = get_object_or_404(Decharges, pk=decharge_id)
 
+    # Récupération des prestations liées
+    prestations = decharge.prestation_actes.select_related(
+        "prestation__patient", "acte", "convention"
+    ).all()
+
+    # Calcul des totaux (à titre de vérification / passage en contexte)
+    total_honoraires = sum(p.honoraire_medecin for p in prestations)
+    total_supplementaire = sum(
+        p.prestation.prix_supplementaire_medecin for p in prestations
+    )
+    total_general = total_honoraires + total_supplementaire
+
     amount_in_words = num2words(decharge.amount, lang="fr").capitalize() + " dinars"
 
     context = {
@@ -304,7 +316,10 @@ def export_decharge_pdf(request, decharge_id):
         "name": decharge.name,
         "amount": decharge.amount,
         "amount_in_words": amount_in_words,
-        "dossiers": decharge.note.split("\n") if decharge.note else [],
+        "prestations": prestations,
+        "total_honoraires": total_honoraires,
+        "total_supplementaire": total_supplementaire,
+        "total_general": total_general,
     }
 
     pdf_response = render_to_pdf("decharges/decharge_pdf.html", context)
@@ -343,13 +358,16 @@ def print_decharge_view(request, decharge_id):
 
 @audit_view
 def situation_medecins_list(request):
-    # 1. Honoraires
+    # 1. Honoraires (incluant prix supplémentaire médecin)
     honoraire_sq = (
-        PrestationActe.objects
-        .filter(prestation__medecin=OuterRef('pk'))
-        .values('prestation__medecin')
-        .annotate(total=Sum('honoraire_medecin'))
-        .values('total')
+        PrestationActe.objects.filter(prestation__medecin=OuterRef("pk"))
+        .values("prestation__medecin")
+        .annotate(
+            total_honoraires_actes=Sum("honoraire_medecin"),
+            total_prix_supplementaire=Sum("prestation__prix_supplementaire_medecin"),
+        )
+        .annotate(total=F("total_honoraires_actes") + F("total_prix_supplementaire"))
+        .values("total")
     )
 
     # 2. Paiements
@@ -447,7 +465,6 @@ def situation_medecins_list(request):
     )
 
 
-# views.py
 @audit_view
 def situation_medecin(request, medecin_id):
     medecin = get_object_or_404(Medecin, pk=medecin_id)
@@ -457,20 +474,35 @@ def situation_medecin(request, medecin_id):
     date_fin = request.GET.get("date_fin")
 
     base_query = PrestationActe.objects.filter(prestation__medecin=medecin)
+    prestation_query = Prestation.objects.filter(medecin=medecin)
+
     if date_debut and date_fin:
         base_query = base_query.filter(
             Q(prestation__date_prestation__date__gte=date_debut)
             & Q(prestation__date_prestation__date__lte=date_fin)
         )
-    # Statistiques globales
+        prestation_query = prestation_query.filter(
+            Q(date_prestation__date__gte=date_debut)
+            & Q(date_prestation__date__lte=date_fin)
+        )
+
+    # Statistiques globales (incluant prix supplémentaire médecin)
+    honoraires_actes = (
+        base_query.aggregate(total=Sum("honoraire_medecin"))["total"] or 0
+    )
+    prix_supplementaire_total = (
+        prestation_query.aggregate(total=Sum("prix_supplementaire_medecin"))["total"]
+        or 0
+    )
+
     stats = {
-        "total_honoraires": base_query.aggregate(total=Sum("honoraire_medecin"))[
-            "total"
-        ]
-        or 0,
+        "total_honoraires_actes": honoraires_actes,
+        "total_prix_supplementaire": prix_supplementaire_total,
+        "total_honoraires": honoraires_actes + prix_supplementaire_total,
         "total_patients": base_query.values("prestation__patient").distinct().count(),
         "total_actes": base_query.values("acte").count() or 0,
     }
+
     # Préparation des données pour les graphiques
     # Répartition par convention
     conventions_data = (
@@ -479,6 +511,17 @@ def situation_medecin(request, medecin_id):
         .order_by("-total")
     )
 
+    # Ajouter les prix supplémentaires par convention si nécessaire
+    # Pour simplifier, on les ajoute à "Sans convention" ou on crée une catégorie spéciale
+    if prix_supplementaire_total > 0:
+        conventions_data = list(conventions_data)
+        conventions_data.append(
+            {
+                "convention__nom": "Frais supplémentaires",
+                "total": prix_supplementaire_total,
+            }
+        )
+
     # Top 10 des actes
     actes_data = (
         base_query.values("acte__libelle")
@@ -486,13 +529,34 @@ def situation_medecin(request, medecin_id):
         .order_by("-total")[:10]
     )
 
-    # Évolution temporelle
-    evolution_data = (
+    # Évolution temporelle (incluant prix supplémentaire)
+    evolution_actes = (
         base_query.annotate(date=TruncDate("prestation__date_prestation"))
         .values("date")
         .annotate(total=Sum("honoraire_medecin"))
         .order_by("date")
     )
+
+    evolution_supplementaire = (
+        prestation_query.annotate(date=TruncDate("date_prestation"))
+        .values("date")
+        .annotate(total=Sum("prix_supplementaire_medecin"))
+        .order_by("date")
+    )
+
+    # Combiner les données d'évolution
+    evolution_dict = {}
+    for item in evolution_actes:
+        date = item["date"]
+        evolution_dict[date] = evolution_dict.get(date, 0) + item["total"]
+
+    for item in evolution_supplementaire:
+        date = item["date"]
+        evolution_dict[date] = evolution_dict.get(date, 0) + item["total"]
+
+    evolution_data = [
+        {"date": date, "total": total} for date, total in sorted(evolution_dict.items())
+    ]
 
     # Détail des actes bruts
     actes_details = base_query.values(
@@ -503,18 +567,71 @@ def situation_medecin(request, medecin_id):
         "honoraire_medecin",
     )
 
-    # Agrégations
-    patients = (
-        base_query.values(
-            "prestation__patient_id",
-            "prestation__patient__last_name",
-            "prestation__patient__first_name",
+    # Détail des prestations avec prix supplémentaire
+    prestations_supplementaires = prestation_query.filter(
+        prix_supplementaire_medecin__gt=0
+    ).values(
+        "patient_id",
+        "date_prestation",
+        "prix_supplementaire_medecin",
+    )
+
+    # Agrégations par patient (incluant prix supplémentaire)
+    patients_actes = base_query.values(
+        "prestation__patient_id",
+        "prestation__patient__last_name",
+        "prestation__patient__first_name",
+    ).annotate(
+        total_honoraires_actes=Sum("honoraire_medecin"),
+        nombre_actes=Count("id"),
+    )
+
+    patients_supplementaires = prestation_query.values(
+        "patient_id",
+        "patient__last_name",
+        "patient__first_name",
+    ).annotate(
+        total_prix_supplementaire=Sum("prix_supplementaire_medecin"),
+    )
+
+    # Combiner les données patients
+    patients_dict = {}
+    for p in patients_actes:
+        key = p["prestation__patient_id"]
+        patients_dict[key] = {
+            "prestation__patient_id": key,
+            "prestation__patient__last_name": p["prestation__patient__last_name"],
+            "prestation__patient__first_name": p["prestation__patient__first_name"],
+            "total_honoraires_actes": p["total_honoraires_actes"],
+            "nombre_actes": p["nombre_actes"],
+            "total_prix_supplementaire": Decimal("0.00"),
+        }
+
+    for p in patients_supplementaires:
+        key = p["patient_id"]
+        if key in patients_dict:
+            patients_dict[key]["total_prix_supplementaire"] = p[
+                "total_prix_supplementaire"
+            ]
+        else:
+            patients_dict[key] = {
+                "prestation__patient_id": key,
+                "prestation__patient__last_name": p["patient__last_name"],
+                "prestation__patient__first_name": p["patient__first_name"],
+                "total_honoraires_actes": Decimal("0.00"),
+                "nombre_actes": 0,
+                "total_prix_supplementaire": p["total_prix_supplementaire"],
+            }
+
+    # Calculer le total final par patient
+    for patient_data in patients_dict.values():
+        patient_data["total_honoraires"] = (
+            patient_data["total_honoraires_actes"]
+            + patient_data["total_prix_supplementaire"]
         )
-        .annotate(
-            total_honoraires=Sum("honoraire_medecin"),
-            nombre_actes=Count("id"),
-        )
-        .order_by("-total_honoraires")
+
+    patients = sorted(
+        patients_dict.values(), key=lambda x: x["total_honoraires"], reverse=True
     )
 
     # Conversion sécurisée des données
@@ -526,6 +643,13 @@ def situation_medecin(request, medecin_id):
 
     context = {
         "medecin": medecin,
+        "patients": patients,
+        "actes_details": actes_details,
+        "prestations_supplementaires": prestations_supplementaires,
+        "conventions_data": list(conventions_data),
+        "actes_data": list(actes_data),
+        "evolution_data": evolution_data,
+        "stats": stats,
         "convention_labels": [
             c["convention__nom"] or "Non renseigné" for c in conventions_data
         ],
@@ -576,7 +700,9 @@ def create_decharge_medecin(request, medecin_id):
 
         # Ajout des prestations et construction de la note
         prestation_ids = request.POST.getlist("prestation_acte_ids")
-        prestations = PrestationActe.objects.filter(id__in=prestation_ids)
+        prestations = PrestationActe.objects.filter(
+            id__in=prestation_ids
+        ).select_related("prestation")
         decharge.prestation_actes.set(prestations)
 
         # Génération automatique de la note
@@ -586,6 +712,9 @@ def create_decharge_medecin(request, medecin_id):
             "Prestations incluses:\n",
         ]
 
+        total_honoraires = 0
+        total_supplementaire = 0
+
         for prestation in prestations:
             details = [
                 f"Date: {prestation.prestation.date_prestation.date()}",
@@ -594,14 +723,30 @@ def create_decharge_medecin(request, medecin_id):
                 f"Convention: {prestation.convention.nom if prestation.convention else 'Non conventionné'}",
                 f"Honoraire: {prestation.honoraire_medecin} DA\n",
             ]
+
+            # Ajouter le prix supplémentaire médecin s'il existe
+            if prestation.prestation.prix_supplementaire_medecin > 0:
+                details.append(
+                    f"Supplément médecin: {prestation.prestation.prix_supplementaire_medecin} DA"
+                )
+                total_supplementaire += (
+                    prestation.prestation.prix_supplementaire_medecin
+                )
+
             note_content.append(" | ".join(details))
+            total_honoraires += prestation.honoraire_medecin
 
         # Calcul et ajout du total
-        total = prestations.aggregate(total=Sum("honoraire_medecin"))["total"] or 0
-        note_content.append(f"\nTotal général: {total} DA")
+        total_general = total_honoraires + total_supplementaire
+
+        note_content.append(f"\nRécapitulatif:")
+        note_content.append(f"Total honoraires: {total_honoraires} DA")
+        if total_supplementaire > 0:
+            note_content.append(f"Total suppléments médecin: {total_supplementaire} DA")
+        note_content.append(f"Total général: {total_general} DA")
 
         decharge.note = "\n".join(note_content)
-        decharge.amount = total
+        decharge.amount = total_general
         decharge.save()
 
         return redirect("decharge_list")

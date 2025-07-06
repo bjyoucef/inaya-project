@@ -3,7 +3,7 @@
 from decimal import Decimal
 
 from django.contrib.auth.models import User
-from django.core.validators import MinValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.forms import ValidationError
 from django.utils import timezone
@@ -178,10 +178,6 @@ class TarifActeConvention(models.Model):
         return (
             f"{self.convention.nom} - {self.acte.code} : {self.montant_honoraire_base}€"
         )
-
-from django.db import models
-from decimal import Decimal
-from django.core.validators import MinValueValidator, MaxValueValidator
 
 
 class PrixSupplementaireConfig(models.Model):

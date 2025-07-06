@@ -14,9 +14,14 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.safestring import mark_safe
 from django.views import View
-from finance.models import Convention, TarifActe, TarifActeConvention
+from finance.models import (
+    Convention,
+    TarifActe,
+    TarifActeConvention,
+    PrixSupplementaireConfig,
+)
 from medecin.models import Medecin
-from medical.models import (Acte, ActeProduit, ConsommationProduit, Prestation,
+from medical.models import (Acte, ActeProduit, Prestation,
                             PrestationActe, PrestationAudit)
 from medical.models.actes import ActeProduit
 from patients.models import Patient
@@ -217,6 +222,17 @@ class PrestationCreateView(View):
                 },
             )
 
+        # Calculer la part du médecin supplementaire
+        try:
+            medecin = Medecin.objects.get(id=medecin_id)
+            config = PrixSupplementaireConfig.objects.get(medecin=medecin)
+            pourcentage_medecin = config.pourcentage
+        except (Medecin.DoesNotExist, PrixSupplementaireConfig.DoesNotExist):
+            pourcentage_medecin = Decimal("0.00")
+
+        prix_supplementaire_total = Decimal(request.POST.get("prix_supplementaire", "0"))
+        part_medecin = prix_supplementaire_total * pourcentage_medecin / 100
+
         # Création de la prestation
         prestation = Prestation.objects.create(
             patient_id=patient_id,
@@ -225,7 +241,8 @@ class PrestationCreateView(View):
             statut=statut,
             observations=observations,
             prix_total=total,
-            prix_supplementaire=Decimal(request.POST.get("prix_supplementaire", "0")),
+            prix_supplementaire=prix_supplementaire_total,
+            prix_supplementaire_medecin=part_medecin,
         )
 
         # Création des PrestationActe et consommations

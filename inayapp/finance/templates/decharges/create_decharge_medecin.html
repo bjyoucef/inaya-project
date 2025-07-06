@@ -1,15 +1,11 @@
 {% extends "layout.html" %}
 {% load static %}
 
-
-
 {% block content %}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 
 <div class="container-lg mt-1">
-
-
     <form method="post" class="needs-validation" novalidate>
         {% csrf_token %}
 
@@ -33,10 +29,20 @@
                             <input type="hidden" name="nom_decharge" class="form-control" value="Dr.{{ medecin.nom_complet }}" required>
                     </div>
                     <div class="col-md-6">
-                        <div class="total-card bg-light p-2 rounded text-center">
+                        <div class="total-card bg-light p-3 rounded text-center">
                             <div class="text-muted small">Total Sélectionné</div>
                             <div class="h2 mb-0 text-primary" id="total-amount">0 DA</div>
                             <div class="text-muted small" id="selected-count">0 prestations</div>
+                            <div class="mt-2">
+                                <div class="d-flex justify-content-between">
+                                    <span class="text-muted small">Honoraires:</span>
+                                    <span class="text-muted small" id="total-honoraires">0 DA</span>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <span class="text-muted small">Suppléments:</span>
+                                    <span class="text-muted small" id="total-supplements">0 DA</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -48,7 +54,7 @@
                 <div class="d-flex justify-content-between align-items-center">
                     <h2 class="h5 mb-0">Sélection des Prestations</h2>
                     <div class="d-flex gap-2">
-                        <button type="button" class="btn btn-sm btn-outline-light " id="select-all">
+                        <button type="button" class="btn btn-sm btn-outline-light" id="select-all">
                             <i class="fas fa-check-circle me-2"></i>Tout sélectionner
                         </button>
                         <div class="search-container position-relative">
@@ -73,6 +79,8 @@
                                 <th>Convention</th>
                                 <th>Accord</th>
                                 <th class="text-end">Honoraire</th>
+                                <th class="text-end">Supplément</th>
+                                <th class="text-end">Total</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -83,7 +91,8 @@
                                     <div class="form-check">
                                         <input type="checkbox" name="prestation_acte_ids" value="{{ prestation.id }}"
                                             class="form-check-input prestation-checkbox"
-                                            data-amount="{{ prestation.honoraire_medecin }}">
+                                            data-amount="{{ prestation.honoraire_medecin }}"
+                                            data-supplement="{{ prestation.prestation.prix_supplementaire_medecin|default:0 }}">
                                     </div>
                                 </td>
                                 <td>
@@ -126,17 +135,29 @@
                                         <span class="badge bg-danger">
                                             Non Accordé
                                         </span>
-                                        {% else %}
                                     {% endif %}
                                 </td>
-
                                 <td class="text-end">
                                     <div class="fw-bold text-nowrap">{{ prestation.honoraire_medecin }} DA</div>
+                                </td>
+                                <td class="text-end">
+                                    {% if prestation.prestation.prix_supplementaire_medecin > 0 %}
+                                    <div class="fw-bold text-nowrap text-success">
+                                        {{ prestation.prestation.prix_supplementaire_medecin }} DA
+                                    </div>
+                                    {% else %}
+                                    <div class="text-muted">-</div>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    <div class="fw-bold text-nowrap text-primary">
+                                        {{ prestation.honoraire_medecin|add:prestation.prestation.prix_supplementaire_medecin }} DA
+                                    </div>
                                 </td>
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="6" class="text-center py-5 bg-light">
+                                <td colspan="9" class="text-center py-5 bg-light">
                                     <i class="fas fa-inbox fa-2x text-muted mb-3"></i>
                                     <div class="text-muted">Aucune prestation disponible</div>
                                 </td>
@@ -173,19 +194,26 @@
         const searchInput = document.getElementById('prestation-search');
         const totalAmount = document.getElementById('total-amount');
         const selectedCount = document.getElementById('selected-count');
+        const totalHonoraires = document.getElementById('total-honoraires');
+        const totalSupplements = document.getElementById('total-supplements');
 
         function updateTotals() {
-            let total = 0;
+            let totalHon = 0;
+            let totalSup = 0;
             let count = 0;
 
             checkboxes.forEach(checkbox => {
                 if (checkbox.checked) {
-                    total += parseFloat(checkbox.dataset.amount);
+                    totalHon += parseFloat(checkbox.dataset.amount);
+                    totalSup += parseFloat(checkbox.dataset.supplement);
                     count++;
                 }
             });
 
+            const total = totalHon + totalSup;
             totalAmount.textContent = `${total.toLocaleString()} DA`;
+            totalHonoraires.textContent = `${totalHon.toLocaleString()} DA`;
+            totalSupplements.textContent = `${totalSup.toLocaleString()} DA`;
             selectedCount.textContent = `${count} prestation${count > 1 ? 's' : ''}`;
         }
 

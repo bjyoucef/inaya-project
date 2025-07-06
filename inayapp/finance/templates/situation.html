@@ -58,55 +58,55 @@
                 </div>
             </div>
         </div>
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-start-primary shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="d-flex align-items-center">
-                        <div class="me-3">
-                            <i class="fas fa-euro-sign fa-2x text-primary"></i>
-                        </div>
-                        <div>
-                            <div class="text-xs fw-bold text-primary text-uppercase">Total Honoraires</div>
-                            <div class="h5 mb-0 fw-bold text-gray-800">{{ stats.total_honoraires|floatformat:2|intcomma }}</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+
         <div class="col-xl-3 col-md-6 mb-4">
             <div class="card border-start-success shadow h-100 py-2">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
                         <div class="me-3">
-                            <i class="fas fa-user-injured fa-2x text-success"></i>
+                            <i class="fas fa-plus-circle fa-2x text-success"></i>
                         </div>
                         <div>
-                            <div class="text-xs fw-bold text-success text-uppercase">Patients</div>
+                            <div class="text-xs fw-bold text-success text-uppercase">Frais Supplémentaires</div>
+                            <div class="h5 mb-0 fw-bold text-gray-800">{{ stats.total_prix_supplementaire|floatformat:2|intcomma }} DA</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-start-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="me-3">
+                            <i class="fas fa-calculator fa-2x text-info"></i>
+                        </div>
+                        <div>
+                            <div class="text-xs fw-bold text-info text-uppercase">Total Honoraires</div>
+                            <div class="h5 mb-0 fw-bold text-gray-800">{{ stats.total_honoraires|floatformat:2|intcomma }} DA</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-start-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="me-3">
+                            <i class="fas fa-user-injured fa-2x text-warning"></i>
+                        </div>
+                        <div>
+                            <div class="text-xs fw-bold text-warning text-uppercase">Patients</div>
                             <div class="h5 mb-0 fw-bold text-gray-800">{{ stats.total_patients|intcomma }}</div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-start-info shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="d-flex align-items-center">
-                        <div class="me-3">
-                            <i class="fas fa-procedures fa-2x text-info"></i>
-                        </div>
-                        <div>
-                            <div class="text-xs fw-bold text-info text-uppercase">Actes</div>
-                            <div class="h5 mb-0 fw-bold text-gray-800">{{ stats.total_actes|intcomma }}</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
     </div>
-
-
-
 
     <!-- Section Graphiques -->
     <div class="row mb-4">
@@ -133,6 +133,7 @@
             </div>
         </div>
     </div>
+
         <!-- Évolution temporelle -->
         <div class="col-lg-4 mb-4">
             <div class="card shadow h-100">
@@ -145,6 +146,7 @@
             </div>
         </div>
     </div>
+
     <!-- Tableau patients -->
     <div class="card shadow mb-4">
         <div class="card-header py-3 d-flex justify-content-between align-items-center">
@@ -160,7 +162,9 @@
                         <tr>
                             <th>Patient</th>
                             <th class="text-end">Actes</th>
-                            <th class="text-end">Honoraires</th>
+                            <th class="text-end">Honoraires Actes</th>
+                            <th class="text-end">Frais Supplémentaires</th>
+                            <th class="text-end">Total</th>
                             <th class="text-end">Actions</th>
                         </tr>
                     </thead>
@@ -169,17 +173,20 @@
                         <tr>
                             <td class="fw-bold">{{ p.prestation__patient__last_name }} {{ p.prestation__patient__first_name }}</td>
                             <td class="text-end">{{ p.nombre_actes }}</td>
-                            <td class="text-end">€{{ p.total_honoraires|floatformat:2|intcomma }}</td>
+                            <td class="text-end">{{ p.total_honoraires_actes|floatformat:2|intcomma }} DA</td>
+                            <td class="text-end {% if p.total_prix_supplementaire > 0 %}text-success{% endif %}">
+                                {{ p.total_prix_supplementaire|floatformat:2|intcomma }} DA
+                            </td>
+                            <td class="text-end fw-bold">{{ p.total_honoraires|floatformat:2|intcomma }} DA</td>
                             <td class="text-end">
-                                <button class="btn btn-sm btn-outline-primary toggle-details" 
-                                        data-bs-toggle="collapse" 
+                                <button class="btn btn-sm btn-outline-primary toggle-details" data-bs-toggle="collapse"
                                         data-bs-target="#patient{{ forloop.counter }}">
                                     <i class="fas fa-chevron-down"></i>
                                 </button>
                             </td>
                         </tr>
                         <tr class="detail-row">
-                            <td colspan="4" class="p-0 border-0">
+                            <td colspan="6" class="p-0 border-0">
                                 <div class="collapse" id="patient{{ forloop.counter }}">
                                     <div class="p-3 bg-light">
                                         <h6 class="mb-3 fw-bold">Détail des actes</h6>
@@ -188,7 +195,8 @@
                                                 <thead>
                                                     <tr class="text-uppercase text-muted small">
                                                         <th>Date</th>
-                                                        <th>Acte</th>
+                                                        <th>Type</th>
+                                                        <th>Détail</th>
                                                         <th>Convention</th>
                                                         <th class="text-end">Montant</th>
                                                     </tr>
@@ -198,9 +206,23 @@
                                                         {% if acte.prestation__patient_id == p.prestation__patient_id %}
                                                         <tr>
                                                             <td>{{ acte.prestation__date_prestation|date:"d/m/Y" }}</td>
+                                                        <td><span class="badge bg-primary">Acte</span></td>
                                                             <td>{{ acte.acte__libelle }}</td>
                                                             <td>{{ acte.convention__nom|default:"-" }}</td>
-                                                            <td class="text-end">€{{ acte.honoraire_medecin|floatformat:2 }}</td>
+                                                        <td class="text-end">{{ acte.honoraire_medecin|floatformat:2 }}
+                                                            DA</td>
+                                                    </tr>
+                                                    {% endif %}
+                                                    {% endfor %}
+                                                    {% for prestation in prestations_supplementaires %}
+                                                    {% if prestation.patient_id == p.prestation__patient_id %}
+                                                    <tr>
+                                                        <td>{{ prestation.date_prestation|date:"d/m/Y" }}</td>
+                                                        <td><span class="badge bg-success">Supplément</span></td>
+                                                        <td>Frais supplémentaires</td>
+                                                        <td>-</td>
+                                                        <td class="text-end">{{ prestation.prix_supplementaire_medecin|floatformat:2 }} DA
+                                                        </td>
                                                         </tr>
                                                         {% endif %}
                                                     {% endfor %}
@@ -245,6 +267,22 @@
     .detail-row .table {
         background-color: rgba(248, 249, 250, 0.5);
         border-radius: 0.5rem;
+    }
+
+    .border-start-primary {
+        border-left: 0.25rem solid #4e73df !important;
+    }
+
+    .border-start-success {
+        border-left: 0.25rem solid #1cc88a !important;
+    }
+
+    .border-start-info {
+        border-left: 0.25rem solid #36b9cc !important;
+    }
+
+    .border-start-warning {
+        border-left: 0.25rem solid #f6c23e !important;
     }
 </style>
 
@@ -296,7 +334,8 @@ document.addEventListener('DOMContentLoaded', function() {
             chartColors.success,
             chartColors.info,
             chartColors.warning,
-            chartColors.danger
+            chartColors.danger,
+            chartColors.secondary
         ],
         borderWidth: 1
             }]
@@ -305,7 +344,7 @@ document.addEventListener('DOMContentLoaded', function() {
         plugins: {
             tooltip: {
                 callbacks: {
-                    label: (context) => ` ${context.label}: €${context.raw.toFixed(2)} (${context.formattedValue}%)`
+                    label: (context) => `${context.label}: ${context.raw.toFixed(2)} DA (${context.formattedValue}%)`
                 }
             }
         }
@@ -333,7 +372,7 @@ document.addEventListener('DOMContentLoaded', function() {
         },
         scales: {
             x: {
-                ticks: { callback: (value) => '€' + value.toFixed(2) }
+                ticks: { callback: (value) => value.toFixed(2) + ' DA' }
             }
         }
     }

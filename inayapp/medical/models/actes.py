@@ -81,13 +81,13 @@ class Prestation(models.Model):
         verbose_name="Frais supplémentaires",
         help_text="Coût supplémentaire pour la prestation (hors actes et consommations)"
     )
-    honoraire_total = models.DecimalField(
-        max_digits=10,
+    prix_supplementaire_medecin = models.DecimalField(
+        max_digits=10, 
         decimal_places=2,
-        verbose_name="Honoraire médecin total",
-        null=True,
-        blank=True,
+        default=0,
+        verbose_name="Part médecin du supplément"
     )
+
     observations = models.TextField(blank=True, verbose_name="Observations médicales")
 
     class Meta:
