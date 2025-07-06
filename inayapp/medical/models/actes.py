@@ -7,12 +7,17 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.forms import ValidationError
 from django.utils import timezone
-from pharmacies.models import ConsommationProduit, Stock
 from finance.models import (
     HonorairesMedecin,
     TarifActeConvention,
     TarifActe,
 )
+from pharmacies.models.stock import ConsommationProduit, Stock
+from django.contrib.auth import get_user_model
+from django.db import models
+from django.utils import timezone
+
+User = get_user_model()
 
 class Acte(models.Model):
     code = models.CharField(max_length=20, unique=True)
@@ -69,6 +74,13 @@ class Prestation(models.Model):
         decimal_places=2,
         verbose_name="Coût total",
     )
+    prix_supplementaire = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        verbose_name="Frais supplémentaires",
+        help_text="Coût supplémentaire pour la prestation (hors actes et consommations)"
+    )
     honoraire_total = models.DecimalField(
         max_digits=10,
         decimal_places=2,
@@ -102,16 +114,61 @@ class Prestation(models.Model):
     def dossier_medical(self):
         return self.patient.dossier_medical
 
-    # def update_stock(self):
-    #     """Met à jour le stock par service concerné"""
+    def cancel_stock_impact(self):
+        """Annule l'impact précédent sur le stock"""
+        for pa in self.actes_details.all():
+            for conso in pa.consommations.all():
+                service = pa.acte.service
+                try:
+                    stock = Stock.objects.get(produit=conso.produit, service=service)
+                    stock.quantite += conso.quantite_reelle
+                    stock.save()
+                except Stock.DoesNotExist:
+                    pass
 
-    #     for consommation in ConsommationProduit.objects.filter(
-    #         prestation_acte__prestation=self
-    #     ):
-    #         service = consommation.prestation_acte.acte.service
-    #         Stock.objects.filter(
-    #             produit=consommation.produit, service=service
-    #         ).update(quantite=F("quantite") - consommation.quantite_reelle)
+
+    def update_stock(self):
+        """Met à jour le stock par service concerné"""
+        for pa in self.actes_details.all():
+            for conso in pa.consommations.all():
+                service = pa.acte.service
+                # ← change get_or_create to filter/create
+                qs = Stock.objects.filter(produit=conso.produit, service=service)
+                if not qs.exists():
+                    # no stock row → create one
+                    stock = Stock.objects.create(
+                        produit=conso.produit, service=service, quantite=0
+                    )
+                    qs = [stock]
+                # now qs is either the newly created or the existing QuerySet
+                for stock in qs:
+                    stock.quantite -= conso.quantite_reelle
+                    stock.save()
+
+    def calculate_total_price(self):
+        """Calcule le prix total incluant les actes, les consommations et les frais supplémentaires"""
+        total = Decimal("0.00")
+
+        # Prix des actes
+        for pa in self.actes_details.all():
+            total += pa.tarif_conventionne
+
+            # Prix des consommations de produits
+            for conso in pa.consommations.all():
+                quantite_supplementaire = max(
+                    0, conso.quantite_reelle - conso.quantite_defaut
+                )
+                total += quantite_supplementaire * conso.prix_unitaire
+
+        # Ajouter les frais supplémentaires
+        total += self.prix_supplementaire
+
+        return total
+
+    def update_total_price(self):
+        """Met à jour le prix total de la prestation"""
+        self.prix_total = self.calculate_total_price()
+        self.save(update_fields=["prix_total"])
 
 
 class PrestationActe(models.Model):
@@ -256,3 +313,30 @@ class ActeProduit(models.Model):
 
     def __str__(self):
         return f"{self.acte} - {self.produit} ({self.quantite_defaut})"
+
+
+class PrestationAudit(models.Model):
+    prestation = models.ForeignKey(
+        Prestation, on_delete=models.CASCADE, related_name="audits"
+    )
+    user = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, verbose_name="Utilisateur"
+    )
+    champ = models.CharField(max_length=100, verbose_name="Champ modifié")
+    ancienne_valeur = models.TextField(
+        blank=True, null=True, verbose_name="Valeur avant modification"
+    )
+    nouvelle_valeur = models.TextField(
+        blank=True, null=True, verbose_name="Valeur après modification"
+    )
+    date_modification = models.DateTimeField(
+        auto_now_add=True, verbose_name="Date de modification"
+    )
+
+    class Meta:
+        verbose_name = "Audit de prestation"
+        verbose_name_plural = "Audits de prestations"
+        ordering = ["-date_modification"]
+
+    def __str__(self):
+        return f"Audit #{self.id} - {self.champ}"

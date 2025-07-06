@@ -5,7 +5,11 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.urls import reverse
 from django.utils import timezone
-
+from django.db import models
+from django.core.exceptions import ValidationError
+from django.utils import timezone
+import uuid
+from django.db import models, transaction
 from decimal import Decimal
 from django.db import models
 from django.urls import reverse
@@ -143,7 +147,7 @@ class LigneCommande(models.Model):
         BonCommande, on_delete=models.CASCADE, related_name="lignes"
     )
     produit = models.ForeignKey("Produit", on_delete=models.PROTECT)
-    quantite = models.PositiveIntegerField()
+    quantite = models.PositiveIntegerField(default=0)
     prix_unitaire = models.DecimalField(max_digits=10, decimal_places=2)
     date_peremption = models.DateTimeField()
     numero_lot = models.CharField(max_length=50, blank=True, null=True)
@@ -155,14 +159,6 @@ class LigneCommande(models.Model):
     @property
     def montant(self):
         return self.quantite * self.prix_unitaire
-
-
-# pharmacies/models/commande.py
-from django.db import models
-from django.core.exceptions import ValidationError
-from django.utils import timezone
-import uuid
-from django.db import models, transaction
 
 
 class BonLivraison(models.Model):

@@ -42,7 +42,7 @@ class Stock(models.Model):
     service = models.ForeignKey(
         "medical.Service", on_delete=models.PROTECT, verbose_name="Service"
     )
-    quantite = models.PositiveIntegerField(verbose_name="Quantité")
+    quantite = models.IntegerField(verbose_name="Quantité")
     date_peremption = models.DateField(verbose_name="Date de péremption")
     numero_lot = models.CharField(
         max_length=50, blank=True, null=True, verbose_name="Numéro de lot"
@@ -79,7 +79,7 @@ class MouvementStock(models.Model):
         ("AJUSTEMENT", "Ajustement"),
     )
 
-    type_mouvement = models.CharField(max_length=17, choices=TYPES_MOUVEMENT)
+    type_mouvement = models.CharField(max_length=20, choices=TYPES_MOUVEMENT)
     produit = models.ForeignKey("Produit", on_delete=models.PROTECT)
     service = models.ForeignKey("medical.Service", on_delete=models.PROTECT)
     quantite = models.IntegerField()
@@ -89,7 +89,7 @@ class MouvementStock(models.Model):
     # Generic foreign key pour lier à n'importe quel modèle
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
     object_id = models.PositiveIntegerField()
-    source = GenericForeignKey("content_type", "object_id")
+    instance = GenericForeignKey("content_type", "object_id")
 
     class Meta:
         verbose_name = "Mouvement de stock"
@@ -97,116 +97,33 @@ class MouvementStock(models.Model):
         indexes = [
             models.Index(fields=["type_mouvement"]),
             models.Index(fields=["date_mouvement"]),
+            models.Index(fields=["produit"]),
+            models.Index(fields=["content_type", "object_id"]),
         ]
 
     @classmethod
-    def log_mouvement(cls, instance, type_mouvement, **kwargs):
-        """Méthode générique pour logger les mouvements"""
+    def log_mouvement(
+        cls,
+        instance,
+        type_mouvement,
+        produit,
+        service,
+        quantite,
+        lot_concerne=None,
+        **kwargs
+    ):
+        """
+        Log a stock movement with proper GenericForeignKey handling
+        """
         return cls.objects.create(
             type_mouvement=type_mouvement,
-            content_type=ContentType.objects.get_for_model(instance),
-            object_id=instance.pk,
+            produit=produit,
+            service=service,
+            quantite=quantite,
+            lot_concerne=lot_concerne,
+            instance=instance,  # This will automatically set content_type and object_id
             **kwargs,
         )
-
-
-class TransfertManager(models.Manager):
-    def create_transfert(self, **kwargs):
-        with transaction.atomic():
-            # Verrouillage des stocks concernés
-            stock_origine = Stock.objects.select_for_update().get(
-                produit=kwargs["produit"],
-                service=kwargs["service_origine"],
-                numero_lot=kwargs["numero_lot"],
-                date_peremption=kwargs["date_peremption"],
-            )
-
-            if stock_origine.quantite < kwargs["quantite_transferee"]:
-                raise ValidationError("Stock insuffisant pour le transfert")
-
-            transfert = self.create(**kwargs)
-
-            # Mise à jour stock origine
-            stock_origine.quantite -= transfert.quantite_transferee
-            stock_origine.save()
-
-            # Création stock destination
-            Stock.objects.create(
-                produit=transfert.produit,
-                service=transfert.service_destination,
-                quantite=transfert.quantite_transferee,
-                date_peremption=transfert.date_peremption,
-                numero_lot=transfert.numero_lot,
-            )
-
-            # Log des mouvements
-            MouvementStock.log_mouvement(
-                instance=transfert,
-                type_mouvement="TRANSFERT_SORTIE",
-                produit=transfert.produit,
-                service=transfert.service_origine,
-                quantite=-transfert.quantite_transferee,
-                lot_concerne=transfert.numero_lot,
-            )
-
-            MouvementStock.log_mouvement(
-                instance=transfert,
-                type_mouvement="TRANSFERT_ENTREE",
-                produit=transfert.produit,
-                service=transfert.service_destination,
-                quantite=transfert.quantite_transferee,
-                lot_concerne=transfert.numero_lot,
-            )
-
-            return transfert
-
-
-class Transfert(models.Model):
-    produit = models.ForeignKey(
-        "Produit", on_delete=models.PROTECT, verbose_name="Produit"
-    )
-    service_origine = models.ForeignKey(
-        "medical.Service",
-        related_name="transferts_sortants",
-        on_delete=models.PROTECT,
-        verbose_name="Service d'origine",
-    )
-    service_destination = models.ForeignKey(
-        "medical.Service",
-        related_name="transferts_entrants",
-        on_delete=models.PROTECT,
-        verbose_name="Service de destination",
-    )
-    quantite_transferee = models.PositiveIntegerField(
-        verbose_name="Quantité transférée"
-    )
-    responsable = models.ForeignKey(
-        "rh.Personnel",
-        on_delete=models.PROTECT,
-        verbose_name="Responsable du transfert",
-    )
-    date_transfert = models.DateTimeField(
-        auto_now_add=True, verbose_name="Date de transfert"
-    )
-    date_peremption = models.DateField(verbose_name="Date de péremption")
-    numero_lot = models.CharField(
-        max_length=50, blank=True, null=True, verbose_name="Numéro de lot"
-    )
-    commande_interne = models.ForeignKey(
-        "BonCommandeInterne",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="transferts",
-    )
-    objects = TransfertManager()
-
-    class Meta:
-        verbose_name = "Transfert"
-        verbose_name_plural = "Transferts"
-
-    def __str__(self):
-        return f"Transfert {self.produit} de {self.service_origine} à {self.service_destination}"
 
 
 class AjustementStock(models.Model):
@@ -249,7 +166,9 @@ class ConsommationProduit(models.Model):
     quantite_defaut = models.PositiveIntegerField()
     quantite_reelle = models.PositiveIntegerField()
     prix_unitaire = models.DecimalField(max_digits=10, decimal_places=2)
-    montant_solde = models.DecimalField(max_digits=10, decimal_places=2)
+    montant_solde = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True
+    )
     date_consommation = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -259,38 +178,56 @@ class ConsommationProduit(models.Model):
         ]
 
     def save(self, *args, **kwargs):
-        # Calcul du montant soldé
+        # Calculer le montant soldé
         self.montant_solde = (
             self.quantite_reelle - self.quantite_defaut
         ) * self.prix_unitaire
 
-        # Application sur le stock
-        if self.pk is None:  # Seulement à la création
-            service = self.prestation_acte.acte.service
-            stocks = Stock.objects.get_available(self.produit, service)
-            quantite_restante = self.quantite_reelle
-
-            with transaction.atomic():
-                for stock in stocks.select_for_update():
-                    if quantite_restante <= 0:
-                        break
-
-                    prelevement = min(quantite_restante, stock.quantite)
-                    stock.quantite -= prelevement
-                    stock.save()
-
-                    MouvementStock.log_mouvement(
-                        instance=self,
-                        type_mouvement="SORTIE",
-                        produit=self.produit,
-                        service=service,
-                        quantite=-prelevement,
-                        lot_concerne=stock.numero_lot,
-                    )
-
-                    quantite_restante -= prelevement
-
-                if quantite_restante > 0:
-                    raise ValidationError("Stock insuffisant pour la consommation")
-
+        # Sauvegarder d'abord pour avoir un ID
+        is_new = self.pk is None
         super().save(*args, **kwargs)
+
+        # Appliquer sur le stock seulement lors de la création
+        if is_new:
+            self._update_stock()
+
+    def _update_stock(self):
+        """Mise à jour du stock après consommation"""
+        if self.quantite_reelle <= 0:
+            return
+
+        service = self.prestation_acte.acte.service
+        stocks = Stock.objects.get_available(self.produit, service)
+        quantite_restante = self.quantite_reelle
+
+        with transaction.atomic():
+            for stock in stocks.select_for_update():
+                if quantite_restante <= 0:
+                    break
+
+                prelevement = min(quantite_restante, stock.quantite)
+                stock.quantite -= prelevement
+                stock.save()
+
+                # Enregistrer le mouvement de stock
+                MouvementStock.log_mouvement(
+                    instance=self,
+                    type_mouvement="SORTIE",
+                    produit=self.produit,
+                    service=service,
+                    quantite=prelevement,  # Quantité positive pour le log
+                    lot_concerne=stock.numero_lot,
+                )
+
+                quantite_restante -= prelevement
+
+            # Si on n'a pas pu prélever assez de stock
+            if quantite_restante > 0:
+                # On peut soit lever une exception, soit loguer un warning
+                import logging
+
+                logger = logging.getLogger(__name__)
+                logger.warning(
+                    f"Stock insuffisant pour le produit {self.produit.nom} "
+                    f"dans le service {service.name}. Manque: {quantite_restante}"
+                )

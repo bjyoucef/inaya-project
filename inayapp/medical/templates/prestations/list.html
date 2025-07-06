@@ -7,154 +7,264 @@
 <link rel="stylesheet" href="{% static 'css/choices.min.css' %}">
 <link rel="stylesheet" href="{% static 'css/daterangepicker.css' %}">
 
-<div class="container-fluid py-1">
+<div class="min-vh-100 bg-gradient-to-br from-slate-50 to-blue-50">
+    <!-- Header avec gradient animé -->
+    <div class="header-hero">
+        <div class="container-fluid">
+            <div class="row align-items-center py-4">
+                <div class="col-lg-8">
+                    <div class="d-flex align-items-center">
+                        <div class="hero-icon me-3">
+                            <i class="fas fa-stethoscope"></i>
+                        </div>
+                        <div>
+                            <h1 class="display-6 fw-bold text-white mb-1">Prestations Médicales</h1>
+                            <p class="text-white-75 mb-0">Gestion et suivi des prestations</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-4 text-end">
+                    <a href="{% url 'medical:prestation_create' %}" class="btn btn-light btn-lg shadow-lg hover-lift">
+                        <i class="fas fa-plus me-2"></i>Nouvelle prestation
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
 
-    <!-- Section Filtres -->
-    <div class="card border-0 shadow-sm mb-3">
-        <div class="card-body p-2">
-            <form method="get" class="flex-grow-1 ms-md-3">
-
-                <div class="row g-2 g-md-3 align-items-end">
+    <div class="container-fluid px-4 py-4">
+        <!-- Filtres avec design moderne -->
+        <div class="filters-card mb-4">
+            <div class="card-body p-4">
+                <form method="get" class="filters-form">
+                    <div class="row g-3 align-items-end">
                     <!-- Filtre Statut -->
-                    <div class="col-12 col-md">
-                        <label class="form-label small text-muted mb-1">Statut</label>
-                        <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+                        <div class="col-12 col-md-6 col-lg-2">
+                            <label class="form-label fw-semibold text-gray-700">Statut</label>
+                            <div class="select-wrapper">
+                                <select name="status" class="form-select modern-select" onchange="this.form.submit()">
                             <option value="">Tous les statuts</option>
                             {% for value, label in prestation.STATUT_CHOICES %}
-                            <option value="{{ value }}" {% if request.GET.status == value %}selected{% endif %}>
+                                    <option value="{{ value }}" {% if request.GET.status == value %}selected{% endif %}>
                                 {{ label }}
                             </option>
                             {% endfor %}
                         </select>
+                            </div>
                     </div>
 
                     <!-- Sélecteur de services -->
-                    <div class="col-12 col-md">
-                        <label class="form-label small text-muted mb-1">Services</label>
-                        <select name="service" class="form-select form-select-sm" id="serviceFilter" onchange="this.form.submit()">
+                        <div class="col-12 col-md-6 col-lg-2">
+                            <label class="form-label fw-semibold text-gray-700">Services</label>
+                            <div class="select-wrapper">
+                                <select name="service" class="form-select modern-select" id="serviceFilter"
+                                    onchange="this.form.submit()">
                             <option value="">Tous les Services</option>
                             {% for service in services %}
-                            <option value="{{ service.id }}" {% if request.GET.service == service.id|stringformat:"s" %}selected{% endif %}>
+                                    <option value="{{ service.id }}" 
+                                    {% if request.GET.service == service.id|stringformat:"s" %}selected{% endif %}>
                                 {{ service.name }}
                             </option>
                             {% endfor %}
                         </select>
+                            </div>
                     </div>
 
-                    <!-- Sélecteur de medecin -->
-                    <div class="col-12 col-md">
-                        <label class="form-label small text-muted mb-1">Médecin</label>
-                        <select name="medecin" class="form-select form-select-sm" id="medecinFilter" onchange="this.form.submit()">
+                        <!-- Sélecteur de médecin -->
+                        <div class="col-12 col-md-6 col-lg-2">
+                            <label class="form-label fw-semibold text-gray-700">Médecin</label>
+                            <div class="select-wrapper">
+                                <select name="medecin" class="form-select modern-select" id="medecinFilter"
+                                    onchange="this.form.submit()">
                             <option value="">Tous les médecins</option>
                             {% for medecin in medecins %}
-                            <option value="{{ medecin.id }}" {% if request.GET.medecin == medecin.id|stringformat:"s" %}selected{% endif %}>
+                                    <option value="{{ medecin.id }}" 
+                                    {% if request.GET.medecin == medecin.id|stringformat:"s" %}selected{% endif %}>
                                 {{ medecin.nom_complet }}
                             </option>
                             {% endfor %}
                         </select>
+                            </div>
                     </div>
 
                     <!-- Sélecteur de patient -->
-                    <div class="col-12 col-md">
-                        <label class="form-label small text-muted mb-1">Patient</label>
-                        <select name="patient" class="form-select form-select-sm" id="patientFilter" onchange="this.form.submit()">
+                        <div class="col-12 col-md-6 col-lg-2">
+                            <label class="form-label fw-semibold text-gray-700">Patient</label>
+                            <div class="select-wrapper">
+                                <select name="patient" class="form-select modern-select" id="patientFilter"
+                                    onchange="this.form.submit()">
                             <option value="">Tous les patients</option>
                             {% for patient in patients %}
-                            <option value="{{ patient.id }}" {% if request.GET.patient == patient.id|stringformat:"s" %}selected{% endif %}>
+                                    <option value="{{ patient.id }}" 
+                                    {% if request.GET.patient == patient.id|stringformat:"s" %}selected{% endif %}>
                                 {{ patient.nom_complet }}
                             </option>
                             {% endfor %}
                         </select>
+                            </div>
                     </div>
 
                     <!-- Sélecteur de période -->
-                    <div class="col-12 col-md">
-                        <label class="form-label small text-muted mb-1">Période</label>
-                        <div class="input-group input-group-sm">
-                            <span class="input-group-text bg-transparent border-end-0">
+                        <div class="col-12 col-md-6 col-lg-4">
+                            <label class="form-label fw-semibold text-gray-700">Période</label>
+                            <div class="date-input-wrapper">
+                                <div class="input-group">
+                                    <span class="input-group-text bg-white border-end-0">
                                 <i class="bi bi-calendar-range text-primary"></i>
                             </span>
                                     <input type="text" name="daterangepicker" id="daterangepicker"
-                                        class="form-control date-range-input" placeholder="Choisir une plage de dates">
+                                        class="form-control modern-input border-start-0"
+                                        placeholder="Choisir une plage de dates">
                     </div>
                 </div>
-                <!-- Bouton mobile -->
-                <div class="col-12 d-md-none">
-                    <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-sm btn-primary w-100">
-                            <i class="bi bi-funnel me-2"></i>Appliquer
-                        </button>
                     </div>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Bouton d'ajout et information de pagination -->
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <a href="{% url 'medical:prestation_create' %}" class="btn btn-success">
-            <i class="fas fa-plus me-2"></i>Nouvelle prestation
-        </a>
-
-        <!-- Information de pagination et sélecteur -->
+        <!-- Stats rapides -->
         {% if total_count > 0 %}
-        <div class="d-flex align-items-center gap-3">
-        <div class="text-muted small">
-            Affichage de {{ page_obj.start_index }} à {{ page_obj.end_index }}
-            sur {{ total_count }} prestation{{ total_count|pluralize }}
+        <div class="row g-4 mb-4">
+            <div class="col-12">
+                <div class="stats-container">
+                    <div class="stats-item">
+                        <div class="stats-icon bg-primary">
+                            <i class="fas fa-list"></i>
         </div>
-    
-        <div class="d-flex align-items-center gap-2">
+                        <div class="stats-content">
+                            <div class="stats-number">{{ total_count }}</div>
+                            <div class="stats-label">Prestation{{ total_count|pluralize }}</div>
+                        </div>
+                    </div>
+                    <div class="stats-item">
+                        <div class="stats-icon bg-success">
+                            <i class="fas fa-eye"></i>
+                        </div>
+                        <div class="stats-content">
+                            <div class="stats-number">{{ page_obj.start_index }}-{{ page_obj.end_index }}</div>
+                            <div class="stats-label">Affichage</div>
+                        </div>
+                    </div>
+                    <div class="stats-divider"></div>
+                    <div class="per-page-selector">
                 <label class="form-label small text-muted mb-0">Par page :</label>
-                <select class="form-select form-select-sm" style="width: auto;"
+                        <select class="form-select form-select-sm modern-select-sm"
                     onchange="changeItemsPerPage(this.value)">
                     <option value="10" {% if items_per_page == 10 %}selected{% endif %}>10</option>
                     <option value="25" {% if items_per_page == 25 %}selected{% endif %}>25</option>
                     <option value="50" {% if items_per_page == 50 %}selected{% endif %}>50</option>
                     <option value="100" {% if items_per_page == 100 %}selected{% endif %}>100</option>
             </select>
+                    </div>
+                </div>
         </div>
     </div>
         {% endif %}
-    </div>
 
-<div class="shadow">
-        <div class="p-0">
-            <table class="table table-hover mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th>Date</th>
-                        <th>Patient</th>
-                        <th>Médecin</th>
-                        <th>Statut</th>
-                        <th class="text-end">Montant</th>
-                        <th>Actions</th>
+        <!-- Tableau avec design moderne -->
+        <div class="table-card">
+            <div class="table-responsive">
+                <table class="table table-hover modern-table">
+                    <thead>
+                        <tr>
+                            <th class="sortable">
+                                <div class="th-content">
+                                    <i class="fas fa-calendar-alt me-2"></i>
+                                    Date
+                                </div>
+                            </th>
+                            <th class="sortable">
+                                <div class="th-content">
+                                    <i class="fas fa-user me-2"></i>
+                                    Patient
+                                </div>
+                            </th>
+                            <th class="sortable">
+                                <div class="th-content">
+                                    <i class="fas fa-user-md me-2"></i>
+                                    Médecin
+                                </div>
+                            </th>
+                            <th class="sortable">
+                                <div class="th-content">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    Statut
+                                </div>
+                            </th>
+                            <th class="sortable text-end">
+                                <div class="th-content">
+                                    <i class="fas fa-euro-sign me-2"></i>
+                                    Montant
+                                </div>
+                            </th>
+                            <th class="text-center">
+                                <div class="th-content">
+                                    <i class="fas fa-cog me-2"></i>
+                                    Actions
+                                </div>
+                            </th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for prestation in page_obj %}
-                    <tr>
-                        <td>{{ prestation.date_prestation|date:"d/m/Y" }}</td>
-                        <td>{{ prestation.patient.nom_complet }}</td>
-                        <td>{{ prestation.medecin.nom_complet }}</td>
+                        <tr class="table-row" data-aos="fade-up" data-aos-delay="{{ forloop.counter0 }}">
+                            <td class="fw-medium">
+                                <div class="date-cell">
+                                    <div class="date-day">{{ prestation.date_prestation|date:"d" }}</div>
+                                    <div class="date-month">{{ prestation.date_prestation|date:"M Y" }}</div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="user-cell">
+                                    <div class="user-avatar">
+                                        {{ prestation.patient.nom_complet|first }}
+                                    </div>
+                                    <div class="user-info">
+                                        <div class="user-name">{{ prestation.patient.nom_complet }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="user-cell">
+                                    <div class="user-avatar doctor">
+                                        {{ prestation.medecin.nom_complet|first }}
+                                    </div>
+                                    <div class="user-info">
+                                        <div class="user-name">{{ prestation.medecin.nom_complet }}</div>
+                                    </div>
+                                </div>
+                            </td>
                         <td>
-                            <span class="badge
-                                {% if prestation.statut == 'realise' %}bg-success
-                                {% elif prestation.statut == 'annule' %}bg-danger
-                                {% else %}bg-secondary{% endif %}">
+                                <span class="status-badge 
+                                    {% if prestation.statut == 'realise' %}status-success
+                                    {% elif prestation.statut == 'annule' %}status-danger
+                                    {% else %}status-secondary{% endif %}">
+                                    <i class="fas fa-circle status-dot"></i>
                                 {{ prestation.get_statut_display }}
                             </span>
                         </td>
-                        <td class="text-end">{{ prestation.prix_total|floatformat:2 }} €</td>
-                        <td>
-                            <div class="btn-group">
-                                <a href="{% url 'medical:prestation_detail' prestation.id %}" class="btn btn-sm btn-outline-primary" title="Détails">
+                            <td class="text-end">
+                                <div class="price-cell">
+                                    <span class="price-amount">{{ prestation.prix_total|floatformat:2 }}</span>
+                                    <span class="price-currency">€</span>
+                                </div>
+                            </td>
+                            <td class="text-center">
+                                <div class="action-buttons">
+                                    <a href="{% url 'medical:prestation_detail' prestation.id %}"
+                                        class="btn btn-sm btn-action btn-primary" title="Détails"
+                                        data-bs-toggle="tooltip">
                                     <i class="fas fa-eye"></i>
                                 </a>
-                                <a href="{% url 'medical:prestation_update' prestation.id %}" class="btn btn-sm btn-outline-warning" title="Modifier">
+                                    <a href="{% url 'medical:prestation_update' prestation.id %}"
+                                        class="btn btn-sm btn-action btn-warning" title="Modifier"
+                                        data-bs-toggle="tooltip">
                                     <i class="fas fa-edit"></i>
                                 </a>
-                                <a href="{% url 'medical:prestation_delete' prestation.id %}" class="btn btn-sm btn-outline-danger" title="Supprimer">
+                                    <a href="{% url 'medical:prestation_delete' prestation.id %}"
+                                        class="btn btn-sm btn-action btn-danger" title="Supprimer"
+                                        data-bs-toggle="tooltip">
                                     <i class="fas fa-trash"></i>
                                 </a>
                             </div>
@@ -162,9 +272,14 @@
                     </tr>
                     {% empty %}
                     <tr>
-                    <td colspan="6" class="text-center py-4">
-                <i class="fas fa-inbox fa-2x text-muted mb-2"></i>
-                <p class="text-muted">Aucune prestation trouvée</p>
+                            <td colspan="6" class="text-center py-5">
+                                <div class="empty-state">
+                                    <div class="empty-icon">
+                                        <i class="fas fa-inbox"></i>
+                                    </div>
+                                    <h4 class="empty-title">Aucune prestation trouvée</h4>
+                                    <p class="empty-text">Modifiez vos filtres pour voir plus de résultats</p>
+                                </div>
                         </td>
                     </tr>
                     {% endfor %}
@@ -173,11 +288,11 @@
     </div>
 </div>
 
-    <!-- Navigation de pagination -->
+        <!-- Pagination moderne -->
 {% if is_paginated %}
-<nav aria-label="Navigation des prestations" class="mt-4">
-    <ul class="pagination justify-content-center">
-
+        <div class="pagination-container mt-4">
+            <nav aria-label="Navigation des prestations">
+                <ul class="pagination modern-pagination justify-content-center">
         <!-- Bouton Première page -->
         {% if page_obj.has_previous %}
         <li class="page-item">
@@ -190,8 +305,8 @@
         <!-- Bouton Précédent -->
         {% if page_obj.has_previous %}
         <li class="page-item">
-                <a class="page-link" href="javascript:void(0)" onclick="goToPage({{ page_obj.previous_page_number }})"
-                    title="Page précédente">
+                        <a class="page-link" href="javascript:void(0)"
+                            onclick="goToPage({{ page_obj.previous_page_number }})" title="Page précédente">
                 <i class="fas fa-angle-left"></i>
             </a>
         </li>
@@ -203,18 +318,21 @@
         </li>
         {% endif %}
 
-            <!-- Numéros de pages avec logique d'affichage intelligent -->
+                    <!-- Numéros de pages -->
         {% for page_num in page_obj.paginator.page_range %}
         {% if page_num == page_obj.number %}
         <li class="page-item active">
             <span class="page-link">{{ page_num }}</span>
         </li>
-        {% elif page_num > page_obj.number|add:'-3' and page_num < page_obj.number|add:'3' %} <li class="page-item">
-                <a class="page-link" href="javascript:void(0)" onclick="goToPage({{ page_num }})">{{ page_num }}</a>
+                    {% elif page_num > page_obj.number|add:'-3' and page_num < page_obj.number|add:'3' %} <li
+                        class="page-item">
+                        <a class="page-link" href="javascript:void(0)" onclick="goToPage({{ page_num }})">
+                            {{ page_num }}</a>
             </li>
             {% elif page_num == 1 or page_num == page_obj.paginator.num_pages %}
             <li class="page-item">
-                    <a class="page-link" href="javascript:void(0)" onclick="goToPage({{ page_num }})">{{ page_num }}</a>
+                            <a class="page-link" href="javascript:void(0)" onclick="goToPage({{ page_num }})">
+                                {{ page_num }}</a>
             </li>
             {% elif page_num == page_obj.number|add:'-4' or page_num == page_obj.number|add:'4' %}
             <li class="page-item disabled">
@@ -226,8 +344,8 @@
             <!-- Bouton Suivant -->
             {% if page_obj.has_next %}
             <li class="page-item">
-                    <a class="page-link" href="javascript:void(0)" onclick="goToPage({{ page_obj.next_page_number }})"
-                        title="Page suivante">
+                            <a class="page-link" href="javascript:void(0)"
+                                onclick="goToPage({{ page_obj.next_page_number }})" title="Page suivante">
                     <i class="fas fa-angle-right"></i>
                 </a>
             </li>
@@ -251,7 +369,9 @@
 
     </ul>
 </nav>
+        </div>
 {% endif %}
+    </div>
 </div>
 
 <!-- Scripts -->
@@ -261,6 +381,24 @@
 <script src="{% static 'js/choices.min.js' %}"></script>
 
 <script>
+    // Animation des éléments au scroll
+    document.addEventListener('DOMContentLoaded', function () {
+        // Initialiser les tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl)
+        });
+
+        // Animation d'entrée progressive
+        const rows = document.querySelectorAll('.table-row');
+        rows.forEach((row, index) => {
+            setTimeout(() => {
+                row.style.opacity = '1';
+                row.style.transform = 'translateY(0)';
+            }, index * 100);
+        });
+    });
+
     // Fonction pour changer le nombre d'éléments par page
     function changeItemsPerPage(perPage) {
         const url = new URL(window.location);
@@ -365,351 +503,719 @@
 </script>
 
 <style>
-    /* Styles pour la pagination */
-    .pagination {
-        margin-bottom: 0;
-    }
+/* ===== VARIABLES CSS ===== */
+:root {
+    --primary-color: #2563eb;
+    --primary-dark: #1d4ed8;
+    --primary-light: #3b82f6;
+    --secondary-color: #64748b;
+    --success-color: #10b981;
+    --warning-color: #f59e0b;
+    --danger-color: #ef4444;
+    --info-color: #06b6d4;
+    
+    --gray-50: #f8fafc;
+    --gray-100: #f1f5f9;
+    --gray-200: #e2e8f0;
+    --gray-300: #cbd5e1;
+    --gray-400: #94a3b8;
+    --gray-500: #64748b;
+    --gray-600: #475569;
+    --gray-700: #334155;
+    --gray-800: #1e293b;
+    --gray-900: #0f172a;
+    
+    --white: #ffffff;
+    --black: #000000;
+    
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+    
+    --border-radius: 0.5rem;
+    --border-radius-lg: 0.75rem;
+    --border-radius-xl: 1rem;
+    
+    --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-fast: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
 
-    .page-link {
-        color: #7a6ad8;
-        border-color: #dee2e6;
-        padding: 0.5rem 0.75rem;
-        cursor: pointer;
-    }
+/* ===== BASE STYLES ===== */
+* {
+    box-sizing: border-box;
+}
 
-    .page-link:hover {
-        color: #5a4fcf;
-        background-color: #f8f9ff;
-        border-color: #7a6ad8;
-        text-decoration: none;
-    }
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    line-height: 1.6;
+    color: var(--gray-700);
+    background-color: var(--gray-50);
+}
 
-    .page-item.active .page-link {
-        background-color: #7a6ad8;
-        border-color: #7a6ad8;
-        color: white;
-    }
+.min-vh-100 {
+    min-height: 100vh;
+}
 
-    .page-item.disabled .page-link {
-        color: #6c757d;
-        background-color: #fff;
-        border-color: #dee2e6;
-        cursor: not-allowed;
-    }
+.bg-gradient-to-br {
+    background: linear-gradient(135deg, var(--gray-50) 0%, #dbeafe 100%);
+}
 
-  /* Styles personnalisés */
-    .avatar-sm {
-        width: 32px;
-        height: 32px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 0.9rem;
-    }
+/* ===== HEADER HERO ===== */
+.header-hero {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+    position: relative;
+    overflow: hidden;
+}
 
-    .status-badge {
-        min-width: 80px;
-        padding: 0.5em 0.8em;
-        font-size: 0.85rem;
-    }
+.header-hero::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+    animation: float 20s ease-in-out infinite;
+}
 
-    .bg-PEN {
-        background-color: #ffc107 !important;
-    }
-    .bg-APP {
-        background-color: #198754 !important;
-    }
-    .bg-REJ {
-        background-color: #dc3545 !important;
-    }
+@keyframes float {
+    0%, 100% { transform: translateX(0px) translateY(0px); }
+    50% { transform: translateX(-10px) translateY(-10px); }
+}
 
-    .timeline {
-        border-left: 3px solid #eee;
-        padding-left: 1.5rem;
+.hero-icon {
+    width: 60px;
+    height: 60px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: var(--border-radius-xl);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.hero-icon i {
+    font-size: 24px;
+    color: var(--white);
+}
+
+.text-white-75 {
+    color: rgba(255, 255, 255, 0.75);
+}
+
+.hover-lift {
+    transition: var(--transition);
+}
+
+.hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-xl);
+}
+
+/* ===== FILTERS CARD ===== */
+.filters-card {
+    background: var(--white);
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--gray-200);
+    overflow: hidden;
+}
+
+.filters-form {
+    position: relative;
+}
+
+.select-wrapper {
+    position: relative;
+}
+
+.modern-select {
+    border: 2px solid var(--gray-200);
+    border-radius: var(--border-radius);
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    background-color: var(--white);
+    transition: var(--transition);
+    appearance: none;
+    background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>');
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 16px;
+}
+
+.modern-select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.modern-select-sm {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.75rem;
+}
+
+.date-input-wrapper .input-group-text {
+    background: var(--white);
+    border: 2px solid var(--gray-200);
+    border-right: none;
+}
+
+.modern-input {
+    border: 2px solid var(--gray-200);
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    transition: var(--transition);
+}
+
+.modern-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+/* ===== STATS CONTAINER ===== */
+.stats-container {
+    background: var(--white);
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--gray-200);
+    padding: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    flex-wrap: wrap;
+}
+
+.stats-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.stats-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--border-radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--white);
+    font-size: 1.25rem;
+}
+
+.stats-icon.bg-primary {
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+}
+
+.stats-icon.bg-success {
+    background: linear-gradient(135deg, var(--success-color), #34d399);
+}
+
+.stats-number {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--gray-900);
+    line-height: 1;
+}
+
+.stats-label {
+    font-size: 0.875rem;
+    color: var(--gray-500);
+    font-weight: 500;
+}
+
+.stats-divider {
+    width: 1px;
+    height: 40px;
+    background: var(--gray-200);
+    margin: 0 1rem;
+}
+
+.per-page-selector {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* ===== TABLE STYLES ===== */
+.table-card {
+    background: var(--white);
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--gray-200);
+    overflow: hidden;
+}
+
+.modern-table {
+    margin-bottom: 0;
+}
+
+.modern-table thead th {
+    background: var(--gray-50);
+    border-bottom: 2px solid var(--gray-200);
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: var(--gray-700);
+    padding: 1rem;
+    position: relative;
+}
+
+.th-content {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.th-content i {
+    color: var(--gray-400);
+    font-size: 0.75rem;
+}
+
+.sortable {
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.sortable:hover {
+    background-color: var(--gray-100);
+}
+
+.table-row {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: var(--transition);
+    border-bottom: 1px solid var(--gray-100);
+}
+
+.table-row:hover {
+    background-color: var(--gray-50);
+}
+
+.table-row td {
+    padding: 1rem;
+    vertical-align: middle;
+    border-bottom: 1px solid var(--gray-100);
+}
+
+/* ===== CELL STYLES ===== */
+.date-cell {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.date-day {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--gray-900);
+    line-height: 1;
+}
+
+.date-month {
+    font-size: 0.75rem;
+    color: var(--gray-500);
+    text-transform: uppercase;
+    font-weight: 500;
+}
+
+.user-cell {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.user-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+    color: var(--white);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.user-avatar.doctor {
+    background: linear-gradient(135deg, var(--success-color), #34d399);
+}
+
+.user-name {
+    font-weight: 500;
+    color: var(--gray-900);
+    font-size: 0.875rem;
+}
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: var(--border-radius);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+}
+
+.status-success {
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--success-color);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.status-danger {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--danger-color);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.status-secondary {
+    background: rgba(100, 116, 139, 0.1);
+    color: var(--secondary-color);
+    border: 1px solid rgba(100, 116, 139, 0.2);
+}
+
+.status-dot {
+    font-size: 0.5rem;
+}
+
+.price-cell {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.25rem;
+}
+
+.price-amount {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--gray-900);
+}
+
+.price-currency {
+    font-size: 0.875rem;
+    color: var(--gray-500);
+    font-weight: 500;
+}
+
+/* ===== ACTION BUTTONS ===== */
+.action-buttons {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+}
+
+.btn-action {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--border-radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    font-size: 0.875rem;
+    transition: var(--transition);
+    text-decoration: none;
+}
+
+.btn-action.btn-primary {
+    background: var(--primary-color);
+    color: var(--white);
+}
+
+.btn-action.btn-primary:hover {
+    background: var(--primary-dark);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+.btn-action.btn-warning {
+    background: var(--warning-color);
+    color: var(--white);
+}
+
+.btn-action.btn-warning:hover {
+    background: #d97706;
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+.btn-action.btn-danger {
+    background: var(--danger-color);
+    color: var(--white);
+}
+
+.btn-action.btn-danger:hover {
+    background: #dc2626;
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+/* ===== EMPTY STATE ===== */
+.empty-state {
+    text-align: center;
+    padding: 3rem 2rem;
+}
+
+.empty-icon {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 1.5rem;
+    background: var(--gray-100);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--gray-400);
+    font-size: 2rem;
+}
+
+.empty-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--gray-900);
+    margin-bottom: 0.5rem;
+}
+
+.empty-text {
+    color: var(--gray-500);
+    margin-bottom: 0;
+}
+
+/* ===== PAGINATION ===== */
+.pagination-container {
+    display: flex;
+    justify-content: center;
+    margin-top: 2rem;
+}
+
+.modern-pagination {
+    gap: 0.5rem;
+}
+
+.modern-pagination .page-item {
+    margin: 0;
+}
+
+.modern-pagination .page-link {
+    border: 2px solid var(--gray-200);
+    border-radius: var(--border-radius);
+    padding: 0.75rem 1rem;
+    color: var(--gray-700);
+    background: var(--white);
+    transition: var(--transition);
+    font-weight: 500;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    height: 44px;
+}
+
+.modern-pagination .page-link:hover {
+    background: var(--primary-color);
+    color: var(--white);
+    border-color: var(--primary-color);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+.modern-pagination .page-item.active .page-link {
+    background: var(--primary-color);
+    color: var(--white);
+    border-color: var(--primary-color);
+    box-shadow: var(--shadow-md);
+}
+
+.modern-pagination .page-item.disabled .page-link {
+    background: var(--gray-100);
+    color: var(--gray-400);
+    border-color: var(--gray-200);
+    cursor: not-allowed;
+}
+
+/* ===== RESPONSIVE DESIGN ===== */
+@media (max-width: 1200px) {
+    .stats-container {
+        flex-direction: column;
+        align-items: flex-start;
     }
-
-    .timeline-item {
-        position: relative;
-        margin-bottom: 1.5rem;
+    
+    .per-page-selector {
+        margin-left: 0;
+        margin-top: 1rem;
     }
-
-    .timeline-marker {
-        position: absolute;
-        left: -1.68rem;
-        top: 0;
-        width: 1rem;
-        height: 1rem;
-        border-radius: 50%;
-        background: #666;
-    }
-
-        #loader {
-        height: 100px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .spinner-border {
-        width: 3rem;
-        height: 3rem;
-    }
-
-    table {
-        border-collapse: collapse;
-        width: 100%;
-        margin-bottom: 30px;
-    }
-
-    th,
-    td {
-        border: 1px solid #ddd;
-        padding: 8px;
-    }
-
-    th {
-        background: #f4f4f4;
-    }
-
-    :root {
-        --primary: #7a6ad8;
-        --secondary: #f8f9fa;
-        --success: #4caf50;
-        --warning: #ffc107;
-        --danger: #dc3545;
-    }
-
-    .choices__inner {
-        min-height: 38px;
-        padding: 4px 8px;
-        border: 1px solid #dee2e6 !important;
-        border-radius: 0.375rem;
-        background-color: white;
-    }
-
-    .choices__list--dropdown {
-        border: 1px solid #dee2e6;
-        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-        z-index: 1060 !important;
-    }
-
-    .form-control-sm,
-    .form-select-sm {
-        height: 38px;
-        padding: 0.25rem 0.5rem;
-        font-size: 0.875rem;
-    }
-
-    /* Conteneur principal */
-    .daterangepicker {
-        font-family: Arial, sans-serif;
-        background-color: #f8f9fa;
-        border: 1px solid #dee2e6;
-        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-        border-radius: 0.375rem;
-    }
-
-    /* Zones des calendriers */
-    .daterangepicker .drp-calendar {
-        border: none;
-        padding: 10px;
-    }
-
-    /* En-têtes des calendriers */
-    .daterangepicker .drp-calendar thead th {
-        font-weight: 600;
-        color: #495057;
-        padding: 5px;
-        background-color: #e9ecef;
-        border: none;
-    }
-
-    /* Tableau du calendrier */
-    .daterangepicker .calendar-table {
-        width: 100%;
-        border-collapse: collapse;
-    }
-
-    .daterangepicker .calendar-table td {
-        text-align: center;
-        padding: 8px;
-        border: 1px solid #dee2e6;
-        cursor: pointer;
-        transition: background-color 0.2s;
-    }
-
-    /* Date active sélectionnée */
-    .daterangepicker .calendar-table td.active,
-    .daterangepicker .calendar-table td.active:hover {
-        background-color: #7a6ad8;
-        color: #fff;
-        border-color: #007bff;
-    }
-
-    /* Section des plages prédéfinies */
-    .daterangepicker .ranges {
-        background-color: rgb(247, 249, 255);
-        border-right: 1px solid #7a6ad8;
-        padding: 10px;
-        font-size: 0.875rem;
-    }
-
-    /* Boutons d'action */
-    .daterangepicker .applyBtn,
-    .daterangepicker .cancelBtn {
-        background-color: #7a6ad8;
-        color: #fff;
-        border: none;
-        padding: 5px 15px;
-        border-radius: 0.375rem;
-        cursor: pointer;
-        transition: background-color 0.2s;
-        font-size: 0.875rem;
-    }
-
-    .daterangepicker .applyBtn:hover,
-    .daterangepicker .cancelBtn:hover {
-        background-color: #0056b3;
-    }
-
-    .badge-pill {
-        border-radius: 2rem;
-        padding: 0.5rem 1rem;
-        font-size: 0.875rem;
-    }
-
-    .choices__list--dropdown .choices__item--selectable {
-        padding-right: 1rem;
-    }
-
-    .daterangepicker td.active,
-    .daterangepicker td.active:hover {
-        background-color: var(--primary) !important;
-    }
-
-    /* Style spécifique pour les boutons de sync */
-    .sync-btn {
-        border: 2px solid rgba(255, 255, 255, 0.3);
-        padding: 0.5rem 1.25rem;
-        transition: all 0.3s ease;
-        position: relative;
-        overflow: hidden;
-    }
-
-    .sync-btn:hover {
-        background: rgba(255, 255, 255, 0.1);
-        border-color: white;
-        transform: translateY(-2px);
-    }
-
-    .sync-btn.loading {
-        padding-right: 2.5rem;
-        opacity: 0.7;
-        pointer-events: none;
-    }
-
-    .sync-btn.loading::after {
-        content: "";
-        position: absolute;
-        right: 1rem;
-        top: 50%;
-        width: 1rem;
-        height: 1rem;
-        border: 2px solid transparent;
-        border-top-color: currentColor;
-        border-radius: 50%;
-        animation: spin 0.8s linear infinite;
-        transform: translateY(-50%);
-    }
-
-    @keyframes spin {
-        0% {
-            transform: translateY(-50%) rotate(0deg);
-        }
-
-        100% {
-            transform: translateY(-50%) rotate(360deg);
-        }
-    }
-
-    /* Toast de notification */
-    .sync-toast {
-        position: fixed;
-        bottom: 1rem;
-        right: 1rem;
-        background: var(--primary);
-        color: white;
-        padding: 1rem 1.5rem;
-        border-radius: var(--radius-md);
-        box-shadow: var(--shadow);
+    
+    .stats-divider {
         display: none;
-        align-items: center;
-        gap: 0.75rem;
     }
+}
 
-    .sync-toast.visible {
-        display: flex;
-        animation: slideIn 0.3s ease-out;
+@media (max-width: 768px) {
+    .header-hero .col-lg-4 {
+        text-align: center !important;
+        margin-top: 1rem;
     }
-
-    @keyframes slideIn {
-        from {
-            transform: translateX(100%);
-        }
-
-        to {
-            transform: translateX(0);
-        }
+    
+    .action-buttons {
+        flex-direction: column;
+        gap: 0.25rem;
     }
-
-    .report-header {
-        background: linear-gradient(135deg, #6a5acd 0%, #483d8b 100%);
-        padding: 1.5rem;
-        border-radius: 1rem;
+    
+    .btn-action {
+        width: 100%;
+        height: 32px;
+        font-size: 0.75rem;
     }
+    
+    .user-cell {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+    
+    .date-cell {
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+    
+    .modern-pagination .page-link {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+        min-width: 36px;
+        height: 36px;
+    }
+}
 
-    .header-top {
-        display: flex;
-        flex-wrap: wrap;
+@media (max-width: 576px) {
+    .filters-card .card-body {
+        padding: 1rem;
+    }
+    
+    .stats-container {
+        padding: 1rem;
+    }
+    
+    .stats-item {
+        width: 100%;
         justify-content: space-between;
-        align-items: center;
-        gap: 1rem;
     }
-
-    .btn-sync {
-        padding: 0.5rem 1.25rem;
-        border-width: 2px;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    
+    .table-responsive {
+        font-size: 0.875rem;
     }
-
-    .btn-sync:hover {
-        background: rgba(255, 255, 255, 0.15);
-        transform: translateY(-1px);
+    
+    .modern-table td {
+        padding: 0.75rem 0.5rem;
     }
+}
 
-
-    .filter-select {
-        padding: 0.625rem 1.25rem;
-        border-radius: 2rem;
-        border: 1px solid #e0e0e0;
+/* ===== ANIMATIONS ===== */
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
     }
-
-    .date-range-input {
-        padding: 0.625rem 1.25rem;
-        border-radius: 0 2rem 2rem 0;
-        border-left: 0;
+    to {
+        opacity: 1;
+        transform: translateY(0);
     }
+}
 
-    @media (max-width: 768px) {
-        .report-header {
-            padding: 1rem;
-            border-radius: 0.75rem;
-        }
+.slide-in-up {
+    animation: slideInUp 0.5s ease-out;
+}
 
-        .header-top {
-            flex-direction: column;
-            align-items: stretch;
-        }
-    }
+/* ===== CHOICES.JS CUSTOM STYLES ===== */
+.choices {
+    margin-bottom: 0;
+}
+
+.choices__inner {
+    border: 2px solid var(--gray-200);
+    border-radius: var(--border-radius);
+    padding: 0.75rem 1rem;
+    background: var(--white);
+    transition: var(--transition);
+    min-height: auto;
+}
+
+.choices__inner:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.choices__list--dropdown {
+    border: 2px solid var(--gray-200);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-lg);
+    background: var(--white);
+}
+
+.choices__item--selectable {
+    padding: 0.75rem 1rem;
+    transition: var(--transition);
+}
+
+.choices__item--selectable:hover {
+    background: var(--gray-50);
+    color: var(--gray-900);
+}
+
+.choices__item--selectable.is-highlighted {
+    background: var(--primary-color);
+    color: var(--white);
+}
+
+/* ===== DATERANGEPICKER CUSTOM STYLES ===== */
+.daterangepicker {
+    border: 2px solid var(--gray-200);
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--shadow-xl);
+    background: var(--white);
+}
+
+.daterangepicker .ranges li {
+    border-radius: var(--border-radius);
+    transition: var(--transition);
+}
+
+.daterangepicker .ranges li:hover {
+    background: var(--gray-50);
+}
+
+.daterangepicker .ranges li.active {
+    background: var(--primary-color);
+    color: var(--white);
+}
+
+.daterangepicker td.active {
+    background: var(--primary-color);
+    color: var(--white);
+}
+
+.daterangepicker .drp-buttons .btn {
+    border-radius: var(--border-radius);
+    padding: 0.5rem 1rem;
+    font-weight: 500;
+    transition: var(--transition);
+}
+
+.daterangepicker .drp-buttons .btn-primary {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.daterangepicker .drp-buttons .btn-primary:hover {
+    background: var(--primary-dark);
+    border-color: var(--primary-dark);
+}
 </style>
 {% endblock %}

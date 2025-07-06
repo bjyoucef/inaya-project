@@ -3,10 +3,11 @@ from django import forms
 from django.core.exceptions import ValidationError
 from django.db.models import Sum
 from django.utils import timezone
+from .models.stock import AjustementStock
 from rh.models import Personnel
 
 from .models import (Achat, BonCommande, Fournisseur, HistoriquePaiement,
-                     LigneCommande, OrdrePaiement, Produit, Stock, Transfert)
+                     LigneCommande, OrdrePaiement, Produit, Stock)
 
 
 class ProduitForm(forms.ModelForm):
@@ -176,24 +177,70 @@ class ProduitSearchForm(forms.Form):
     )
 
 
+from django import forms
+from medical.models import Service
+from rh.models import Personnel
+
+
 class StockForm(forms.ModelForm):
     class Meta:
         model = Stock
         fields = ["produit", "service", "quantite", "date_peremption", "numero_lot"]
-
-
-class TransfertForm(forms.ModelForm):
-    class Meta:
-        model = Transfert
-        fields = "__all__"
+        widgets = {
+            "produit": forms.Select(attrs={"class": "form-select"}),
+            "service": forms.Select(attrs={"class": "form-select"}),
+            "quantite": forms.NumberInput(attrs={"class": "form-control", "min": "1"}),
+            "date_peremption": forms.DateInput(
+                attrs={"class": "form-control", "type": "date"}
+            ),
+            "numero_lot": forms.TextInput(
+                attrs={"class": "form-control", "placeholder": "Optionnel"}
+            ),
+        }
 
     def __init__(self, *args, **kwargs):
-        user = kwargs.pop("user", None)
         super().__init__(*args, **kwargs)
-        if user:
-            self.fields["responsable"].queryset = Personnel.objects.filter(
-                service=user.service
+        self.fields["produit"].queryset = Produit.objects.all().order_by("nom")
+        self.fields["service"].queryset = Service.objects.all().order_by("name")
+
+    def clean_date_peremption(self):
+        date_peremption = self.cleaned_data.get("date_peremption")
+        if date_peremption and date_peremption < timezone.now().date():
+            raise forms.ValidationError(
+                "La date de péremption ne peut pas être dans le passé"
             )
+        return date_peremption
+
+
+
+
+class AjustementStockForm(forms.ModelForm):
+    class Meta:
+        model = AjustementStock
+        fields = ["stock", "quantite_avant", "quantite_apres", "motif", "commentaire"]
+        widgets = {
+            "stock": forms.Select(attrs={"class": "form-select"}),
+            "quantite_avant": forms.NumberInput(
+                attrs={"class": "form-control", "readonly": True}
+            ),
+            "quantite_apres": forms.NumberInput(
+                attrs={"class": "form-control", "min": "0"}
+            ),
+            "motif": forms.Select(attrs={"class": "form-select"}),
+            "commentaire": forms.Textarea(
+                attrs={
+                    "class": "form-control",
+                    "rows": 3,
+                    "placeholder": "Détails de l'ajustement...",
+                }
+            ),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["stock"].queryset = Stock.objects.filter(
+            quantite__gt=0
+        ).select_related("produit", "service")
 
 
 class AchatForm(forms.ModelForm):

@@ -2,9 +2,7 @@
 {% extends "layout.html" %}
 {% load static %}
 
-{% block title %}Gestion des Produits{% endblock %}
-
-{% block extra_css %}
+{% block content %}
 <style>
     .stats-card {
         transition: transform 0.2s;
@@ -25,9 +23,7 @@
         background: linear-gradient(45deg, #dc3545, #fd7e14);
     }
 </style>
-{% endblock %}
 
-{% block content %}
 <div class="container-fluid">
     <!-- Header avec statistiques -->
     <div class="row mb-4">
@@ -193,27 +189,27 @@
                                 {{ produit.get_type_produit_display }}
                             </span>
                         </td>
-                        <td class="text-end">{{ produit.prix_achat|floatformat:2 }} €</td>
-                        <td class="text-end fw-bold">{{ produit.prix_vente|floatformat:2 }} €</td>
+                        <td class="text-end">{{ produit.prix_achat|floatformat:2 }} DA</td>
+                        <td class="text-end fw-bold">{{ produit.prix_vente|floatformat:2 }} DA</td>
                         <td class="text-end">
                             {% if produit.marge_calculee  >= 0 %}
                                 <span class="badge badge-profit">
-                                    +{{ produit.marge_calculee |floatformat:2 }} €
+                                    +{{ produit.marge_calculee |floatformat:2 }} DA
                                     ({{ produit.pourcentage_marge_calculee |floatformat:1 }}%)
                                 </span>
                             {% else %}
                                 <span class="badge badge-loss">
-                                    {{ produit.marge_calculee |floatformat:2 }} €
+                                    {{ produit.marge_calculee |floatformat:2 }} DA
                                     ({{ produit.pourcentage_marge_calculee |floatformat:1 }}%)
                                 </span>
                             {% endif %}
                         </td>
-                        {% comment %} <td class="text-center">
+                        <td class="text-center">
                             <span class="badge bg-{% if produit.est_actif %}success{% else %}danger{% endif %}">
                                 <i class="bi bi-{% if produit.est_actif %}check-circle{% else %}x-circle{% endif %} me-1"></i>
                                 {{ produit.est_actif|yesno:"Actif,Inactif" }}
                             </span>
-                        </td> {% endcomment %}
+                        </td>
                         <td class="text-center">
                             <div class="btn-group" role="group">
                                 <a href="{% url 'pharmacies:produit_detail' produit.pk %}" 

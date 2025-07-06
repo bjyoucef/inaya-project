@@ -133,6 +133,21 @@
               {% endfor %}
             </select>
           </div>
+          <div class="col-md-4">
+            <label for="prixSupplementaireInput" class="form-label">Frais supplémentaires</label>
+            <div class="input-group">
+                <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    class="form-control"
+                    id="prixSupplementaireInput"
+                    name="prix_supplementaire"
+                    value="{{ prestation.prix_supplementaire|default:'0.00' }}"
+                />
+                <span class="input-group-text">DA</span>
+            </div>
+        </div>
           <div class="col-12">
             <label for="observationsTextarea" class="form-label"
               >Observations</label
@@ -378,6 +393,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // Met à jour le total (tarifs d’actes + impact produits)
   function updateTotal() {
     let sum = 0;
+    const fraisSuppl = parseFloat(document.getElementById('prixSupplementaireInput').value) || 0;
+    sum += fraisSuppl;
+    
+    document.getElementById('total').textContent = sum.toFixed(2);
     document.querySelectorAll('.tarif-input').forEach(i => {
       sum += parseFloat(i.value) || 0;
     });
@@ -387,7 +406,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     document.getElementById('total').textContent = sum.toFixed(2);
   }
-
+  document.getElementById('prixSupplementaireInput').addEventListener('input', updateTotal);
   // Charge les produits par défaut pour un acte sélectionné
   function loadProduits(acteId, row) {
     fetch(`/medical/get-acte-produits/${acteId}/`)

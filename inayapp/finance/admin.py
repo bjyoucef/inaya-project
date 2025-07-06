@@ -149,7 +149,7 @@ class ActeAdmin(admin.ModelAdmin):
         "produits_associes",
     )
     list_filter = ("service",)
-    search_fields = ("code", "libelle", "service__nom")
+    search_fields = ("code", "libelle", "name")
     inlines = (TarifActeInline, ActeProduitInline)
     autocomplete_fields = ("service",)
     list_select_related = ("service",)
@@ -258,3 +258,21 @@ class ActeProduitAdmin(admin.ModelAdmin):
 
     service_associe.admin_order_field = "acte__service"
     service_associe.short_description = "Service"
+
+
+# medical/admin.py
+
+from django.contrib import admin
+from .models import PrixSupplementaireConfig
+from medecin.models import Medecin
+
+
+@admin.register(PrixSupplementaireConfig)
+class PrixSupplementaireConfigAdmin(admin.ModelAdmin):
+    list_display = ("medecin", "pourcentage")
+    list_select_related = ("medecin",)
+    search_fields = (
+        "medecin__personnel__user__first_name",
+        "medecin__personnel__user__last_name",
+    )
+    list_filter = ("pourcentage",)

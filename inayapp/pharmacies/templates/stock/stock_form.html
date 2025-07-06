@@ -38,7 +38,7 @@
                                 {% for service in services %}
                                 <option value="{{ service.id }}" 
                                     {% if stock.service.id == service.id %}selected{% endif %}>
-                                    {{ service.nom }}
+                                    {{ service.name }}
                                 </option>
                                 {% endfor %}
                             </select>

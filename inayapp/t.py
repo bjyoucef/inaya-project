@@ -1,279 +1,273 @@
-# export_data/views.py
-from datetime import datetime
-from django.apps import apps
-from django.shortcuts import render, redirect
-from django.contrib.auth.decorators import login_required
-from django.contrib import messages
-from django.http import JsonResponse
-from django.views.decorators.http import require_http_methods
-from django.core.paginator import Paginator
-from .utils import DataExporter
-from .models import ExportHistory
-import json
-import logging
+# views.py
+class PrestationUpdateView(View):
+    def get(self, request, prestation_id):
+        prestation = get_object_or_404(Prestation, pk=prestation_id)
+        services = services_autorises(request.user)
 
-logger = logging.getLogger(__name__)
+        # Optimisation des requêtes
+        patients = Patient.objects.all().only("id", "nom", "prenom")
+        medecins = Medecin.objects.all().only("id", "nom", "prenom")
+        all_prods = Produit.objects.filter(est_actif=True).values(
+            "id", "code_produit", "nom", "prix_vente"
+        )
 
+        # Chargement des actes avec préfetch optimisé
+        actes_qs = Acte.objects.filter(service__in=services).prefetch_related(
+            Prefetch("conventions", queryset=Convention.objects.only("id", "nom")),
+            Prefetch(
+                "produits_defaut",
+                queryset=ActeProduit.objects.select_related("produit"),
+            ),
+        )
 
-@login_required
-def export_data_view(request):
-    """Vue principale pour l'export des données - VERSION CORRIGÉE"""
-    exporter = DataExporter()
-    all_models = exporter.get_all_models()
+        actes_data = [
+            {
+                "id": acte.id,
+                "code": acte.code,
+                "libelle": acte.libelle,
+                "conventions": [
+                    {"id": c.id, "nom": c.nom} for c in acte.conventions.all()
+                ],
+            }
+            for acte in actes_qs
+        ]
 
-    context = {
-        "all_models": all_models,
-        "export_history": ExportHistory.objects.filter(user=request.user).order_by(
-            "-created_at"
-        )[:10],
-    }
+        # Préparation des lignes existantes
+        lignes = []
+        for pa in (
+            prestation.actes_details.select_related("acte", "convention")
+            .prefetch_related(
+                Prefetch(
+                    "consommations",
+                    queryset=ConsommationProduit.objects.select_related("produit"),
+                )
+            )
+            .all()
+        ):
+            consommations = [
+                {
+                    "produit_id": conso.produit.id,
+                    "quantite_defaut": conso.quantite_defaut,
+                    "quantite_reelle": conso.quantite_reelle,
+                }
+                for conso in pa.consommations.all()
+            ]
 
-    if request.method == "POST":
-        selected_models = {}
-        export_format = request.POST.get("export_format", "csv")
+            lignes.append(
+                {
+                    "acte_id": pa.acte.id,
+                    "convention_id": pa.convention.id if pa.convention else None,
+                    "tarif": float(pa.tarif_conventionne),
+                    "consommations": consommations,
+                }
+            )
 
-        logger.info(f"Données POST reçues: {dict(request.POST)}")
+        context = {
+            "prestation": prestation,
+            "patients": patients,
+            "medecins": medecins,
+            "statut_choices": Prestation.STATUT_CHOICES,
+            "actes_json": mark_safe(json.dumps(actes_data)),  # Correction sécurité
+            "lignes": mark_safe(json.dumps(lignes)),  # Correction sécurité
+            "all_produits": all_prods,
+            "all_produits_json": mark_safe(json.dumps(list(all_prods))),
+        }
 
-        # Récupérer les modèles sélectionnés - MÉTHODE CORRIGÉE
-        for key, value in request.POST.items():
-            if key.startswith("model_") and value == "on":
-                # Format: model_app_label.ModelName
-                model_key = key.replace("model_", "")
+        return render(request, "prestations/update.html", context)
 
-                if "." in model_key:
-                    app_label, model_name = model_key.split(".", 1)
+    @transaction.atomic
+    def post(self, request, prestation_id):
+        prestation = get_object_or_404(Prestation, pk=prestation_id)
+        services = services_autorises(request.user)
+        errors = []
+        prestation_data = []
+        conso_data = []
+        total = Decimal("0.00")
 
-                    # Vérifier que l'app existe
-                    try:
-                        apps.get_app_config(app_label)
-                        if app_label not in selected_models:
-                            selected_models[app_label] = []
-                        selected_models[app_label].append(model_name)
-                        logger.info(f"Modèle sélectionné: {app_label}.{model_name}")
-                    except LookupError:
-                        logger.error(f"App '{app_label}' non trouvée, ignoré")
+        # Validation des champs obligatoires
+        required_fields = {
+            "patient": "Patient requis",
+            "medecin": "Médecin requis",
+            "date_prestation": "Date de réalisation requise",
+            "statut": "Statut requis",
+        }
+
+        for field, msg in required_fields.items():
+            if not request.POST.get(field):
+                errors.append(msg)
+
+        # Traitement des actes
+        acte_ids = request.POST.getlist("actes[]")
+        convention_ids = request.POST.getlist("conventions[]")
+        tarifs = request.POST.getlist("tarifs[]")
+        conv_ok_vals = request.POST.getlist("convention_accordee[]")
+
+        if not acte_ids:
+            errors.append("Au moins un acte est requis")
+
+        # Validation de chaque ligne d'acte
+        for idx, acte_pk in enumerate(acte_ids):
+            try:
+                acte = Acte.objects.get(pk=acte_pk)
+                if acte.service.id not in services.values_list("id", flat=True):
+                    errors.append(f"Acte non autorisé à la ligne {idx+1}")
+                    continue
+
+                conv = None
+                conv_ok = False
+                if convention_ids and idx < len(convention_ids) and convention_ids[idx]:
+                    conv = Convention.objects.get(pk=convention_ids[idx])
+                    if conv not in acte.conventions.all():
+                        errors.append(
+                            f"Convention non liée à l'acte à la ligne {idx+1}"
+                        )
+                        continue
+                    conv_ok = (
+                        conv_ok_vals[idx] == "oui" if idx < len(conv_ok_vals) else False
+                    )
+
+                # Validation numérique sécurisée
+                try:
+                    tarif = Decimal(tarifs[idx]) if idx < len(tarifs) else Decimal("0")
+                except (InvalidOperation, TypeError, ValueError):
+                    errors.append(f"Tarif invalide à la ligne {idx+1}")
+                    continue
+
+                if tarif < Decimal("0"):
+                    errors.append(f"Tarif négatif à la ligne {idx+1}")
+                    continue
+
+                total += tarif
+                prestation_data.append(
+                    {
+                        "acte": acte,
+                        "convention": conv,
+                        "tarif": tarif,
+                        "convention_accordee": conv_ok,
+                    }
+                )
+
+                # Traitement des consommations
+                produit_ids = request.POST.getlist(f"actes[{idx}][produits][]")
+                quantites = request.POST.getlist(f"actes[{idx}][quantites_reelles][]")
+
+                for prod_idx, (pid, qty) in enumerate(zip(produit_ids, quantites)):
+                    if not pid or not qty:
                         continue
 
-        logger.info(f"Modèles sélectionnés finaux: {selected_models}")
+                    try:
+                        produit = Produit.objects.get(id=pid, est_actif=True)
+                        quantite_reelle = int(qty)
 
-        if not selected_models:
-            messages.error(
-                request, "Veuillez sélectionner au moins un modèle à exporter."
-            )
-            return render(request, "export_data/index.html", context)
+                        if quantite_reelle <= 0:
+                            continue
 
+                        conso_data.append(
+                            {
+                                "idx": idx,
+                                "produit": produit,
+                                "quantite_reelle": quantite_reelle,
+                            }
+                        )
+                    except (Produit.DoesNotExist, ValueError):
+                        errors.append(
+                            f"Produit ou quantité invalide à la ligne {idx+1}, produit {prod_idx+1}"
+                        )
+
+            except (Acte.DoesNotExist, Convention.DoesNotExist):
+                errors.append(f"Acte ou convention invalide à la ligne {idx+1}")
+
+        # Gestion des erreurs
+        if errors:
+            return self.render_error_context(prestation, services, errors)
+
+        # Mise à jour de la prestation
         try:
-            # Préparer les données
-            exporter.prepare_data(selected_models)
+            prestation.patient_id = request.POST["patient"]
+            prestation.medecin_id = request.POST["medecin"]
+            prestation.date_prestation = request.POST[
+                "date_prestation"
+            ]  # Stockage comme string
+            prestation.statut = request.POST["statut"]
+            prestation.observations = request.POST.get("observations", "")
+            prestation.prix_total = total
+            prestation.prix_supplementaire = Decimal(
+                request.POST.get("prix_supplementaire", "0")
+            )
+            prestation.save()
+        except (ValueError, TypeError) as e:
+            errors.append(f"Erreur dans les données: {str(e)}")
+            return self.render_error_context(prestation, services, errors)
 
-            # Compter le nombre total d'enregistrements
-            total_records = sum(info["count"] for info in exporter.models_data.values())
+        # Recréation des actes et consommations
+        with transaction.atomic():
+            prestation.actes_details.all().delete()
 
-            if total_records == 0:
-                messages.warning(
-                    request,
-                    "Aucun enregistrement trouvé dans les modèles sélectionnés.",
+            for idx, data in enumerate(prestation_data):
+                pa = PrestationActe.objects.create(
+                    prestation=prestation,
+                    acte=data["acte"],
+                    convention=data["convention"],
+                    convention_accordee=data["convention_accordee"],
+                    tarif_conventionne=data["tarif"],
                 )
-                return render(request, "export_data/index.html", context)
 
-            # Créer l'historique
-            history = ExportHistory.objects.create(
-                user=request.user,
-                exported_models=json.dumps(selected_models),
-                export_format=export_format,
-                file_path=f"export_{export_format}_{request.user.id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
-                records_count=total_records,
-            )
+                # Création des consommations
+                for conso in filter(lambda c: c["idx"] == idx, conso_data):
+                    try:
+                        acte_produit = ActeProduit.objects.get(
+                            acte=data["acte"], produit=conso["produit"]
+                        )
+                        qte_defaut = acte_produit.quantite_defaut
+                    except ActeProduit.DoesNotExist:
+                        qte_defaut = 0
 
-            logger.info(f"Export créé: {history.id}, {total_records} enregistrements")
+                    ConsommationProduit.objects.create(
+                        prestation_acte=pa,
+                        produit=conso["produit"],
+                        quantite_defaut=qte_defaut,
+                        quantite_reelle=conso["quantite_reelle"],
+                        prix_unitaire=conso["produit"].prix_vente,
+                    )
 
-            # Export selon le format
-            if export_format == "csv":
-                response = exporter.export_to_csv()
-            elif export_format == "excel":
-                response = exporter.export_to_excel()
-            elif export_format == "json":
-                response = exporter.export_to_json()
-            else:
-                messages.error(
-                    request, f"Format d'export '{export_format}' non supporté."
+            prestation.update_stock()
+
+        return redirect("medical:prestation_detail", prestation_id=prestation.id)
+
+    def render_error_context(self, prestation, services, errors):
+        # Optimisation du rechargement des données en cas d'erreur
+        context = {
+            "errors": errors,
+            "prestation": prestation,
+            "patients": Patient.objects.all().only("id", "nom", "prenom"),
+            "medecins": Medecin.objects.all().only("id", "nom", "prenom"),
+            "statut_choices": Prestation.STATUT_CHOICES,
+            "actes_json": mark_safe(json.dumps(self.get_actes_data(services))),
+            "all_produits": Produit.objects.filter(est_actif=True),
+            "all_produits_json": mark_safe(
+                json.dumps(
+                    list(
+                        Produit.objects.filter(est_actif=True).values(
+                            "id", "code_produit", "nom", "prix_vente"
+                        )
+                    )
                 )
-                return render(request, "export_data/index.html", context)
+            ),
+        }
+        return render(self.request, "prestations/update.html", context)
 
-            # Marquer l'export comme réussi
-            history.status = "completed"
-            history.save()
-
-            messages.success(
-                request, f"Export réussi: {total_records} enregistrements exportés."
-            )
-            return response
-
-        except Exception as e:
-            logger.error(f"Erreur lors de l'export: {str(e)}", exc_info=True)
-            messages.error(request, f"Erreur lors de l'export: {str(e)}")
-
-    return render(request, "export_data/index.html", context)
-
-
-@login_required
-@require_http_methods(["GET"])
-def get_model_preview(request):
-    """API pour prévisualiser les données d'un modèle - VERSION CORRIGÉE"""
-    app_label = request.GET.get("app")
-    model_name = request.GET.get("model")
-
-    # Validation des paramètres
-    if not app_label or not model_name:
-        return JsonResponse(
-            {"success": False, "error": "Paramètres 'app' et 'model' requis"}
+    def get_actes_data(self, services):
+        actes_qs = Acte.objects.filter(service__in=services).prefetch_related(
+            "conventions"
         )
-
-    try:
-        # Vérifier que l'app existe
-        try:
-            app_config = apps.get_app_config(app_label)
-        except LookupError:
-            return JsonResponse(
-                {"success": False, "error": f"Application '{app_label}' non trouvée"}
-            )
-
-        # Vérifier que le modèle existe
-        try:
-            model_class = apps.get_model(app_label, model_name)
-        except LookupError:
-            return JsonResponse(
-                {
-                    "success": False,
-                    "error": f"Modèle '{model_name}' non trouvé dans l'application '{app_label}'",
-                }
-            )
-
-        # Récupérer les informations du modèle
-        total_count = model_class.objects.count()
-
-        # Récupérer les 5 premiers enregistrements
-        queryset = model_class.objects.all()[:5]
-        preview_data = []
-        fields = []
-
-        # Obtenir les noms des champs
-        fields = [field.name for field in model_class._meta.fields]
-
-        # Traiter chaque enregistrement
-        for obj in queryset:
-            obj_data = {}
-            for field_name in fields:
-                try:
-                    value = getattr(obj, field_name)
-                    if value is None:
-                        obj_data[field_name] = ""
-                    elif hasattr(value, "strftime"):  # DateTime/Date
-                        obj_data[field_name] = value.strftime("%Y-%m-%d %H:%M:%S")
-                    elif hasattr(value, "__str__"):
-                        str_value = str(value)
-                        # Limiter la longueur pour la prévisualisation
-                        if len(str_value) > 100:
-                            obj_data[field_name] = str_value[:100] + "..."
-                        else:
-                            obj_data[field_name] = str_value
-                    else:
-                        obj_data[field_name] = str(value)
-                except Exception as e:
-                    logger.warning(
-                        f"Erreur lors de la récupération du champ {field_name}: {e}"
-                    )
-                    obj_data[field_name] = f"Erreur: {str(e)}"
-            preview_data.append(obj_data)
-
-        # Informations sur les champs pour améliorer l'affichage
-        field_info = []
-        for field in model_class._meta.fields:
-            field_info.append(
-                {
-                    "name": field.name,
-                    "verbose_name": getattr(field, "verbose_name", field.name),
-                    "type": field.__class__.__name__,
-                }
-            )
-
-        logger.info(
-            f"Prévisualisation réussie pour {app_label}.{model_name}: {len(preview_data)} enregistrements"
-        )
-
-        return JsonResponse(
+        return [
             {
-                "success": True,
-                "fields": fields,
-                "field_info": field_info,
-                "data": preview_data,
-                "total_count": total_count,
-                "preview_count": len(preview_data),
-                "model_verbose_name": getattr(
-                    model_class._meta, "verbose_name", model_name
-                ),
+                "id": acte.id,
+                "code": acte.code,
+                "libelle": acte.libelle,
+                "conventions": [
+                    {"id": c.id, "nom": c.nom} for c in acte.conventions.all()
+                ],
             }
-        )
-
-    except Exception as e:
-        logger.error(
-            f"Erreur preview pour {app_label}.{model_name}: {str(e)}", exc_info=True
-        )
-        return JsonResponse({"success": False, "error": f"Erreur interne: {str(e)}"})
-
-
-@login_required
-def export_history_view(request):
-    """Vue pour afficher l'historique complet des exports"""
-    history_list = ExportHistory.objects.filter(user=request.user).order_by(
-        "-created_at"
-    )
-
-    paginator = Paginator(history_list, 20)  # 20 exports par page
-    page_number = request.GET.get("page")
-    page_obj = paginator.get_page(page_number)
-
-    context = {"page_obj": page_obj, "total_exports": history_list.count()}
-
-    return render(request, "export_data/history.html", context)
-
-
-@login_required
-def debug_apps(request):
-    """Vue de debug pour voir les apps disponibles"""
-    if not request.user.is_superuser:
-        return JsonResponse({"error": "Permission denied"})
-
-    apps_info = []
-    for app_config in apps.get_app_configs():
-        models_info = []
-        try:
-            for model in app_config.get_models():
-                try:
-                    count = model.objects.count()
-                    models_info.append(
-                        {
-                            "name": model.__name__,
-                            "label": model._meta.label,
-                            "app_label": model._meta.app_label,
-                            "verbose_name": getattr(
-                                model._meta, "verbose_name", model.__name__
-                            ),
-                            "count": count,
-                        }
-                    )
-                except Exception as e:
-                    models_info.append({"name": model.__name__, "error": str(e)})
-        except Exception as e:
-            models_info.append({"error": f"Erreur app: {str(e)}"})
-
-        apps_info.append(
-            {
-                "name": app_config.name,
-                "label": app_config.label,
-                "verbose_name": getattr(app_config, "verbose_name", app_config.name),
-                "models": models_info,
-            }
-        )
-
-    return JsonResponse({"apps": apps_info}, indent=2)
+            for acte in actes_qs
+        ]

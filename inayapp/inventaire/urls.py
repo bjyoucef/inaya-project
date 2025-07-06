@@ -17,7 +17,7 @@ urlpatterns = [
     # API URLs
     path("api/", include(router.urls)),
     # Dashboard
-    path("dashboard", views.DashboardView.as_view(), name="dashboard"),
+    path("", views.DashboardView.as_view(), name="dashboard"),
     # Stock URLs
     path("stocks/", views.StockListView.as_view(), name="stock_list"),
     path("stocks/alerts/", views.StockAlertsView.as_view(), name="stock_alerts"),

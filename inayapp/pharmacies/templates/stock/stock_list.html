@@ -1,62 +1,228 @@
 {% extends "layout.html" %}
+{% load static %}
 {% block content %}
-<div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="mb-0">Gestion des stocks</h2>
+
+<style>
+  .stock-card {
+    transition: transform 0.2s ease-in-out;
+  }
+
+  .stock-card:hover {
+    transform: translateY(-2px);
+  }
+
+  .stock-expired {
+    background: linear-gradient(135deg, #ff6b6b, #ee5a5a);
+  }
+
+  .stock-soon-expired {
+    background: linear-gradient(135deg, #ffd93d, #ff9f00);
+  }
+
+  .stock-good {
+    background: linear-gradient(135deg, #6bcf7f, #4bc0c8);
+  }
+
+  .stats-card {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  }
+</style>
+
+<div class="container-fluid mt-4">
+  <!-- En-tête avec statistiques -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="mb-0">
+          <i class="bi bi-boxes"></i> Gestion des stocks
+        </h2>
+        <div class="btn-group">
         <a href="{% url 'pharmacies:stock_create' %}" class="btn btn-success">
             <i class="bi bi-plus-circle"></i> Ajouter un stock
         </a>
+
+        </div>
+      </div>
+
+      <!-- Cartes de statistiques -->
+      <div class="row mb-4">
+        <div class="col-md-3">
+          <div class="card stats-card stock-good text-white">
+            <div class="card-body text-center">
+              <i class="bi bi-check-circle display-4 mb-2"></i>
+              <h3>{{ total_stocks }}</h3>
+              <p class="mb-0">Stocks actifs</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card stats-card stock-soon-expired text-white">
+            <div class="card-body text-center">
+              <i class="bi bi-exclamation-triangle display-4 mb-2"></i>
+              <h3>{{ stocks_bientot_expires }}</h3>
+              <p class="mb-0">Bientôt périmés</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card stats-card stock-expired text-white">
+            <div class="card-body text-center">
+              <i class="bi bi-x-circle display-4 mb-2"></i>
+              <h3>{{ stocks_expires }}</h3>
+              <p class="mb-0">Périmés</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card stats-card bg-info text-white">
+            <div class="card-body text-center">
+              <i class="bi bi-arrow-left-right display-4 mb-2"></i>
+              <h3>
+
+              </h3>
+              <p class="mb-0">Historique</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
     </div>
 
-    <div class="table-responsive rounded-3 shadow">
-        <table class="table table-hover align-middle">
-            <thead class="table-light">
+  <!-- Filtres -->
+  <div class="card mb-4">
+    <div class="card-body">
+      <form method="get" class="row g-3">
+        <div class="col-md-4">
+          <label class="form-label">Rechercher</label>
+          <input type="text" class="form-control" name="search" value="{{ request.GET.search }}"
+            placeholder="Nom du produit, code ou service...">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Service</label>
+          <select class="form-select" name="service">
+            <option value="">Tous les services</option>
+            {% for service in services %}
+            <option value="{{ service.id }}" {% if request.GET.service == service.id|stringformat:"s" %}selected{% endif %}>
+              {{ service.name }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">État</label>
+          <select class="form-select" name="expiry">
+            <option value="">Tous les états</option>
+            <option value="expired" {% if request.GET.expiry == 'expired' %}selected{% endif %}>
+              Périmés
+            </option>
+            <option value="soon" {% if request.GET.expiry == 'soon' %}selected{% endif %}>
+              Bientôt périmés
+            </option>
+          </select>
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+          <button type="submit" class="btn btn-primary me-2">
+            <i class="bi bi-search"></i> Filtrer
+          </button>
+          <a href="{% url 'pharmacies:stock_list' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-x-circle"></i>
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Tableau des stocks -->
+  <div class="card shadow">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-dark">
                 <tr>
                     <th scope="col">Produit</th>
                     <th scope="col" class="text-center">Service</th>
                     <th scope="col" class="text-center">Quantité</th>
                     <th scope="col" class="text-center">Expiration</th>
                     <th scope="col">Lot</th>
+              <th scope="col">Ajouté le</th>
                     <th scope="col" class="text-end">Actions</th>
                 </tr>
             </thead>
             <tbody>
-                {% for s in stocks %}
-                <tr>
+            {% for stock in stocks %}
+            <tr
+            class="
+              {% if stock.date_peremption and stock.date_peremption < today %}
+                table-danger
+              {% elif stock.date_peremption and stock.date_peremption <= soon_date %}
+                table-warning
+              {% endif %}
+            "
+          >
                     <td>
-                        <div class="fw-bold">{{ s.produit.nom }}</div>
-                        <small class="text-muted">{{ s.produit.code_produit }}</small>
+                <div class="d-flex align-items-center">
+                  <div class="me-3">
+                    {% if is_expired %}
+                    <i class="bi bi-x-circle text-danger fs-4"></i>
+                    {% elif is_soon_expired %}
+                    <i class="bi bi-exclamation-triangle text-warning fs-4"></i>
+                    {% else %}
+                    <i class="bi bi-check-circle text-success fs-4"></i>
+                    {% endif %}
+                  </div>
+                  <div>
+                    <div class="fw-bold">{{ stock.produit.nom }}</div>
+                    <small class="text-muted">{{ stock.produit.code_produit }}</small>
+                  </div>
+                </div>
                     </td>
                     <td class="text-center">
-                        <span class="badge bg-primary">{{ s.service }}</span>
-                    </td>
-                    <td class="text-center fw-bold {% if s.quantite < 10 %}text-danger{% endif %}">
-                        {{ s.quantite }}
+                <span class="badge bg-primary">{{ stock.service }}</span>
                     </td>
                     <td class="text-center">
-                        {% if s.date_peremption %}
-                            <span class="{% if s.is_expired %}text-danger{% else %}text-success{% endif %}">
-                                {{ s.date_peremption|date:"d/m/Y" }}
+                <span
+                  class="badge {% if stock.quantite < 10 %}bg-danger{% elif stock.quantite < 50 %}bg-warning{% else %}bg-success{% endif %} fs-6">
+                  {{ stock.quantite }}
+                </span>
+              </td>
+              <td class="text-center">
+                {% if stock.date_peremption %}
+                <span
+                  class="{% if is_expired %}text-danger{% elif is_soon_expired %}text-warning{% else %}text-success{% endif %}">
+                  {{ stock.date_peremption|date:"d/m/Y" }}
                             </span>
                         {% else %}
                             -
                         {% endif %}
                     </td>
                     <td>
-                        <code>{{ s.numero_lot|default:"N/A" }}</code>
+                <code>{{ stock.numero_lot|default:"N/A" }}</code>
+              </td>
+              <td>
+                <small class="text-muted">{{ stock.date_ajout|date:"d/m/Y" }}</small>
                     </td>
                     <td class="text-end">
                         <div class="btn-group">
-                            <a href="#" class="btn btn-sm btn-outline-primary">
+                            <a href="{% url 'pharmacies:stock_detail' stock.id %}" class="btn btn-sm btn-outline-primary">
                                 <i class="bi bi-eye"></i>
                             </a>
-                            <a href="#" class="btn btn-sm btn-outline-secondary">
+                            <a href="{% url 'pharmacies:stock_update' stock.id %}" class="btn btn-sm btn-outline-secondary">
                                 <i class="bi bi-pencil"></i>
                             </a>
-                            <a href="#" class="btn btn-sm btn-outline-danger">
+                            <a href="{% url 'pharmacies:stock_delete' stock.id %}" class="btn btn-sm btn-outline-danger">
                                 <i class="bi bi-trash"></i>
                             </a>
                         </div>
+                    </td>
+              </tr>
+
+              {% empty %}
+              <tr>
+                <td colspan="7" class="text-center py-4">
+                  <i class="bi bi-inbox display-1 text-muted"></i>
+                  <p class="mt-3 text-muted">Aucun stock trouvé</p>
                     </td>
                 </tr>
                 {% endfor %}
@@ -92,5 +258,7 @@
         </ul>
     </nav>
     {% endif %}
+    </div>
+  </div>
 </div>
 {% endblock %}

@@ -4,7 +4,7 @@ from django.urls import reverse
 from django.core.validators import MinValueValidator
 from django.utils import timezone
 from decimal import Decimal
-
+from datetime import timedelta
 
 class CategorieProduit(models.Model):
     """Catégories hiérarchiques de produits"""
@@ -53,9 +53,9 @@ class Laboratoire(models.Model):
 class ProduitManager(models.Manager):
     """Manager personnalisé pour le modèle Produit"""
 
-    # def actifs(self):
-    #     """Retourne tous les produits actifs"""
-    #     return self.filter(est_actif=True)
+    def actifs(self):
+        """Retourne tous les produits actifs"""
+        return self.filter(est_actif=True)
 
     def medicaments(self):
         """Retourne tous les médicaments"""
@@ -68,8 +68,8 @@ class ProduitManager(models.Manager):
     def avec_marge_beneficiaire(self):
         """Retourne les produits avec leur marge bénéficiaire calculée"""
         return self.annotate(
-            marge=models.F("prix_vente") - models.F("prix_achat"),
-            pourcentage_marge=models.Case(
+            marge_calculee=models.F("prix_vente") - models.F("prix_achat"),
+            pourcentage_marge_calculee=models.Case(
                 models.When(
                     prix_achat__gt=0,
                     then=(models.F("prix_vente") - models.F("prix_achat"))
@@ -123,29 +123,7 @@ class Produit(models.Model):
 
     # Classification
     type_produit = models.CharField(max_length=4, choices=TypeProduit.choices)
-    # categorie = models.ForeignKey(
-    #     CategorieProduit,
-    #     on_delete=models.PROTECT,
-    #     related_name="produits",
-    #     null=True,
-    #     blank=True,
-    # )
-    # classe_medicament = models.CharField(
-    #     max_length=5, choices=ClasseMedicament.choices, blank=True
-    # )
-    # laboratoire = models.ForeignKey(
-    #     Laboratoire,
-    #     on_delete=models.PROTECT,
-    #     related_name="produits",
-    #     null=True,
-    #     blank=True,
-    # )
 
-    # Composition et forme
-    # principe_actif = models.CharField(max_length=500, blank=True)
-    # dosage = models.CharField(max_length=100, blank=True)
-    # forme_pharmaceutique = models.CharField(max_length=100, blank=True)
-    # conditionnement = models.CharField(max_length=200, blank=True)
 
     # Prix et coûts
     prix_achat = models.DecimalField(
@@ -154,56 +132,8 @@ class Produit(models.Model):
     prix_vente = models.DecimalField(
         max_digits=10, decimal_places=2, validators=[MinValueValidator(Decimal("0.00"))]
     )
-    # prix_public = models.DecimalField(
-    #     max_digits=10,
-    #     decimal_places=2,
-    #     null=True,
-    #     blank=True,
-    #     help_text="Prix public conseillé",
-    # )
-    # taux_tva = models.DecimalField(
-    #     max_digits=5, decimal_places=2, default=Decimal("19.00")
-    # )
-
-    # Gestion des stocks
-    # stock_minimum = models.PositiveIntegerField(default=10)
-    # stock_maximum = models.PositiveIntegerField(default=100)
-    # seuil_alerte = models.PositiveIntegerField(default=20)
-    # unite_mesure = models.CharField(
-    #     max_length=20,
-    #     default="pièce",
-    #     choices=[
-    #         ("pièce", "Pièce"),
-    #         ("boîte", "Boîte"),
-    #         ("flacon", "Flacon"),
-    #         ("ampoule", "Ampoule"),
-    #         ("comprimé", "Comprimé"),
-    #     ],
-    # )
-
-    # # Réglementation
-    # prescription_obligatoire = models.BooleanField(default=False)
-    # remboursable = models.BooleanField(default=False)
-    # taux_remboursement = models.DecimalField(
-    #     max_digits=5, decimal_places=2, default=Decimal("0.00")
-    # )
-
-    # # Traçabilité et qualité
-    # numero_amm = models.CharField("N° AMM", max_length=50, blank=True)
-    # temperature_stockage = models.CharField(max_length=100, blank=True)
-    # conditions_conservation = models.TextField(blank=True)
-
-    # # Informations générales
-    # description = models.TextField(blank=True)
-    # indications = models.TextField(blank=True)
-    # contre_indications = models.TextField(blank=True)
-    # posologie = models.TextField(blank=True)
-
-    # # Statut et dates
-    # est_actif = models.BooleanField(default=True)
-    # date_creation = models.DateTimeField(auto_now_add=True)
-    # date_modification = models.DateTimeField(auto_now=True)
-    # date_discontinuation = models.DateTimeField(null=True, blank=True)
+    est_actif = models.BooleanField(default=True)
+    
 
     objects = ProduitManager()
 
@@ -214,10 +144,7 @@ class Produit(models.Model):
         indexes = [
             models.Index(fields=["code_produit"]),
             models.Index(fields=["type_produit"]),
-            # models.Index(fields=["est_actif"]),
-            # models.Index(fields=["-date_creation"]),
-            # models.Index(fields=["categorie"]),
-            # models.Index(fields=["laboratoire"]),
+            
         ]
 
     def __str__(self):

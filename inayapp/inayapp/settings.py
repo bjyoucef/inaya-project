@@ -63,6 +63,7 @@ INSTALLED_APPS = [
     "rest_framework",
 ]
 INSTALLED_APPS += [
+    "audit",
     "accueil",
     "helpdesk",
     "annuaire",
@@ -104,6 +105,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "audit.middleware.AuditMiddleware",
 ]
 
 ROOT_URLCONF = "inayapp.urls"
@@ -123,6 +125,7 @@ TEMPLATES = [
                 "accueil.context_processors.get_menu_items",
                 "accueil.context_processors.navbar_context",
                 "accueil.context_processors.notification",
+                "audit.context_processors.audit_stats",
             ],
         },
     },
@@ -306,3 +309,13 @@ PLOTLY_OFFLINE_CONFIG = {"show_link": False, "link_text": "", "displaylogo": Fal
 
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
 CRISPY_TEMPLATE_PACK = "bootstrap5"
+
+
+# Configuration d'audit (optionnel)
+AUDIT_SETTINGS = {
+    "TRACK_ANONYMOUS_USERS": False,
+    # "EXCLUDE_APPS": ["sessions", "admin", "contenttypes", "auth"],
+    # "EXCLUDE_MODELS": ["auth.Permission", "contenttypes.ContentType"],
+    "MAX_LOG_AGE_DAYS": 365,
+    "ENABLE_API_AUDIT": True,
+}

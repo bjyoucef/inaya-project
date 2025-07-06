@@ -61,14 +61,36 @@
                         <p class="mb-0">{{ prestation.observations|default:"Aucune observation" }}</p>
                     </div>
 
-                    <div class="card bg-primary text-white shadow">
-                        <div class="card-body py-3">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>Total à régler</div>
-                                <div class="h4 mb-0">{{ prestation.prix_total }} DA</div>
-                            </div>
-                        </div>
-                    </div>
+
+<!-- Détails des paiements -->
+<div class="mt-3">
+    <div class="d-flex justify-content-between small">
+        <span>Actes conventionnés:</span>
+        <span>{{ total_actes_convention }} DA</span>
+    </div>
+    <div class="d-flex justify-content-between small">
+        <span>Actes en espèces:</span>
+        <span>{{ total_actes_espece }} DA</span>
+    </div>
+    <div class="d-flex justify-content-between small">
+        <span>Consommations supplémentaires:</span>
+        <span>{{ total_consommations }} DA</span>
+    </div>
+    <div class="d-flex justify-content-between small">
+        <span>Frais supplémentaires:</span>
+        <span>{{ prix_supplementaire }} DA</span>
+    </div>
+    <!-- Total à régler (tous types confondus) -->
+<div class="card bg-success text-white shadow">
+    <div class="card-body py-3">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>Total en espèces:</div>
+            <div class="h4 mb-0">{{ total_espece }} DA</div>
+        </div>
+    </div>
+</div>
+</div>
+                    
                 </div>
             </div>
         </div>
@@ -164,8 +186,16 @@
                             </tbody>
                             <tfoot class="bg-light">
                                 <tr>
-                                    <td colspan="3" class="fw-bold text-end">Total</td>
-                                    <td class="text-end fw-bold">{{ prestation.prix_total }} DA</td>
+                                    <td colspan="4" class="fw-bold text-end">Total des actes</td>
+                                    <td class="text-end">{{ prestation.prix_total }} DA</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="4" class="fw-bold text-end">Total des consommations</td>
+                                    <td class="text-end">{{ total_consommations }} DA</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="4" class="fw-bold text-end">TOTAL GÉNÉRAL</td>
+                                    <td class="text-end fw-bold">{{ prestation.prix_total|add:total_consommations }} DA</td>
                                 </tr>
                             </tfoot>
                         </table>

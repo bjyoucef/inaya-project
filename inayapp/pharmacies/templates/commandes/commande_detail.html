@@ -29,7 +29,7 @@
         </dd>
 
         <dt class="col-sm-3">Montant total</dt>
-        <dd class="col-sm-9">{{ object.montant_total|floatformat:2 }} €</dd>
+        <dd class="col-sm-9">{{ object.montant_total|floatformat:2 }} DA</dd>
       </dl>
 
       <h5>Lignes de commande</h5>
@@ -49,8 +49,8 @@
           <tr>
             <td>{{ ligne.produit }}</td>
             <td>{{ ligne.quantite }}</td>
-            <td>{{ ligne.prix_unitaire|floatformat:2 }} €</td>
-            <td>{{ ligne.montant|floatformat:2 }} €</td>
+            <td>{{ ligne.prix_unitaire|floatformat:2 }} DA</td>
+            <td>{{ ligne.montant|floatformat:2 }} DA</td>
             <td>{{ ligne.numero_lot|default:"-" }}</td>
             <td>{{ ligne.date_peremption|date:"d/m/Y" }}</td>
           </tr>

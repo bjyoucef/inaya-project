@@ -1,5 +1,7 @@
 # pharmacies/urls.py
 from django.urls import path
+
+from .views.views_stock import AjustementStockCreateView,StockCreateView, StockDeleteView, StockDetailView, StockListView, StockUpdateView, get_stock_disponible, stocks_expires_bientot
 from . import views
 from django.urls import path
 from .views.views_fournisseur import (
@@ -30,16 +32,23 @@ urlpatterns = [
         views.ProduitDeleteView.as_view(),
         name="produit_delete",
     ),
+
+        
     # Stocks
-    path("stocks/", views.StockListView.as_view(), name="stock_list"),
-    path("stocks/create/", views.StockCreateView.as_view(), name="stock_create"),
-    # Transferts
-    path("transferts/", views.TransfertListView.as_view(), name="transfert_list"),
-    path(
-        "transferts/create/",
-        views.TransfertCreateView.as_view(),
-        name="transfert_create",
-    ),
+    path('stocks/', StockListView.as_view(), name='stock_list'),
+    path('stocks/ajouter/', StockCreateView.as_view(), name='stock_create'),
+    path('stocks/<int:pk>/', StockDetailView.as_view(), name='stock_detail'),
+    path('stocks/<int:pk>/modifier/', StockUpdateView.as_view(), name='stock_update'),
+    path('stocks/<int:pk>/supprimer/', StockDeleteView.as_view(), name='stock_delete'),
+    
+
+    # Ajustements
+    path('ajustements/nouveau/', AjustementStockCreateView.as_view(), name='ajustement_create'),
+    
+    # API
+    path('api/stock-disponible/', get_stock_disponible, name='stock_disponible'),
+    path('api/stocks-expires/', stocks_expires_bientot, name='stocks_expires'),
+
     # Achats
     # path("achats/", views.AchatListView.as_view(), name="achat_list"),
     # path("achats/create/", views.AchatCreateView.as_view(), name="achat_create"),

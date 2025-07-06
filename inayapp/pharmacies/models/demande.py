@@ -1,3 +1,4 @@
+# pharmacies/models/demande.py
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.utils import timezone
@@ -99,11 +100,7 @@ class BonCommandeInterne(models.Model):
 
 
 class BonLivraisonInterne(models.Model):
-    transfert = models.OneToOneField(
-        "pharmacies.Transfert",
-        on_delete=models.PROTECT,
-        related_name="livraison_interne",
-    )
+
     date_livraison = models.DateTimeField(auto_now_add=True)
     numero_bl = models.CharField("Numéro BL interne", max_length=50, unique=True)
 

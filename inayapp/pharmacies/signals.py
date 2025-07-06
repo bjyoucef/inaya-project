@@ -1,38 +1,12 @@
+# pharmacies/signals.py
+
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 from .models.commande import BonLivraison
-from .models import Transfert, Stock, Consommation
-
-
-@receiver(post_save, sender=Transfert)
-def gerer_transfert_stock(sender, instance, created, **kwargs):
-    if created:
-        # Déduire du stock du service d'origine
-        stock_source = Stock.objects.filter(
-            produit=instance.produit,
-            service=instance.service_origine,
-            date_peremption=instance.date_peremption,
-            numero_lot=instance.numero_lot,
-        ).first()
-
-        if stock_source and stock_source.quantite >= instance.quantite_transferee:
-            stock_source.quantite -= instance.quantite_transferee
-            stock_source.save()
-
-            # Créer ou mettre à jour le stock du service de destination
-            stock_dest, created = Stock.objects.get_or_create(
-                produit=instance.produit,
-                service=instance.service_destination,
-                date_peremption=instance.date_peremption,
-                numero_lot=instance.numero_lot,
-                defaults={"quantite": instance.quantite_transferee},
-            )
-            if not created:
-                stock_dest.quantite += instance.quantite_transferee
-                stock_dest.save()
+from .models import  Stock, Consommation
 
 
 @receiver(post_save, sender=Consommation)
@@ -54,10 +28,7 @@ def mise_a_jour_stock_apres_consommation(sender, instance, created, **kwargs):
             stock.save()
             restant -= a_deduire
 
-        if restant > 0:
-            raise ValidationError(
-                f"Stock insuffisant pour {instance.produit}. Manquant: {restant}"
-            )
+
 
 from django.db.models.signals import post_save
 from django.dispatch import receiver

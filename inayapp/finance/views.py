@@ -23,6 +23,7 @@ from utils.pdf import render_to_pdf
 
 from .forms import DechargeForm, PaymentForm
 from .models import Decharges, Payments
+from audit.decorators import audit_view
 
 
 # decharge planning
@@ -180,6 +181,7 @@ def decharge_settled(request):
 
 
 @login_required
+@audit_view
 def decharge_detail(request, pk):
     decharge = get_object_or_404(Decharges, pk=pk)
     payments = Payments.objects.filter(id_decharge=decharge)
@@ -222,6 +224,7 @@ def decharge_detail(request, pk):
 
 
 @login_required
+@audit_view
 def decharge_create(request):
     if request.method == "POST":
         form = DechargeForm(request.POST)
@@ -237,6 +240,7 @@ def decharge_create(request):
 
 
 @login_required
+@audit_view
 def decharge_edit(request, pk):
     decharge = get_object_or_404(Decharges, pk=pk)
     if request.method == "POST":
@@ -251,6 +255,7 @@ def decharge_edit(request, pk):
 
 
 @login_required
+@audit_view
 def decharge_delete(request, pk):
     decharge = get_object_or_404(Decharges, pk=pk)
     plannings = Planning.objects.filter(id_decharge=decharge)
@@ -271,6 +276,7 @@ def decharge_delete(request, pk):
 
 
 @login_required
+@audit_view
 def payment_delete(request, pk):
     payment = get_object_or_404(Payments, pk=pk)
     decharge_pk = payment.id_decharge.pk
@@ -286,6 +292,7 @@ def payment_delete(request, pk):
 
 
 @login_required
+@audit_view
 def export_decharge_pdf(request, decharge_id):
     decharge = get_object_or_404(Decharges, pk=decharge_id)
 
@@ -315,6 +322,7 @@ def export_decharge_pdf(request, decharge_id):
 
 # views.py
 @login_required
+@audit_view
 def print_decharge_view(request, decharge_id):
     decharge = get_object_or_404(Decharges, pk=decharge_id)
     amount_in_words = num2words(decharge.amount, lang="fr").capitalize() + " dinars"
@@ -333,6 +341,7 @@ def print_decharge_view(request, decharge_id):
     return render(request, "decharges/decharge_pdf.html", context)
 
 
+@audit_view
 def situation_medecins_list(request):
     # 1. Honoraires
     honoraire_sq = (
@@ -439,6 +448,7 @@ def situation_medecins_list(request):
 
 
 # views.py
+@audit_view
 def situation_medecin(request, medecin_id):
     medecin = get_object_or_404(Medecin, pk=medecin_id)
 
@@ -544,6 +554,7 @@ def situation_medecin(request, medecin_id):
     return render(request, "situation.html", context)
 
 
+@audit_view
 def create_decharge_medecin(request, medecin_id):
     medecin = get_object_or_404(Medecin, pk=medecin_id)
 
@@ -602,6 +613,7 @@ def create_decharge_medecin(request, medecin_id):
     return render(request, "decharges/create_decharge_medecin.html", context)
 
 
+@audit_view
 @login_required
 def gestion_convention_accorde(request):
     # Base queryset
@@ -666,6 +678,7 @@ def gestion_convention_accorde(request):
     )
 
 
+@audit_view
 @login_required
 def update_convention_status(request, pk):
     if not request.user.has_perm("medical.change_prestationacte"):

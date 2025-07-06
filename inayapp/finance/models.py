@@ -179,6 +179,39 @@ class TarifActeConvention(models.Model):
             f"{self.convention.nom} - {self.acte.code} : {self.montant_honoraire_base}€"
         )
 
+from django.db import models
+from decimal import Decimal
+from django.core.validators import MinValueValidator, MaxValueValidator
+
+
+class PrixSupplementaireConfig(models.Model):
+    """
+    Configuration du pourcentage de prix supplémentaire par médecin.
+    Par exemple, si pourcentage = 10.5, on ajoutera 10.5% au tarif de base.
+    """
+
+    medecin = models.OneToOneField(
+        "medecin.Medecin",
+        on_delete=models.CASCADE,
+        related_name="prix_supplementaire_config",
+        verbose_name="Médecin",
+    )
+    pourcentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        validators=[
+            MinValueValidator(Decimal("0.00")),
+            MaxValueValidator(Decimal("100.00")),
+        ],
+        verbose_name="Pourcentage supplémentaire (%)",
+        help_text="Pourcentage à appliquer sur le prix supplémentaire par médecin.",
+    )
+
+    class Meta:
+        verbose_name = "Configuration Prix Supplémentaire"
+        verbose_name_plural = "Configurations Prix Supplémentaires"
+
 
 class HonorairesMedecinManager(models.Manager):
     def get_tarif_effectif(self, medecin, acte, convention, date_reference):
@@ -218,6 +251,7 @@ class HonorairesMedecin(models.Model):
         related_name="honoraires_medecins",
         verbose_name="Convention appliquée",
     )
+
     montant = models.DecimalField(
         max_digits=10,
         decimal_places=2,

@@ -1,0 +1,46 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">
+                        <i class="bi bi-exclamation-triangle"></i> Confirmer la suppression
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <p class="lead">Êtes-vous sûr de vouloir supprimer ce stock ?</p>
+                    <div class="alert alert-warning" role="alert">
+                        <strong>Attention :</strong> Cette action est irréversible.
+                    </div>
+                    
+                    <div class="border p-3 rounded">
+                        <strong>{{ stock.produit.nom }}</strong><br>
+                        <small class="text-muted">{{ stock.produit.code_produit }}</small><br>
+                        Service: <span class="badge bg-primary">{{ stock.service }}</span><br>
+                        Quantité: <strong>{{ stock.quantite }}</strong><br>
+                        {% if stock.date_peremption %}
+                            Expiration: {{ stock.date_peremption|date:"d/m/Y" }}
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'pharmacies:stock_detail' stock.pk %}" class="btn btn-secondary">
+                                <i class="bi bi-arrow-left"></i> Annuler
+                            </a>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="bi bi-trash"></i> Supprimer définitivement
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

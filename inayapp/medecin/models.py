@@ -38,7 +38,7 @@ class Medecin(models.Model):
     created_at = models.DateTimeField(
         auto_now_add=True, verbose_name="Date de création"
     )
-
+    
     @property
     def nom_complet(self):
         """

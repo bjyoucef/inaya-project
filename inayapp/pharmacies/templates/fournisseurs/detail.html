@@ -50,7 +50,7 @@
                                                 </div>
                                             </div>
                                             <small class="text-muted">
-                                                Utilisé : {{ fournisseur.solde }} € / Limite : {{ fournisseur.limite_credit }} €
+                                                Utilisé : {{ fournisseur.solde }} DA / Limite : {{ fournisseur.limite_credit }} DA
                                             </small>
                                         </dd>
                                     </dl>
@@ -132,7 +132,7 @@
                                         {% for paiement in paiements %}
                                         <tr>
                                             <td>{{ paiement.date_paiement|date:"d/m/Y" }}</td>
-                                            <td>{{ paiement.montant }} €</td>
+                                            <td>{{ paiement.montant }} DA</td>
                                             <td>{{ paiement.get_mode_paiement_display }}</td>
                                             <td>
                                                 <span class="badge bg-{% if paiement.statut == 'COMPLETE' %}success{% else %}warning{% endif %}">

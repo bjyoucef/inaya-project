@@ -1,230 +1,750 @@
-{% extends "layout.html" %}
-{% load tz static custom_filters %}
-{% block content %}
+{% extends "layout.html" %} {% load static custom_filters %} {% block content %}
+<style>
+  .produit-row {
+    background: #f8f9fa;
+    border-radius: 5px;
+    padding: 10px;
+    margin: 5px 0;
+  }
+  .produit-header {
+    font-weight: bold;
+    color: #0d6efd;
+  }
+  .acte-row {
+    border: 1px solid #dee2e6;
+    border-radius: 5px;
+    padding: 15px;
+    margin-bottom: 15px;
+  }
+  /* Ajoutez ceci dans votre balise <style> */
+#history-content .list-group-item {
+  border-left: 3px solid var(--bs-primary);
+  transition: all 0.2s;
+}
 
-<link rel="stylesheet" href="{% static 'css/choices.min.css' %}">
+#history-content .list-group-item:hover {
+  background-color: #f8f9fa;
+  transform: translateX(2px);
+}
 
-<div class="container-lg">
-  <h1 class="mb-4">Édition de prestation médicale</h1>
+#refresh-history {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+}
+</style>
 
-  {% if errors %}
-    <div class="alert alert-danger mb-4">
-      <h4 class="alert-heading">Erreurs de validation</h4>
-      <ul class="mb-0">
-        {% for e in errors %}
-          <li>{{ e }}</li>
-        {% endfor %}
-      </ul>
+<link rel="stylesheet" href="{% static 'css/choices.min.css' %}" />
+<div>
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <div>
+      <h1 class="h2 mb-0 text-primary">
+        <i class="bi bi-file-medical me-2"></i>Modifier Prestation
+      </h1>
+      <p class="text-muted">
+        Modifiez les informations de la prestation
+      </p>
     </div>
-  {% endif %}
+    <a
+      href="{% url 'medical:prestation_detail' prestation.id %}"
+      class="btn btn-soft-secondary"
+    >
+      <i class="bi bi-arrow-left me-2"></i>Retour
+    </a>
+  </div>
 
-  <form method="post" action="{% url 'medical:prestation_update' prestation.id %}">
+  <div class="row g-4">  <!-- Nouvelle ligne principale -->
+    <!-- Colonne formulaire (8 colonnes) -->
+    <div class="col-lg-9">
+      {% if errors %}
+      <div class="alert alert-danger mb-4">
+        <h4 class="alert-heading">Erreurs de validation</h4>
+        <ul class="mb-0">
+          {% for e in errors %}
+          <li>{{ e }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
+        
+  <form method="post">
     {% csrf_token %}
 
-    <!-- Informations générales -->
     <div class="card shadow-sm mb-4">
       <div class="card-header bg-primary text-white">
-        <i class="bi bi-clipboard-pulse me-2"></i>Informations générales
+        Informations Générales
       </div>
+
       <div class="card-body">
         <div class="row g-3">
           <div class="col-md-6">
             <label for="patientSelect" class="form-label">Patient</label>
-<!-- Patient Select -->
-<select name="patient" id="patientSelect" class="form-select" required>
-  <option value="">Choisir un patient...</option>
-  {% for p in patients %}
-    <option value="{{ p.id }}" {% if p.id == prestation.patient_id %}selected{% endif %}>{{ p.nom_complet }}</option>
-  {% endfor %}
-</select>
+            <select
+              id="patientSelect"
+              name="patient"
+              class="form-select"
+              required
+            >
+              <option value="">Choisir un patient...</option>
+              {% for p in patients %}
+              <option value="{{ p.id }}" {% if p.id == prestation.patient.id %}selected{% endif %}>
+                {{ p.nom_complet }}
+              </option>
+              {% endfor %}
+            </select>
           </div>
 
           <div class="col-md-6">
             <label for="medecinSelect" class="form-label">Médecin</label>
-<!-- Medecin Select -->
-<select name="medecin" id="medecinSelect" class="form-select" required>
-  <option value="">Choisir un médecin...</option>
-  {% for m in medecins %}
-    <option value="{{ m.id }}" {% if m.id == prestation.medecin_id %}selected{% endif %}>{{ m.nom_complet }}</option>
-  {% endfor %}
-</select>
+            <select
+              id="medecinSelect"
+              name="medecin"
+              class="form-select"
+              required
+            >
+              <option value="">Choisir un médecin...</option>
+              {% for m in medecins %}
+              <option value="{{ m.id }}" {% if m.id == prestation.medecin.id %}selected{% endif %}>
+                {{ m.nom_complet }}
+              </option>
+              {% endfor %}
+            </select>
           </div>
-
+          
           <div class="col-md-4">
-            <label for="dateInput" class="form-label">Date de réalisation</label>
-            <input type="date" name="date_prestation" id="dateInput" class="form-control"
-                   value="{{ prestation.date_prestation | date:'Y-m-d' }}" required>
+            <label for="dateInput" class="form-label">Date</label>
+            <input
+              id="dateInput"
+              type="date"
+              name="date_prestation"
+              class="form-control"
+              value="{{ prestation.date_prestation|date:'Y-m-d' }}"
+              required
+            />
           </div>
-
+          
           <div class="col-md-4">
             <label for="statutSelect" class="form-label">Statut</label>
-<!-- Statut Select -->
-<select name="statut" id="statutSelect" class="form-select" required>
-  {% for v,l in statut_choices %}
-    <option value="{{ v }}" {% if v == prestation.statut %}selected{% endif %}>{{ l }}</option>
-  {% endfor %}
-</select>
+            <select
+              id="statutSelect"
+              name="statut"
+              class="form-select"
+              required
+            >
+              {% for v,l in statut_choices %}
+              <option value="{{ v }}" {% if v == prestation.statut %}selected{% endif %}>
+                {{ l }}
+              </option>
+              {% endfor %}
+            </select>
           </div>
-
-          <div class="col-md-12">
+          
+          <div class="col-md-4">
+            <label for="prixSupplementaireInput" class="form-label">Frais supplémentaires</label>
+            <div class="input-group">
+                <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    class="form-control"
+                    id="prixSupplementaireInput"
+                    name="prix_supplementaire"
+                    value="{{ prestation.prix_supplementaire|default:'0.00' }}"
+                />
+                <span class="input-group-text">DA</span>
+            </div>
+          </div>
+          
+          <div class="col-12">
             <label for="observationsTextarea" class="form-label">Observations</label>
-            <textarea name="observations" id="observationsTextarea" class="form-control" rows="2"
-                      placeholder="Notes et observations...">{{ prestation.observations }}</textarea>
+            <textarea
+              id="observationsTextarea"
+              name="observations"
+              class="form-control"
+              rows="2"
+            >{{ prestation.observations }}</textarea>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Actes médicaux -->
     <div class="card shadow-sm mb-4">
-      <div class="card-header bg-primary text-white">
-        <i class="bi bi-heart-pulse me-2"></i>Actes médicaux
-      </div>
+      <div class="card-header bg-primary text-white">Actes Médicaux</div>
       <div class="card-body">
-        <div id="actes-container" class="mb-4">
-          <div class="row g-3 mb-2 fw-bold">
-            <div class="col-md-5">Acte médical</div>
-            <div class="col-md-4">Convention</div>
+        <div id="actes-container">
+          <div class="row g-3 mb-2 text-muted small fw-bold">
+            <div class="col-md-4">Acte</div>
+            <div class="col-md-3">Convention</div>
+            <div class="col-md-2">Statut</div>
             <div class="col-md-2">Tarif</div>
             <div class="col-md-1"></div>
           </div>
-          <!-- Ligne modèle cachée -->
-          <div class="acte-row row g-3 mb-2 align-items-center">
-            <div class="col-md-5">
-              <select name="actes[]" class="form-control acte-select" required></select>
-            </div>
-            <div class="col-md-4">
-              <select name="conventions[]" class="form-control convention-select">
-                <option value="">Tarif de base</option>
-              </select>
-            </div>
-            <div class="col-md-2">
-              <div class="input-group">
-                <input type="text" name="tarifs[]" class="form-control tarif-input text-end" readonly>
-                <span class="input-group-text">€</span>
+          
+          <template id="acte-row-tpl">
+            <div class="acte-row row g-3" data-index="{index}">
+              <div class="col-md-4">
+                <select
+                  name="actes[]"
+                  class="form-select acte-select"
+                  required
+                ></select>
+              </div>
+              <div class="col-md-3">
+                <select
+                  name="conventions[]"
+                  class="form-select convention-select"
+                ></select>
+              </div>
+              <div class="col-md-2 statut-convention" style="display: none">
+                <select name="convention_accordee[]" class="form-select">
+                  <option value="oui">Oui</option>
+                  <option value="non" selected>Non</option>
+                </select>
+              </div>
+              <div class="col-md-2">
+                <div class="input-group">
+                  <input
+                    type="text"
+                    name="tarifs[]"
+                    class="form-control tarif-input text-end"
+                    readonly
+                  /><span class="input-group-text">DA</span>
+                </div>
+              </div>
+              <div class="col-md-1">
+                <button type="button" class="btn btn-danger remove-acte">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </div>
+              <div class="col-12 produit-container">
+                <div class="produit-header">Produits</div>
+                <div class="produit-list"></div>
               </div>
             </div>
-            <div class="col-md-1">
-              <button type="button" class="btn btn-danger remove-acte w-100">
-                <i class="bi bi-trash"></i>
-              </button>
+          </template>
+          
+          <template id="produit-row-tpl">
+            <div class="produit-row row g-3 align-items-center" data-prod-index="{prodIndex}" data-default-qty="{defaultQty}"
+              data-unit-price="{unitPrice}">
+              <div class="col-md-3">
+                <select name="actes[{index}][produits][]" class="form-select produit-select" required>
+                  <option value="">-- Choisir un produit --</option>
+                  {% for prod in all_produits %}
+                  <option value="{{ prod.id }}" data-default-qty="{{ prod.default_qty }}" data-prix="{{ prod.prix_vente }}">
+                    {{ prod.code_produit }} - {{ prod.nom }}
+                  </option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-md-2">
+                <input type="number" name="actes[{index}][quantites_reelles][]" class="form-control quantite-input" value="1"
+                  min="0" required />
+              </div>
+              <div class="col-md-2">
+                <div class="input-group">
+                  <span class="input-group-text">DA</span>
+                  <input type="text" name="actes[{index}][prix_unitaire][]" class="form-control prix-input text-end" readonly />
+                </div>
+              </div>
+              <div class="col-md-2">
+                <div>
+                  <small class="text-muted">Écart:</small>
+                  <div class="ecart-value text-end"></div>
+                </div>
+              </div>
+              <div class="col-md-2">
+                <div>
+                  <small class="text-muted">Montant:</small>
+                  <div class="montant-value text-end"></div>
+                </div>
+              </div>
+              <div class="col-md-1">
+                <button type="button" class="btn btn-danger remove-produit">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </div>
             </div>
-          </div>
+          </template>
         </div>
-        <button type="button" id="add-acte" class="btn btn-outline-primary">
-          <i class="bi bi-plus-circle me-2"></i>Ajouter un acte
+        
+        <button
+          type="button"
+          id="add-acte"
+          class="btn btn-outline-primary w-100"
+        >
+          Ajouter un acte
         </button>
-        <div class="mt-4 p-3 bg-light rounded-3">
-          <h4 class="mb-0 text-end">
-            Total : <span id="total" class="text-primary">0.00</span> €
-          </h4>
-        </div>
+        
+        <div class="mt-3 text-end">Total: <span id="total">0.00</span> DA</div>
       </div>
     </div>
 
-    <div class="d-grid d-md-flex justify-content-md-end mt-4">
-      <button type="submit" class="btn btn-lg btn-primary">
-        <i class="bi bi-save me-2"></i>Enregistrer
-      </button>
+    <div class="text-end">
+      <a href="{% url 'medical:prestation_detail' prestation.id %}" class="btn btn-secondary">Annuler</a>
+      <button type="submit" class="btn btn-success">Enregistrer les modifications</button>
     </div>
   </form>
+    </div>
+
+    <!-- Colonne historique (4 colonnes) -->
+    <div class="col-lg-3">
+      <div class="card shadow-sm h-100">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+          <span>Historique du patient</span>
+          <button id="refresh-history" class="btn btn-sm btn-light">
+            <i class="bi bi-arrow-repeat"></i>
+          </button>
+        </div>
+        <div class="card-body p-0">
+          <div id="history-content" class="p-3">
+            <div class="text-center py-4">
+              <div class="spinner-border text-primary" role="status"></div>
+              <p class="mt-2 text-muted">Chargement...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
-<script src="{% static 'js/choices.min.js' %}"></script>
-
 <script>
-  // Contexte Django → JS
-  const actesData       = {{ actes_json|safe }};
-  const initialLignes   = {{ lignes|safe }};
-  const selectedPatient = "{{ prestation.patient_id }}";
-  const selectedMedecin = "{{ prestation.medecin_id }}";
-  const selectedDate    = "{{ prestation.date_prestation|localtime|date:'Y-m-d\\TH:i' }}";
-  const selectedStatut  = "{{ prestation.statut }}";
+ // Activer/désactiver le bouton selon la sélection
+document.getElementById('patientSelect').addEventListener('change', function() {
+  loadPatientHistory();
+});
+
+// Bouton de rafraîchissement
+document.getElementById('refresh-history').addEventListener('click', loadPatientHistory);
+
+// Fonction de chargement de l'historique
+function loadPatientHistory() {
+  const patientId = document.getElementById('patientSelect').value;
+  const historyContent = document.getElementById('history-content');
+  
+  if (!patientId) {
+    historyContent.innerHTML = `
+      <div class="alert alert-info text-center">
+        <i class="bi bi-info-circle me-2"></i>
+        Veuillez sélectionner un patient
+      </div>`;
+    return;
+  }
+  
+  historyContent.innerHTML = `
+    <div class="text-center py-4">
+      <div class="spinner-border text-primary" role="status"></div>
+      <p class="mt-2 text-muted">Chargement de l'historique...</p>
+    </div>`;
+  
+  fetch(`/medical/prestations/history/${patientId}/`)
+    .then(r => r.json())
+    .then(data => {
+      let html = `<h6 class="mb-3">Patient: <strong>${data.patient}</strong></h6>`;
+      
+      if (data.prestations.length === 0) {
+        html += `<div class="alert alert-info">Aucune prestation trouvée</div>`;
+      } else {
+        html += `<div class="list-group" style="max-height: 75vh; overflow-y: auto;">`;
+        
+        data.prestations.forEach(p => {
+          html += `
+          <div class="list-group-item mb-2">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <div class="fw-bold">${p.date}</div>
+                <div class="small text-muted">${p.medecin}</div>
+              </div>
+              <span class="badge bg-primary">${p.statut}</span>
+            </div>
+            
+            <div class="mt-2 small">Actes:</div>
+            <ul class="mb-1 small">`;
+          
+          p.actes.forEach(a => {
+            html += `<li>${a.libelle} - ${a.tarif.toFixed(2)} DA</li>`;
+          });
+          
+          html += `</ul>
+            <div class="text-end fw-bold mt-2">Total: ${p.total.toFixed(2)} DA</div>
+          </div>`;
+        });
+        html += `</div>`;
+      }
+      
+      historyContent.innerHTML = html;
+    })
+    .catch(error => {
+      historyContent.innerHTML = `
+        <div class="alert alert-danger">
+          <i class="bi bi-exclamation-triangle me-2"></i>
+          Erreur lors du chargement de l'historique
+        </div>`;
+    });
+}
+
+// Charger l'historique au démarrage si patient pré-sélectionné
+document.addEventListener('DOMContentLoaded', () => {
+  // Charger l'historique si un patient est déjà sélectionné
+  if (document.getElementById('patientSelect').value) {
+    loadPatientHistory();
+  }
+});
 </script>
-<!-- Pour charger correctement les observations avec JSON.parse -->
-{{ prestation.observations|json_script:"obs" }}
 
+<script src="{% static 'js/choices.min.js' %}"></script>
 <script>
-// Set values first
-document.getElementById('patientSelect').value = selectedPatient;
-document.getElementById('medecinSelect').value = selectedMedecin;
+  // Récupération de la liste globale des produits et des actes
+  const produitsGlobal = {{ all_produits_json|safe }};
+  const actesData = {{ actes_json|safe }};
+  
+  // Données des actes existants (pour la modification)
+  const prestationActes = {{ prestation_actes_json|safe }};
 
-// Then initialize Choices
-new Choices("#medecinSelect", { searchEnabled: true, removeItemButton: true });
-new Choices("#patientSelect", { searchEnabled: true, removeItemButton: true });
+  // Met à jour le total (tarifs d'actes + impact produits)
+  function updateTotal() {
+    let sum = 0;
+    const fraisSuppl = parseFloat(document.getElementById('prixSupplementaireInput').value) || 0;
+    sum += fraisSuppl;
+    
+    document.querySelectorAll('.tarif-input').forEach(i => {
+      sum += parseFloat(i.value) || 0;
+    });
+    document.querySelectorAll('.produit-row').forEach(r => {
+      const m = parseFloat(r.querySelector('.montant-value').textContent) || 0;
+      sum += m;
+    });
+    document.getElementById('total').textContent = sum.toFixed(2);
+  }
+  
+  document.getElementById('prixSupplementaireInput').addEventListener('input', updateTotal);
+  
+  // Charge les produits par défaut pour un acte sélectionné
+  function loadProduits(acteId, row) {
+    fetch(`/medical/get-acte-produits/${acteId}/`)
+      .then(r => r.json())
+      .then(data => {
+        const cont = row.querySelector('.produit-list');
+        cont.innerHTML = '';
+        data.produits.forEach((p, idx) => {
+          const tpl = document.getElementById('produit-row-tpl').innerHTML
+            .replace(/\{index\}/g, row.dataset.index)
+            .replace(/\{prodIndex\}/g, idx)
+            .replace(/\{defaultQty\}/g, p.quantite_defaut)
+            .replace(/\{unitPrice\}/g, p.prix_vente.toFixed(2));
+          const div = document.createElement('div');
+          div.innerHTML = tpl;
+          const prodRow = div.firstElementChild;
+          initProduitRow(prodRow);
+          // Préréglage
+          prodRow.querySelector('.produit-select').value = p.id;
+          prodRow.querySelector('.quantite-input').value = p.quantite_defaut;
+          prodRow.querySelector('.prix-input').value = p.prix_vente.toFixed(2);
+          updateProduitImpact(prodRow);
+          cont.appendChild(prodRow);
+        });
+      });
+  }
 
-  // Récupère et retourne le tarif via API
+  // Initialise une ligne produit : options, handlers
+  function initProduitRow(row) {
+    const select = row.querySelector('.produit-select');
+
+    // Remplir les options
+    select.innerHTML = '<option value="">--</option>' +
+      produitsGlobal.map(p =>
+        `<option value="${p.id}" data-default-qty="${p.quantite_defaut}" data-prix="${p.prix_vente}">` +
+          `${p.code_produit} – ${p.nom}` +
+        `</option>`
+      ).join('');
+
+    // Lorsque l'on change de produit
+    select.onchange = () => {
+      const opt = select.selectedOptions[0];
+      row.dataset.defaultQty = opt.dataset.defaultQty;
+      row.dataset.unitPrice = opt.dataset.prix;
+      row.querySelector('.prix-input').value = parseFloat(opt.dataset.prix).toFixed(2);
+      updateProduitImpact(row);
+    };
+
+    // Lorsque l'on change la quantité réelle
+    row.querySelector('.quantite-input').oninput = () => {
+      if (parseFloat(row.querySelector('.quantite-input').value) <= 0) {
+        // neutraliser pour que ça ne remonte pas
+        row.querySelectorAll('select, input').forEach(el => {
+          el.disabled = true;
+          el.removeAttribute('name');
+        });
+      } else {
+        // ré-activer normalement
+        row.querySelectorAll('select, input').forEach(el => {
+          el.disabled = false;
+          // **attention** : vous devez éventuellement restaurer le `name` manuellement
+        });
+      }
+      updateProduitImpact(row);
+    };
+
+    // Bouton supprimer
+    row.querySelector('.remove-produit').onclick = () => {
+      row.querySelectorAll('select, input').forEach(el => {
+        el.disabled = true;
+        el.removeAttribute('name');
+      });
+      row.remove();
+      updateTotal();
+    };
+  }
+
+  // Calcule l'écart et le montant pour un produit
+  function updateProduitImpact(row) {
+    const defaultQty = parseFloat(row.dataset.defaultQty) || 0;
+    const unitPrice = parseFloat(row.dataset.unitPrice) || 0;
+    const realQty = parseFloat(row.querySelector('.quantite-input').value) || 0;
+    const ecart = realQty - defaultQty;
+    const montant = ecart * unitPrice;
+
+    row.querySelector('.ecart-value').textContent = ecart.toFixed(2);
+    row.querySelector('.montant-value').textContent = montant.toFixed(2);
+    updateTotal();
+  }
+
+  // Récupère le tarif pour un acte (avec éventuelle convention)
   function updateTarif(row) {
-    const acteId = row.querySelector('.acte-select').value;
-    const convId = row.querySelector('.convention-select').value;
-    const tarifInput = row.querySelector('.tarif-input');
-    if (!acteId) { tarifInput.value = ''; updateTotal(); return; }
-    fetch(`/medical/get-tarif/?acte_id=${acteId}&convention_id=${convId}`)
-      .then(r => r.json()).then(json => {
-        tarifInput.value = json.tarif.toFixed(2);
+    const a = row.querySelector('.acte-select');
+    const c = row.querySelector('.convention-select');
+    const t = row.querySelector('.tarif-input');
+    const sC = row.querySelector('.statut-convention');
+    const s = sC.querySelector('select');
+
+    if (!a.value) {
+      sC.style.display = 'none';
+      t.value = '';
+      updateTotal();
+      return;
+    }
+
+    const url = `/medical/get-tarif/?acte_id=${a.value}` + (c.value ? `&convention_id=${c.value}` : '');
+    fetch(url)
+      .then(r => r.json())
+      .then(j => {
+        t.value = parseFloat(j.tarif).toFixed(2);
+        sC.style.display = c.value ? 'block' : 'none';
+        s.required = !!c.value;
         updateTotal();
       });
   }
 
-  // Recalcule la somme des tarifs
-  function updateTotal() {
-    let sum = 0;
-    document.querySelectorAll('.tarif-input').forEach(i => sum += parseFloat(i.value) || 0);
-    document.getElementById('total').textContent = sum.toFixed(2);
-  }
+  // Initialise une ligne acte : select d'acte, conventions, produits, handlers
+  function initRow(row, idx) {
+    row.dataset.index = idx;
 
-  // Initialise une ligne (remplissage actes & conventions + events)
-  function initRow(row) {
-    const acteSel = row.querySelector('.acte-select');
-    const convSel = row.querySelector('.convention-select');
+    const a = row.querySelector('.acte-select');
+    const c = row.querySelector('.convention-select');
+    const rm = row.querySelector('.remove-acte');
+    
+    // Choices pour acte et convention
+    [a, c].forEach(el => {
+      if (el._choices) el._choices.destroy();
+      el._choices = new Choices(el, {
+        searchEnabled: true,
+        removeItemButton: false,
+        shouldSort: false
+      });
+    });
+    
     // Remplir la liste des actes
-    acteSel.innerHTML = '<option value="">--</option>' +
-      actesData.map(a => `<option value="${a.id}">${a.code} – ${a.libelle}</option>`).join('');
-    acteSel.onchange = () => {
-      const a = actesData.find(x => x.id == acteSel.value);
-      convSel.innerHTML = '<option value="">Tarif de base</option>';
-      if (a) a.conventions.forEach(c =>
-        convSel.insertAdjacentHTML('beforeend', `<option value="${c.id}">${c.nom}</option>`)
+    a.innerHTML = '<option value="">--</option>' +
+      actesData.map(x =>
+        `<option value="${x.id}">${x.code} – ${x.libelle}</option>`
+      ).join('');
+      
+    // Réinjecter dans Choices
+    a._choices.setChoices(
+      Array.from(a.options).map(o => ({
+        value: o.value,
+        label: o.text,
+        selected: o.selected,
+        disabled: o.disabled
+      })),
+      'value',
+      'label',
+      false
+    );
+    
+    // Quand on choisit un acte
+    a.onchange = () => {
+      c.innerHTML = '<option value="">Base</option>';
+      const act = actesData.find(x => x.id == a.value);
+      if (act) {
+        act.conventions.forEach(cx =>
+          c.insertAdjacentHTML('beforeend',
+            `<option value="${cx.id}">${cx.nom}</option>`
+          )
+        );
+      }
+      
+      // Rafraîchir Choices pour la convention
+      c._choices.setChoices(
+        Array.from(c.options).map(o => ({
+          value: o.value,
+          label: o.text,
+          selected: o.selected,
+          disabled: o.disabled
+        })),
+        'value',
+        'label',
+        true
       );
+
       updateTarif(row);
+      loadProduits(a.value, row);
     };
-    convSel.onchange = () => updateTarif(row);
-    row.querySelector('.remove-acte').onclick = () => { row.remove(); updateTotal(); };
+
+    // Quand on choisit une convention
+    c.onchange = () => updateTarif(row);
+
+    // Supprimer l'acte
+    rm.onclick = () => {
+      row.remove();
+      updateTotal();
+    };
+
+    // Bouton « Ajouter un produit »
+    const contProd = row.querySelector('.produit-list');
+    const addBtn = document.createElement('button');
+    addBtn.type = 'button';
+    addBtn.className = 'btn btn-sm btn-outline-primary mt-2';
+    addBtn.textContent = 'Ajouter un produit';
+    addBtn.onclick = () => {
+      const newIdx = contProd.children.length;
+      const tpl = document.getElementById('produit-row-tpl').innerHTML
+        .replace(/\{index\}/g, idx)
+        .replace(/\{prodIndex\}/g, newIdx)
+        .replace(/\{defaultQty\}/g, 0)
+        .replace(/\{unitPrice\}/g, 0);
+      const div = document.createElement('div');
+      div.innerHTML = tpl;
+      const prodRow = div.firstElementChild;
+      initProduitRow(prodRow);
+      contProd.appendChild(prodRow);
+    };
+    row.querySelector('.produit-container').appendChild(addBtn);
   }
 
-  // Pré-sélection des champs généraux
-  document.getElementById('patientSelect').value    = selectedPatient;
-  document.getElementById('medecinSelect').value    = selectedMedecin;
-  document.getElementById('dateInput').value        = selectedDate;
-  document.getElementById('statutSelect').value     = selectedStatut;
-  document.getElementById('observationsTextarea').value =
-    JSON.parse(document.getElementById('obs').textContent);
+  // Fonction pour charger les actes existants
+  function loadExistingActes() {
+    const cont = document.getElementById('actes-container');
+    
+    prestationActes.forEach((acteData, idx) => {
+      // Créer une nouvelle ligne d'acte
+      const tpl = document.getElementById('acte-row-tpl').innerHTML
+        .replace(/\{index\}/g, idx);
+      const div = document.createElement('div');
+      div.innerHTML = tpl;
+      const row = div.firstElementChild;
+      cont.appendChild(row);
+      
+      // Initialiser la ligne
+      initRow(row, idx);
+      
+      // Préremplir avec les données existantes
+      const acteSelect = row.querySelector('.acte-select');
+      const conventionSelect = row.querySelector('.convention-select');
+      const tarifInput = row.querySelector('.tarif-input');
+      const statutConvention = row.querySelector('.statut-convention');
+      const statutSelect = statutConvention.querySelector('select');
+      
+      // Définir l'acte sélectionné
+      acteSelect.value = acteData.acte_id;
+      acteSelect._choices.setChoiceByValue(acteData.acte_id.toString());
+      
+      // Charger les conventions pour cet acte
+      const act = actesData.find(x => x.id == acteData.acte_id);
+      if (act) {
+        conventionSelect.innerHTML = '<option value="">Base</option>';
+        act.conventions.forEach(cx =>
+          conventionSelect.insertAdjacentHTML('beforeend',
+            `<option value="${cx.id}">${cx.nom}</option>`
+          )
+        );
+        
+        // Rafraîchir Choices pour la convention
+        conventionSelect._choices.setChoices(
+          Array.from(conventionSelect.options).map(o => ({
+            value: o.value,
+            label: o.text,
+            selected: o.selected,
+            disabled: o.disabled
+          })),
+          'value',
+          'label',
+          true
+        );
+        
+        // Sélectionner la convention
+        if (acteData.convention_id) {
+          conventionSelect.value = acteData.convention_id;
+          conventionSelect._choices.setChoiceByValue(acteData.convention_id.toString());
+          statutConvention.style.display = 'block';
+          statutSelect.value = acteData.convention_accordee ? 'oui' : 'non';
+        }
+      }
+      
+      // Définir le tarif
+      tarifInput.value = parseFloat(acteData.tarif).toFixed(2);
+      
+      // Charger les consommations de produits
+      const produitList = row.querySelector('.produit-list');
+      acteData.consommations.forEach((conso, prodIdx) => {
+        const prodTpl = document.getElementById('produit-row-tpl').innerHTML
+          .replace(/\{index\}/g, idx)
+          .replace(/\{prodIndex\}/g, prodIdx)
+          .replace(/\{defaultQty\}/g, conso.quantite_defaut)
+          .replace(/\{unitPrice\}/g, conso.prix_unitaire);
+        const prodDiv = document.createElement('div');
+        prodDiv.innerHTML = prodTpl;
+        const prodRow = prodDiv.firstElementChild;
+        
+        initProduitRow(prodRow);
+        
+        // Préremplir les données du produit
+        prodRow.querySelector('.produit-select').value = conso.produit_id;
+        prodRow.querySelector('.quantite-input').value = conso.quantite_reelle;
+        prodRow.querySelector('.prix-input').value = parseFloat(conso.prix_unitaire).toFixed(2);
+        prodRow.dataset.defaultQty = conso.quantite_defaut;
+        prodRow.dataset.unitPrice = conso.prix_unitaire;
+        
+        updateProduitImpact(prodRow);
+        produitList.appendChild(prodRow);
+      });
+    });
+  }
 
-  // Gestion des lignes d'actes existantes
-  const container   = document.getElementById('actes-container');
-  const templateRow = container.querySelector('.acte-row');
-  templateRow.remove();
+  // Au chargement de la page
+  document.addEventListener('DOMContentLoaded', () => {
+    new Choices('#medecinSelect');
+    new Choices('#patientSelect');
 
-  initialLignes.forEach(data => {
-    const row = templateRow.cloneNode(true);
-    container.appendChild(row);
-    initRow(row);
-    // On met en place les valeurs puis on déclenche le calcul
-    row.querySelector('.acte-select').value = data.acte_id;
-    row.querySelector('.acte-select').dispatchEvent(new Event('change'));
-    row.querySelector('.convention-select').value = data.convention_id || "";
-    updateTarif(row);
+    const cont = document.getElementById('actes-container');
+
+    // Charger les actes existants
+    loadExistingActes();
+
+    // Bouton « Ajouter un acte »
+    document.getElementById('add-acte').onclick = () => {
+      const idx = cont.querySelectorAll('.acte-row').length;
+      const tpl = document.getElementById('acte-row-tpl').innerHTML
+        .replace(/\{index\}/g, idx);
+      const div = document.createElement('div');
+      div.innerHTML = tpl;
+      const row = div.firstElementChild;
+      cont.appendChild(row);
+      initRow(row, idx);
+    };
+
+    updateTotal();
   });
-
-  updateTotal();
-
-  // Ajout dynamique d'une nouvelle ligne
-  document.getElementById('add-acte').onclick = () => {
-    const clone = templateRow.cloneNode(true);
-    clone.querySelectorAll('input, select').forEach(e => e.value = '');
-    container.appendChild(clone);
-    initRow(clone);
-  };
 </script>
 
 {% endblock %}

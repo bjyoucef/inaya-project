@@ -1,0 +1,154 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card shadow">
+        <div class="card-header bg-warning text-dark">
+            <h4 class="mb-0">
+                <i class="bi bi-tools"></i> Ajustement de stock
+            </h4>
+        </div>
+        
+        <form method="post" class="needs-validation" novalidate>
+            {% csrf_token %}
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="{{ form.stock.id_for_label }}" class="form-label fw-bold">
+                                Stock à ajuster
+                            </label>
+                            {{ form.stock }}
+                            {% if form.stock.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.stock.errors|first }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.quantite_avant.id_for_label }}" class="form-label fw-bold">
+                                Quantité actuelle
+                            </label>
+                            {{ form.quantite_avant }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.quantite_apres.id_for_label }}" class="form-label fw-bold">
+                                Nouvelle quantité
+                            </label>
+                            {{ form.quantite_apres }}
+                            {% if form.quantite_apres.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.quantite_apres.errors|first }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="{{ form.motif.id_for_label }}" class="form-label fw-bold">
+                                Motif de l'ajustement
+                            </label>
+                            {{ form.motif }}
+                            {% if form.motif.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.motif.errors|first }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.commentaire.id_for_label }}" class="form-label fw-bold">
+                                Commentaire
+                            </label>
+                            {{ form.commentaire }}
+                            {% if form.commentaire.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.commentaire.errors|first }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i>
+                            <strong>Note :</strong> L'ajustement sera automatiquement enregistré dans l'historique des mouvements.
+                        </div>
+                    </div>
+                </div>
+                
+                {% if form.non_field_errors %}
+                    <div class="alert alert-danger">
+                        {{ form.non_field_errors }}
+                    </div>
+                {% endif %}
+            </div>
+            
+            <div class="card-footer">
+                <div class="d-flex justify-content-between">
+                    <a href="{% url 'pharmacies:stock_list' %}" class="btn btn-secondary">
+                        <i class="bi bi-arrow-left"></i> Annuler
+                    </a>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="bi bi-tools"></i> Effectuer l'ajustement
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// Validation du formulaire
+(function() {
+    'use strict';
+    const forms = document.querySelectorAll('.needs-validation');
+    Array.from(forms).forEach(form => {
+        form.addEventListener('submit', event => {
+            if (!form.checkValidity()) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            form.classList.add('was-validated');
+        }, false);
+    });
+})();
+
+// Calculer automatiquement la différence
+document.addEventListener('DOMContentLoaded', function() {
+    const quantiteAvant = document.querySelector('#id_quantite_avant');
+    const quantiteApres = document.querySelector('#id_quantite_apres');
+    
+    if (quantiteAvant && quantiteApres) {
+        function calculateDifference() {
+            const avant = parseInt(quantiteAvant.value) || 0;
+            const apres = parseInt(quantiteApres.value) || 0;
+            const difference = apres - avant;
+            
+            let badge = document.querySelector('#difference-badge');
+            if (!badge) {
+                badge = document.createElement('span');
+                badge.id = 'difference-badge';
+                badge.className = 'badge ms-2';
+                quantiteApres.parentNode.appendChild(badge);
+            }
+            
+            if (difference > 0) {
+                badge.className = 'badge bg-success ms-2';
+                badge.textContent = `+${difference}`;
+            } else if (difference < 0) {
+                badge.className = 'badge bg-danger ms-2';
+                badge.textContent = `${difference}`;
+            } else {
+                badge.className = 'badge bg-secondary ms-2';
+                badge.textContent = '0';
+            }
+        }
+        
+        quantiteApres.addEventListener('input', calculateDifference);
+        calculateDifference(); // Initial calculation
+    }
+});
+</script>
+{% endblock %}

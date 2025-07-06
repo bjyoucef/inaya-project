@@ -27,7 +27,11 @@ urlpatterns = [
     path("medical/", include(("medical.urls", "medical"), namespace="medical")),
     path("pharmacies/", include("pharmacies.urls")),
     path("api-auth/", include("rest_framework.urls")),
-    path("inventaire/", include(("inventaire.urls", "inventaire"), namespace="inventaire")),
+    path(
+        "inventaire/",
+        include(("inventaire.urls", "inventaire"), namespace="inventaire"),
+    ),
+    path("audit/", include(("audit.urls", "audit"), namespace="audit")),
 ]
 
 

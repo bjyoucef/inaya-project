@@ -25,7 +25,7 @@ import qrcode
 
 
 class DashboardView(LoginRequiredMixin, TemplateView):
-    template_name = "dashboard.html"
+    template_name = "dashboard_inventaire.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
