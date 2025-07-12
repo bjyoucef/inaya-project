@@ -5,7 +5,6 @@ from django.dispatch import receiver
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 
-from .models.commande import BonLivraison
 from .models import  Stock, Consommation
 
 
@@ -30,12 +29,3 @@ def mise_a_jour_stock_apres_consommation(sender, instance, created, **kwargs):
 
 
 
-from django.db.models.signals import post_save
-from django.dispatch import receiver
-
-
-@receiver(post_save, sender=BonLivraison)
-def set_numero_bl(sender, instance, created, **kwargs):
-    if created and not instance.numero_bl:
-        instance.numero_bl = f"BL-{timezone.now().strftime('%Y%m%d')}-{instance.id}"
-        instance.save(update_fields=["numero_bl"])

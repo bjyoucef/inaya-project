@@ -1,0 +1,309 @@
+<!-- templates/pharmacies/approvisionnement/expression_besoin_list.html -->
+{% extends 'approvisionnement/base_approvisionnement.html' %}
+{% load approvisionnement_filters %}
+
+{% block title %}Demandes internes - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-file-alt"></i> Expressions de besoin</h2>
+    <a href="{% url 'pharmacies:expression_besoin_create' %}" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Nouveau besoin
+    </a>
+</div>
+
+<!-- Filtres -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" id="filterForm">
+            <div class="row">
+                <div class="col-md-3">
+                    <label for="statut" class="form-label">Statut</label>
+                    <select class="form-select" id="statut" name="statut">
+                        <option value="">Tous les statuts</option>
+                        {% for value, label in statuts %}
+                            <option value="{{ value }}" {% if request.GET.statut == value %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="service" class="form-label">Service demandeur</label>
+                    <select class="form-select" id="service" name="service">
+                        <option value="">Tous les services</option>
+                        {% for service in services %}
+                            <option value="{{ service.id }}" {% if request.GET.service == service.id|stringformat:"s" %}selected{% endif %}>
+                                {{ service.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">&nbsp;</label>
+                    <div>
+                        <button type="submit" class="btn btn-outline-primary">
+                            <i class="fas fa-filter"></i> Filtrer
+                        </button>
+                        <a href="{% url 'pharmacies:expression_besoin_list' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times"></i> Réinitialiser
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Liste des expressions de besoin -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Liste des expressions de besoin</h5>
+    </div>
+    <div class="card-body">
+        {% if besoins %}
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Référence</th>
+                            <th>Service demandeur</th>
+                            <th>Date création</th>
+                            <th>Statut</th>
+                            <th>Total articles</th>
+                            <th>Validé par</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for besoin in besoins %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'pharmacies:expression_besoin_detail' besoin.pk %}">
+                                        {{ besoin }}
+                                    </a>
+                                </td>
+                                <td>{{ besoin.service_demandeur.nom }}</td>
+                                <td>{{ besoin.date_creation|date:"d/m/Y H:i" }}</td>
+                                <td>
+                                    {% if besoin.statut == 'EN_ATTENTE' %}
+                                        <span class="badge bg-warning">{{ besoin.get_statut_display }}</span>
+                                    {% elif besoin.statut == 'VALIDE' %}
+                                        <span class="badge bg-success">{{ besoin.get_statut_display }}</span>
+                                    {% elif besoin.statut == 'REJETE' %}
+                                        <span class="badge bg-danger">{{ besoin.get_statut_display }}</span>
+                                    {% elif besoin.statut == 'SERVIE' %}
+                                        <span class="badge bg-info">{{ besoin.get_statut_display }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ besoin.total_articles }}</td>
+                                <td>
+                                    {% if besoin.valide_par %}
+                                        {{ besoin.valide_par.get_full_name|default:besoin.valide_par.username }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{% url 'pharmacies:expression_besoin_detail' besoin.pk %}" 
+                                           class="btn btn-outline-primary" title="Voir détails">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        {% if besoin.statut == 'EN_ATTENTE' %}
+                                            <button class="btn btn-outline-success" 
+                                                    onclick="openValidationModal({{ besoin.pk }})" 
+                                                    title="Valider">
+                                                <i class="fas fa-check"></i>
+                                            </button>
+                                            <button class="btn btn-outline-danger" 
+                                                    onclick="rejectBesoin({{ besoin.pk }})" 
+                                                    title="Rejeter">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        {% endif %}
+                                        {% if besoin.statut == 'VALIDE' %}
+                                            <a href="{% url 'pharmacies:commande_fournisseur_create' %}?besoin={{ besoin.pk }}" 
+                                               class="btn btn-outline-info" title="Créer commande">
+                                                <i class="fas fa-shopping-cart"></i>
+                                            </a>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if is_paginated %}
+                <nav aria-label="Navigation des pages">
+                    <ul class="pagination justify-content-center">
+                        {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}">&laquo; Précédent</a>
+                            </li>
+                        {% endif %}
+                        
+                        {% for num in page_obj.paginator.page_range %}
+                            {% if page_obj.number == num %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ num }}</span>
+                                </li>
+                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}">Suivant &raquo;</a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            {% endif %}
+        {% else %}
+            <div class="text-center py-4">
+                <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                <p class="text-muted">Aucune expression de besoin trouvée.</p>
+                <a href="{% url 'pharmacies:expression_besoin_create' %}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Créer la première expression de besoin
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modal de validation -->
+<div class="modal fade" id="validationModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Validation de l'expression de besoin</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="validationContent">
+                    <!-- Contenu chargé dynamiquement -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-success" onclick="validateBesoin()">
+                    <i class="fas fa-check"></i> Valider
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentBesoinId = null;
+
+async function openValidationModal(besoinId) {
+    currentBesoinId = besoinId;
+    
+    try {
+        const response = await fetch(`/pharmacies/approvisionnement/api/besoins/${besoinId}/lignes/`);
+        const data = await response.json();
+        
+        let content = '<div class="table-responsive"><table class="table table-striped">';
+        content += '<thead><tr><th>Produit</th><th>Quantité demandée</th><th>Quantité à valider</th></tr></thead>';
+        content += '<tbody>';
+        
+        data.lignes.forEach(ligne => {
+            content += `
+                <tr>
+                    <td>${ligne.produit_nom}</td>
+                    <td>${ligne.quantite_demandee}</td>
+                    <td>
+                        <input type="number" class="form-control quantite-validee" 
+                               data-ligne-id="${ligne.id}" 
+                               value="${ligne.quantite_demandee}" 
+                               min="0" max="${ligne.quantite_demandee}">
+                    </td>
+                </tr>
+            `;
+        });
+        
+        content += '</tbody></table></div>';
+        
+        document.getElementById('validationContent').innerHTML = content;
+        
+        const modal = new bootstrap.Modal(document.getElementById('validationModal'));
+        modal.show();
+    } catch (error) {
+        showMessage('Erreur lors du chargement des données', 'danger');
+    }
+}
+
+async function validateBesoin() {
+    if (!currentBesoinId) return;
+    
+    const lignes = [];
+    document.querySelectorAll('.quantite-validee').forEach(input => {
+        lignes.push({
+            id: input.dataset.ligneId,
+            quantite_validee: parseInt(input.value) || 0
+        });
+    });
+    
+    try {
+        const response = await fetch(`/pharmacies/approvisionnement/besoins/${currentBesoinId}/validation/`, {
+            method: 'POST',
+            ...fetchConfig,
+            body: JSON.stringify({
+                action: 'valider',
+                lignes: lignes
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showMessage('Expression de besoin validée avec succès', 'success');
+            location.reload();
+        } else {
+            showMessage(result.message || 'Erreur lors de la validation', 'danger');
+        }
+    } catch (error) {
+        showMessage('Erreur lors de la validation', 'danger');
+    }
+    
+    bootstrap.Modal.getInstance(document.getElementById('validationModal')).hide();
+}
+
+async function rejectBesoin(besoinId) {
+    if (!confirm('Êtes-vous sûr de vouloir rejeter cette expression de besoin ?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/pharmacies/approvisionnement/besoins/${besoinId}/validation/`, {
+            method: 'POST',
+            ...fetchConfig,
+            body: JSON.stringify({
+                action: 'rejeter'
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showMessage('Expression de besoin rejetée', 'success');
+            location.reload();
+        } else {
+            showMessage(result.message || 'Erreur lors du rejet', 'danger');
+        }
+    } catch (error) {
+        showMessage('Erreur lors du rejet', 'danger');
+    }
+}
+</script>
+{% endblock %}

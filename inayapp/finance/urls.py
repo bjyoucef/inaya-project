@@ -52,4 +52,10 @@ urlpatterns = [
         views.update_convention_status,
         name="update_convention_status",
     ),
+    path("paiements/especes/", views.paiements_especes, name="paiements_especes"),
+    path(
+        "paiements/bon/<int:prestation_id>/",
+        views.creer_bon_paiement,
+        name="creer_bon_paiement",
+    ),
 ]

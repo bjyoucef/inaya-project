@@ -9,12 +9,22 @@ from django.utils import timezone
 
 class StockManager(models.Manager):
     def get_available(self, produit, service):
+        """Retourne les stocks disponibles (non périmés) pour un produit dans un service"""
         return self.filter(
             produit=produit,
             service=service,
             quantite__gt=0,
             date_peremption__gte=timezone.now().date(),
         ).order_by("date_peremption")
+
+    def get_stock_disponible(self, produit, service):
+        """Retourne la quantité totale disponible pour un produit dans un service"""
+        return (
+            self.get_available(produit, service).aggregate(
+                total=models.Sum("quantite")
+            )["total"]
+            or 0
+        )
 
     def update_or_create_stock(
         self, produit, service, date_peremption, numero_lot, quantite
@@ -182,52 +192,32 @@ class ConsommationProduit(models.Model):
         self.montant_solde = (
             self.quantite_reelle - self.quantite_defaut
         ) * self.prix_unitaire
-
-        # Sauvegarder d'abord pour avoir un ID
-        is_new = self.pk is None
         super().save(*args, **kwargs)
 
-        # Appliquer sur le stock seulement lors de la création
-        if is_new:
-            self._update_stock()
+    def delete(self, *args, **kwargs):
+        """Override delete pour gérer le stock correctement"""
+        # Si la prestation est réalisée ET que l'impact stock a été appliqué
+        if (
+            self.prestation_acte.prestation.statut == "REALISE"
+            and self.prestation_acte.prestation.stock_impact_applied
+        ):
+            service = self.prestation_acte.acte.service
 
-    def _update_stock(self):
-        """Mise à jour du stock après consommation"""
-        if self.quantite_reelle <= 0:
-            return
+            # CORRECTION : Restaurer TOUTE la quantité réelle consommée
+            # pas seulement la quantité supplémentaire
+            if self.quantite_reelle > 0:
+                self.prestation_acte.prestation._restore_stock_for_product(
+                    self.produit, service, self.quantite_reelle
+                )
 
-        service = self.prestation_acte.acte.service
-        stocks = Stock.objects.get_available(self.produit, service)
-        quantite_restante = self.quantite_reelle
-
-        with transaction.atomic():
-            for stock in stocks.select_for_update():
-                if quantite_restante <= 0:
-                    break
-
-                prelevement = min(quantite_restante, stock.quantite)
-                stock.quantite -= prelevement
-                stock.save()
-
-                # Enregistrer le mouvement de stock
+                # Logger le mouvement de restauration
                 MouvementStock.log_mouvement(
-                    instance=self,
-                    type_mouvement="SORTIE",
+                    instance=self.prestation_acte.prestation,
+                    type_mouvement="ENTREE",
                     produit=self.produit,
                     service=service,
-                    quantite=prelevement,  # Quantité positive pour le log
-                    lot_concerne=stock.numero_lot,
+                    quantite=self.quantite_reelle,  # Quantité totale
+                    lot_concerne=None,
                 )
 
-                quantite_restante -= prelevement
-
-            # Si on n'a pas pu prélever assez de stock
-            if quantite_restante > 0:
-                # On peut soit lever une exception, soit loguer un warning
-                import logging
-
-                logger = logging.getLogger(__name__)
-                logger.warning(
-                    f"Stock insuffisant pour le produit {self.produit.nom} "
-                    f"dans le service {service.name}. Manque: {quantite_restante}"
-                )
+        super().delete(*args, **kwargs)

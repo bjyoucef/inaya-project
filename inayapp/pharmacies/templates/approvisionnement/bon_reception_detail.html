@@ -1,0 +1,339 @@
+<!-- templates/pharmacies/approvisionnement/bon_reception_detail.html -->
+{% extends 'approvisionnement/base_approvisionnement.html' %}
+
+{% block title %}{{ bon_reception }} - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-receipt"></i> {{ bon_reception }}</h2>
+    <div>
+        <a href="{% url 'pharmacies:bon_reception_print' bon_reception.pk %}" 
+           class="btn btn-success" target="_blank">
+            <i class="fas fa-print"></i> Imprimer
+        </a>
+        <button class="btn btn-outline-secondary" onclick="downloadPDF()">
+            <i class="fas fa-download"></i> Télécharger PDF
+        </button>
+        <a href="{% url 'pharmacies:bon_reception_list' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Retour à la liste
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <!-- Informations générales -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Informations du bon de réception</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <table class="table table-borderless">
+                            <tr>
+                                <td><strong>Référence :</strong></td>
+                                <td>{{ bon_reception }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Date de création :</strong></td>
+                                <td>{{ bon_reception.date_creation|date:"d/m/Y H:i" }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Contrôleur :</strong></td>
+                                <td>
+                                    {% if bon_reception.controleur %}
+                                        {{ bon_reception.controleur.get_full_name|default:bon_reception.controleur.username }}
+                                    {% else %}
+                                        <span class="text-muted">Automatique</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <table class="table table-borderless">
+                            <tr>
+                                <td><strong>Livraison :</strong></td>
+                                <td>
+                                    <a href="{% url 'pharmacies:livraison_detail' bon_reception.livraison.pk %}">
+                                        {{ bon_reception.livraison }}
+                                    </a>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>Commande :</strong></td>
+                                <td>
+                                    <a href="{% url 'pharmacies:commande_fournisseur_detail' bon_reception.livraison.commande.pk %}">
+                                        {{ bon_reception.livraison.commande }}
+                                    </a>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>Fournisseur :</strong></td>
+                                <td>{{ bon_reception.livraison.commande.fournisseur.nom }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Détails des produits reçus -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">Produits reçus</h5>
+            </div>
+            <div class="card-body">
+                {% if bon_reception.details_livraison %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Produit</th>
+                                    <th>Code barre</th>
+                                    <th>Quantité livrée</th>
+                                    <th>Unité</th>
+                                    <th>Numéro de lot</th>
+                                    <th>Date de péremption</th>
+                                    <th>État</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for ligne in bon_reception.details_livraison %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ ligne.produit.nom }}</strong>
+                                            {% if ligne.produit.description %}
+                                                <br><small class="text-muted">{{ ligne.produit.description }}</small>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ ligne.produit.code_barre }}</td>
+                                        <td>
+                                            <span class="badge bg-primary fs-6">{{ ligne.quantite_livree }}</span>
+                                        </td>
+                                        <td>{{ ligne.produit.unite }}</td>
+                                        <td>
+                                            <code>{{ ligne.numero_lot }}</code>
+                                        </td>
+                                        <td>
+                                            {{ ligne.date_peremption|date:"d/m/Y" }}
+                                            {% if ligne.date_peremption < today %}
+                                                <br><span class="badge bg-danger">Périmé</span>
+                                            {% elif ligne.date_peremption < warning_date %}
+                                                <br><span class="badge bg-warning">Bientôt périmé</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if ligne.date_peremption >= today %}
+                                                <span class="badge bg-success">Conforme</span>
+                                            {% else %}
+                                                <span class="badge bg-danger">Non conforme</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot>
+                                <tr class="table-info">
+                                    <td colspan="2"><strong>TOTAUX</strong></td>
+                                    <td><strong>{{ bon_reception.details_livraison.aggregate.total_quantite|default:0 }}</strong></td>
+                                    <td colspan="4"></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-box-open fa-2x text-muted mb-2"></i>
+                        <p class="text-muted">Aucun produit dans ce bon de réception.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Informations de stock -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">Impact sur le stock</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>Mise à jour automatique du stock :</strong><br>
+                    Les quantités reçues ont été automatiquement ajoutées au stock de la pharmacie 
+                    avec les numéros de lot et dates de péremption correspondants.
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Produit</th>
+                                <th>Quantité ajoutée</th>
+                                <th>Stock avant</th>
+                                <th>Stock après</th>
+                                <th>Mouvement</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ligne in bon_reception.details_livraison %}
+                                <tr>
+                                    <td>{{ ligne.produit.nom }}</td>
+                                    <td>
+                                        <span class="badge bg-success">+{{ ligne.quantite_livree }}</span>
+                                    </td>
+                                    <td class="text-muted">{{ ligne.stock_avant|default:"-" }}</td>
+                                    <td class="text-success"><strong>{{ ligne.stock_apres|default:"-" }}</strong></td>
+                                    <td>
+                                        <small class="text-muted">
+                                            Entrée - {{ bon_reception.date_creation|date:"d/m/Y H:i" }}
+                                        </small>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <!-- Résumé -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Résumé</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Statut :</span>
+                    <strong><span class="badge bg-success">Reçu</span></strong>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Nombre de produits :</span>
+                    <strong>{{ bon_reception.details_livraison.count }}</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Quantité totale :</span>
+                    <strong>{{ bon_reception.details_livraison.aggregate.total_quantite|default:0 }}</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Lots uniques :</span>
+                    <strong>{{ bon_reception.details_livraison.values.numero_lot.distinct.count|default:0 }}</strong>
+                </div>
+            </div>
+        </div>
+
+        <!-- Informations fournisseur -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0">Fournisseur</h6>
+            </div>
+            <div class="card-body">
+                <h6>{{ bon_reception.livraison.commande.fournisseur.nom }}</h6>
+                <p class="mb-1">
+                    <i class="fas fa-phone"></i> 
+                    {{ bon_reception.livraison.commande.fournisseur.telephone|default:"Non renseigné" }}
+                </p>
+                <p class="mb-1">
+                    <i class="fas fa-envelope"></i> 
+                    {{ bon_reception.livraison.commande.fournisseur.email|default:"Non renseigné" }}
+                </p>
+                <p class="mb-0">
+                    <i class="fas fa-map-marker-alt"></i> 
+                    {{ bon_reception.livraison.commande.fournisseur.adresse|default:"Non renseigné" }}
+                </p>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0">Actions</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'pharmacies:bon_reception_print' bon_reception.pk %}" 
+                       class="btn btn-success" target="_blank">
+                        <i class="fas fa-print"></i> Imprimer le bon
+                    </a>
+                    <button class="btn btn-outline-primary" onclick="sendByEmail()">
+                        <i class="fas fa-envelope"></i> Envoyer par email
+                    </button>
+                    <a href="{% url 'pharmacies:livraison_detail' bon_reception.livraison.pk %}" 
+                       class="btn btn-outline-info">
+                        <i class="fas fa-truck"></i> Voir la livraison
+                    </a>
+                    <a href="{% url 'pharmacies:commande_fournisseur_detail' bon_reception.livraison.commande.pk %}" 
+                       class="btn btn-outline-secondary">
+                        <i class="fas fa-shopping-cart"></i> Voir la commande
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alertes -->
+        {% if alertes %}
+            <div class="card mt-3 border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <h6 class="mb-0"><i class="fas fa-exclamation-triangle"></i> Alertes</h6>
+                </div>
+                <div class="card-body">
+                    {% for alerte in alertes %}
+                        <div class="alert alert-warning alert-sm">
+                            <small>{{ alerte }}</small>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function downloadPDF() {
+    const url = `{% url 'pharmacies:bon_reception_print' bon_reception.pk %}`;
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `{{ bon_reception }}.pdf`;
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+async function sendByEmail() {
+    const email = prompt('Adresse email de destination :');
+    if (!email) return;
+    
+    try {
+        const response = await fetch(`/pharmacies/approvisionnement/bons-reception/{{ bon_reception.pk }}/email/`, {
+            method: 'POST',
+            ...fetchConfig,
+            body: JSON.stringify({
+                email: email
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showMessage('Bon de réception envoyé par email avec succès', 'success');
+        } else {
+            showMessage(result.message || 'Erreur lors de l\'envoi', 'danger');
+        }
+    } catch (error) {
+        showMessage('Erreur lors de l\'envoi par email', 'danger');
+    }
+}
+
+// Calculer la date d'avertissement (30 jours)
+const today = new Date();
+const warningDate = new Date();
+warningDate.setDate(today.getDate() + 30);
+</script>
+{% endblock %}

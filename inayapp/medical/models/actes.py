@@ -1,10 +1,10 @@
 # medical.models
 from decimal import Decimal
+from venv import logger
 from django.db.models import F
-
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
-from django.db import models
+from django.db import models, transaction
 from django.forms import ValidationError
 from django.utils import timezone
 from finance.models import (
@@ -12,7 +12,7 @@ from finance.models import (
     TarifActeConvention,
     TarifActe,
 )
-from pharmacies.models.stock import ConsommationProduit, Stock
+from pharmacies.models.stock import ConsommationProduit, MouvementStock, Stock
 from django.contrib.auth import get_user_model
 from django.db import models
 from django.utils import timezone
@@ -37,7 +37,7 @@ class Prestation(models.Model):
     STATUT_CHOICES = [
         ("PLANIFIE", "Planifié"),
         ("REALISE", "Réalisé"),
-        ("FACTURE", "Facturé"),
+        ("PAYE", "Payé"),
         ("ANNULE", "Annulé"),
     ]
 
@@ -62,7 +62,6 @@ class Prestation(models.Model):
     date_prestation = models.DateTimeField(
         default=timezone.now, verbose_name="Date de réalisation"
     )
-
     statut = models.CharField(
         max_length=25,
         choices=STATUT_CHOICES,
@@ -77,18 +76,23 @@ class Prestation(models.Model):
     prix_supplementaire = models.DecimalField(
         max_digits=10,
         decimal_places=2,
-        default=Decimal('0.00'),
+        default=Decimal("0.00"),
         verbose_name="Frais supplémentaires",
-        help_text="Coût supplémentaire pour la prestation (hors actes et consommations)"
+        help_text="Coût supplémentaire pour la prestation (hors actes et consommations)",
     )
     prix_supplementaire_medecin = models.DecimalField(
-        max_digits=10, 
+        max_digits=10,
         decimal_places=2,
         default=0,
-        verbose_name="Part médecin du supplément"
+        verbose_name="Part médecin du supplément",
     )
 
     observations = models.TextField(blank=True, verbose_name="Observations médicales")
+
+    # Nouveau champ pour tracker si l'impact stock a été appliqué
+    stock_impact_applied = models.BooleanField(
+        default=False, verbose_name="Impact stock appliqué"
+    )
 
     class Meta:
         verbose_name = "Prestation médicale"
@@ -114,36 +118,148 @@ class Prestation(models.Model):
     def dossier_medical(self):
         return self.patient.dossier_medical
 
-    def cancel_stock_impact(self):
-        """Annule l'impact précédent sur le stock"""
-        for pa in self.actes_details.all():
-            for conso in pa.consommations.all():
-                service = pa.acte.service
-                try:
-                    stock = Stock.objects.get(produit=conso.produit, service=service)
-                    stock.quantite += conso.quantite_reelle
-                    stock.save()
-                except Stock.DoesNotExist:
-                    pass
+    def revert_stock_impact(self):
+        """Annule l'impact sur le stock en restaurant les quantités consommées"""
+        if not self.stock_impact_applied:
+            return
 
-
-    def update_stock(self):
-        """Met à jour le stock par service concerné"""
-        for pa in self.actes_details.all():
-            for conso in pa.consommations.all():
+        with transaction.atomic():
+            for pa in self.actes_details.all():
                 service = pa.acte.service
-                # ← change get_or_create to filter/create
-                qs = Stock.objects.filter(produit=conso.produit, service=service)
-                if not qs.exists():
-                    # no stock row → create one
-                    stock = Stock.objects.create(
-                        produit=conso.produit, service=service, quantite=0
+
+                for conso in pa.consommations.all():
+                    # Restaurer le stock en ajoutant TOUTE la quantité réelle consommée
+                    self._restore_stock_for_product(
+                        conso.produit, service, conso.quantite_reelle
                     )
-                    qs = [stock]
-                # now qs is either the newly created or the existing QuerySet
-                for stock in qs:
-                    stock.quantite -= conso.quantite_reelle
-                    stock.save()
+                    print(f"Restoring stock for {conso.produit} in {service} with quantity {conso.quantite_reelle}")
+
+                    # Logger le mouvement de restauration
+                    MouvementStock.log_mouvement(
+                        instance=self,
+                        type_mouvement="ENTREE",
+                        produit=conso.produit,
+                        service=service,
+                        quantite=conso.quantite_reelle,  # Quantité totale
+                        lot_concerne=None,
+                    )
+
+            # Marquer comme non appliqué
+            self.stock_impact_applied = False
+            self.save(update_fields=["stock_impact_applied"])
+
+    def _restore_stock_for_product(self, produit, service, quantite):
+        """Restaure le stock pour un produit spécifique"""
+        # Chercher un stock existant pour ce produit dans ce service
+        stock = (
+            Stock.objects.filter(produit=produit, service=service)
+            .order_by("date_peremption")
+            .first()
+        )
+
+        if stock:
+            print(f"Found existing stock for {produit} in {service} with quantity {stock.quantite}")
+            # Ajouter à un stock existant
+            stock.quantite += quantite
+            stock.save()
+        else:
+            # Créer un nouveau stock avec une date de péremption future
+            # (à ajuster selon votre logique métier)
+            future_date = timezone.now().date() + timezone.timedelta(days=365)
+            Stock.objects.create(
+                produit=produit,
+                service=service,
+                quantite=quantite,
+                date_peremption=future_date,
+                numero_lot=f"REST-{self.id}",
+            )
+
+    def apply_stock_impact(self):
+        """Applique l'impact sur le stock lors de la réalisation"""
+        if self.stock_impact_applied:
+            return
+
+        with transaction.atomic():
+            for pa in self.actes_details.all():
+                service = pa.acte.service
+
+                for conso in pa.consommations.all():
+                    # Consommer TOUTE la quantité réelle
+                    self._consume_stock_for_product(
+                        conso.produit, service, conso.quantite_reelle
+                    )
+
+            # Marquer comme appliqué
+            self.stock_impact_applied = True
+            self.save(update_fields=["stock_impact_applied"])
+
+    def _consume_stock_for_product(self, produit, service, quantite_needed):
+        """Consomme le stock pour un produit spécifique"""
+        stocks = Stock.objects.filter(
+            produit=produit,
+            service=service,
+            quantite__gt=0,
+            date_peremption__gte=timezone.now().date(),
+        ).order_by("date_peremption")
+
+        quantite_restante = quantite_needed
+
+        for stock in stocks:
+            if quantite_restante <= 0:
+                break
+
+            prelevement = min(quantite_restante, stock.quantite)
+            stock.quantite -= prelevement
+            stock.save()
+
+            # Logger le mouvement
+            MouvementStock.log_mouvement(
+                instance=self,
+                type_mouvement="SORTIE",
+                produit=produit,
+                service=service,
+                quantite=prelevement,
+                lot_concerne=stock.numero_lot,
+            )
+
+            quantite_restante -= prelevement
+
+        # Si stock insuffisant, logger un warning
+        if quantite_restante > 0:
+            logger.warning(
+                f"Stock insuffisant pour {produit.nom} dans {service.name}. "
+                f"Manque: {quantite_restante}"
+            )
+
+    def save(self, *args, **kwargs):
+        """Override save pour gérer automatiquement l'impact stock selon le statut"""
+        # Récupérer l'ancien statut si l'objet existe déjà
+        old_statut = None
+        if self.pk:
+            try:
+                old_instance = Prestation.objects.get(pk=self.pk)
+                old_statut = old_instance.statut
+            except Prestation.DoesNotExist:
+                pass
+
+        super().save(*args, **kwargs)
+
+        # Gérer l'impact stock selon le changement de statut
+        if old_statut is not None and old_statut != self.statut:
+            if (
+                self.statut == "REALISE"
+                and old_statut != "REALISE"
+                and old_statut != "PAYE"
+            ):
+                # Appliquer l'impact stock lors du passage à "REALISE"
+                self.apply_stock_impact()
+            elif (
+                old_statut == "REALISE"
+                and self.statut != "REALISE"
+                and self.statut != "PAYE"
+            ):
+                # Annuler l'impact stock si on quitte "REALISE"
+                self.revert_stock_impact()
 
     def calculate_total_price(self):
         """Calcule le prix total incluant les actes, les consommations et les frais supplémentaires"""
@@ -169,6 +285,12 @@ class Prestation(models.Model):
         """Met à jour le prix total de la prestation"""
         self.prix_total = self.calculate_total_price()
         self.save(update_fields=["prix_total"])
+
+    def delete(self, *args, **kwargs):
+        """Override delete pour gérer le stock avant suppression"""
+        # Annuler l'impact stock avant suppression
+        self.revert_stock_impact()
+        super().delete(*args, **kwargs)
 
 
 class PrestationActe(models.Model):

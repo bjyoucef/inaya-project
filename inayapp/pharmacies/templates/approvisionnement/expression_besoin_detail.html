@@ -1,0 +1,559 @@
+<!-- templates/pharmacies/approvisionnement/expression_besoin_detail.html -->
+{% extends 'approvisionnement/base_approvisionnement.html' %}
+{% load approvisionnement_filters %}
+{% block title %}{{ besoin }} - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-file-alt"></i> {{ besoin }}</h2>
+    <div>
+        {% if besoin.statut == 'EN_ATTENTE' %}
+            <button class="btn btn-success" onclick="openValidationModal()">
+                <i class="fas fa-check"></i> Valider
+            </button>
+            <button class="btn btn-danger" onclick="rejectBesoin()">
+                <i class="fas fa-times"></i> Rejeter
+            </button>
+        {% endif %}
+        {% if besoin.statut == 'VALIDE' %}
+        <a href="{% url 'pharmacies:commande_fournisseur_create' %}?besoin={{ besoin.pk }}" class="btn btn-info">
+                <i class="fas fa-shopping-cart"></i> Créer commande
+            </a>
+        {% endif %}
+        <a href="{% url 'pharmacies:expression_besoin_list' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Retour à la liste
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <!-- Informations générales -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Informations générales</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <strong>Référence :</strong> {{ besoin }}<br>
+                        <strong>Service demandeur :</strong> {{ besoin.service_demandeur.name }}<br>
+                        <strong>Service approvisionneur :</strong> {{ besoin.service_approvisionneur.name }}
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Date de création :</strong> {{ besoin.date_creation|date:"d/m/Y H:i" }}<br>
+                        {% if besoin.date_validation %}
+                            <strong>Date de validation :</strong> {{ besoin.date_validation|date:"d/m/Y H:i" }}<br>
+                        {% endif %}
+                        {% if besoin.valide_par %}
+                        <strong>Validé par :</strong> {{
+                        besoin.valide_par.get_full_name|default:besoin.valide_par.username }}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Détails des produits -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">Produits demandés</h5>
+            </div>
+            <div class="card-body">
+                {% if lignes %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Produit</th>
+                                    <th>Code barre</th>
+                                    <th>Quantité demandée</th>
+                                    {% if besoin.statut != 'EN_ATTENTE' %}
+                                        <th>Quantité validée</th>
+                                        <th>Écart</th>
+                                    {% endif %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for ligne in lignes %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ ligne.produit.nom }}</strong>
+                                            {% if ligne.produit.description %}
+                                                <br><small class="text-muted">{{ ligne.produit.description }}</small>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ ligne.produit.code_barres|default:"-" }}</td>
+                                        <td>
+                                            <span class="badge bg-primary">{{ ligne.quantite_demandee }}</span>
+                                        </td>
+                                        {% if besoin.statut != 'EN_ATTENTE' %}
+                                            <td>
+                                                {% if ligne.quantite_validee is not None %}
+                                                    <span class="badge bg-success">{{ ligne.quantite_validee }}</span>
+                                                {% else %}
+                                                    <span class="text-muted">-</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if ligne.quantite_validee is not None %}
+                                                    {% with ecart=ligne.quantite_validee|sub:ligne.quantite_demandee %}
+                                                        {% if ecart == 0 %}
+                                                            <span class="badge bg-success">0</span>
+                                                        {% elif ecart > 0 %}
+                                                            <span class="badge bg-info">+{{ ecart }}</span>
+                                                        {% else %}
+                                                            <span class="badge bg-warning">{{ ecart }}</span>
+                                                        {% endif %}
+                                                    {% endwith %}
+                                                {% else %}
+                                                    <span class="text-muted">-</span>
+                                                {% endif %}
+                                            </td>
+                                        {% endif %}
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-box-open fa-2x text-muted mb-2"></i>
+                        <p class="text-muted">Aucun produit dans cette expression de besoin.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Commandes associées -->
+        {% if besoin.commandes.exists %}
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Commandes associées</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Référence</th>
+                                    <th>Fournisseur</th>
+                                    <th>Date commande</th>
+                                    <th>Statut</th>
+                                    <th>Montant</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for commande in besoin.commandes.all %}
+                                    <tr>
+                                        <td>
+                                            <a href="{% url 'pharmacies:commande_fournisseur_detail' commande.pk %}">
+                                                {{ commande }}
+                                            </a>
+                                        </td>
+                                        <td>{{ commande.fournisseur.nom }}</td>
+                                        <td>{{ commande.date_commande|date:"d/m/Y H:i" }}</td>
+                                        <td>
+                                            {% if commande.statut == 'BROUILLON' %}
+                                                <span class="badge bg-secondary">{{ commande.get_statut_display }}</span>
+                                            {% elif commande.statut == 'EN_ATTENTE' %}
+                                                <span class="badge bg-warning">{{ commande.get_statut_display }}</span>
+                                            {% elif commande.statut == 'CONFIRME' %}
+                                                <span class="badge bg-success">{{ commande.get_statut_display }}</span>
+                                            {% elif commande.statut == 'ANNULE' %}
+                                                <span class="badge bg-danger">{{ commande.get_statut_display }}</span>
+                                            {% elif commande.statut == 'LIVREE' %}
+                                                <span class="badge bg-info">{{ commande.get_statut_display }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ commande.montant_total|floatformat:2 }} DA</td>
+                                        <td>
+                                            <a href="{% url 'pharmacies:commande_fournisseur_detail' commande.pk %}" 
+                                               class="btn btn-outline-primary btn-sm">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="col-md-4">
+        <!-- Résumé -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Résumé</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Statut :</span>
+                    <strong>
+                        {% if besoin.statut == 'EN_ATTENTE' %}
+                            <span class="badge bg-warning">{{ besoin.get_statut_display }}</span>
+                        {% elif besoin.statut == 'VALIDE' %}
+                            <span class="badge bg-success">{{ besoin.get_statut_display }}</span>
+                        {% elif besoin.statut == 'REJETE' %}
+                            <span class="badge bg-danger">{{ besoin.get_statut_display }}</span>
+                        {% elif besoin.statut == 'SERVIE' %}
+                            <span class="badge bg-info">{{ besoin.get_statut_display }}</span>
+                        {% endif %}
+                    </strong>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Nombre de produits :</span>
+                    <strong>{{ lignes.count }}</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Total articles :</span>
+                    <strong>{{ besoin.total_articles|default:"0" }}</strong>
+                </div>
+                {% if besoin.commandes.exists %}
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Commandes créées :</span>
+                        <strong>{{ besoin.commandes.count }}</strong>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Historique -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0">Historique</h6>
+            </div>
+            <div class="card-body">
+                <div class="timeline">
+                    <div class="timeline-item">
+                        <div class="timeline-marker bg-primary"></div>
+                        <div class="timeline-content">
+                            <p class="mb-1"><strong>Création</strong></p>
+                            <small class="text-muted">{{ besoin.date_creation|date:"d/m/Y H:i" }}</small>
+                        </div>
+                    </div>
+                    
+                    {% if besoin.date_validation %}
+                        <div class="timeline-item">
+                            <div class="timeline-marker bg-success"></div>
+                            <div class="timeline-content">
+                                <p class="mb-1"><strong>Validation</strong></p>
+                                <small class="text-muted">
+                                    {{ besoin.date_validation|date:"d/m/Y H:i" }}
+                                    {% if besoin.valide_par %}
+                                        par {{ besoin.valide_par.get_full_name|default:besoin.valide_par.username }}
+                                    {% endif %}
+                                </small>
+                            </div>
+                        </div>
+                    {% endif %}
+                    
+                    {% for commande in besoin.commandes.all %}
+                        <div class="timeline-item">
+                            <div class="timeline-marker bg-info"></div>
+                            <div class="timeline-content">
+                                <p class="mb-1"><strong>Commande créée</strong></p>
+                                <small class="text-muted">
+                                    {{ commande.date_commande|date:"d/m/Y H:i" }}<br>
+                                    {{ commande }}
+                                </small>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de validation -->
+<div class="modal fade" id="validationModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Validation de l'expression de besoin</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    Vous pouvez ajuster les quantités validées pour chaque produit.
+                </div>
+                <div id="validationContent">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Produit</th>
+                                    <th>Quantité demandée</th>
+                                    <th>Quantité à valider</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for ligne in lignes %}
+                                    <tr>
+                                        <td>{{ ligne.produit.nom }}</td>
+                                        <td>{{ ligne.quantite_demandee }}</td>
+                                        <td>
+                                            <input type="number" class="form-control quantite-validee" 
+                                            data-ligne-id="{{ ligne.id }}" value="{{ ligne.quantite_demandee }}" min="0"
+                                            max="{{ ligne.quantite_demandee }}">
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-success" onclick="validateBesoin()">
+                    <i class="fas fa-check"></i> Valider
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.timeline {
+    position: relative;
+    padding-left: 30px;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #dee2e6;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -23px;
+    top: 0;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 3px solid white;
+    box-shadow: 0 0 0 2px #dee2e6;
+}
+
+.timeline-content {
+    background: #f8f9fa;
+    border-radius: 0.375rem;
+    padding: 10px;
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Définir les fonctions globalement pour qu'elles soient accessibles depuis les boutons onclick
+    window.openValidationModal = function () {
+        console.log('Ouverture du modal de validation...');
+
+        // Vérifier que l'élément modal existe
+        const modalElement = document.getElementById('validationModal');
+        if (!modalElement) {
+            console.error('Modal element not found!');
+            alert('Erreur: Le modal de validation est introuvable');
+            return;
+        }
+
+        try {
+            // Vérifier que Bootstrap est chargé
+            if (typeof bootstrap === 'undefined') {
+                console.error('Bootstrap n\'est pas chargé!');
+                alert('Erreur: Bootstrap n\'est pas chargé correctement');
+                return;
+            }
+
+            // Créer une nouvelle instance du modal Bootstrap
+            const modal = new bootstrap.Modal(modalElement, {
+                backdrop: 'static',
+                keyboard: false
+            });
+    modal.show();
+            console.log('Modal affiché avec succès');
+        } catch (error) {
+            console.error('Erreur lors de l\'ouverture du modal:', error);
+            // Fallback: essayer avec jQuery si disponible
+            if (typeof $ !== 'undefined') {
+                $('#validationModal').modal('show');
+            } else {
+                alert('Erreur lors de l\'ouverture du modal: ' + error.message);
+            }
+        }
+}
+
+    window.validateBesoin = async function () {
+        console.log('Validation de l\'expression de besoin...');
+
+    const lignes = [];
+    document.querySelectorAll('.quantite-validee').forEach(input => {
+        lignes.push({
+            id: input.dataset.ligneId,
+            quantite_validee: parseInt(input.value) || 0
+        });
+    });
+
+        console.log('Lignes à valider:', lignes);
+    
+        // Configuration pour les requêtes fetch
+        const fetchConfig = {
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            }
+        };
+
+    try {
+        const response = await fetch(`/pharmacies/approvisionnement/besoins/{{ besoin.pk }}/validation/`, {
+            method: 'POST',
+            ...fetchConfig,
+            body: JSON.stringify({
+                action: 'valider',
+                lignes: lignes
+            })
+        });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+        
+        const result = await response.json();
+            console.log('Résultat de la validation:', result);
+        
+        if (result.success) {
+                // Fermer le modal
+                const modalElement = document.getElementById('validationModal');
+                const modal = bootstrap.Modal.getInstance(modalElement);
+                if (modal) {
+                    modal.hide();
+                }
+
+            showMessage('Expression de besoin validée avec succès', 'success');
+            setTimeout(() => {
+                location.reload();
+            }, 1500);
+        } else {
+            showMessage(result.message || 'Erreur lors de la validation', 'danger');
+        }
+    } catch (error) {
+        console.error('Erreur:', error);
+            showMessage('Erreur lors de la validation: ' + error.message, 'danger');
+    }
+}
+
+    window.rejectBesoin = async function () {
+    if (!confirm('Êtes-vous sûr de vouloir rejeter cette expression de besoin ?')) {
+        return;
+    }
+
+        console.log('Rejet de l\'expression de besoin...');
+    
+        // Configuration pour les requêtes fetch
+        const fetchConfig = {
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            }
+        };
+
+    try {
+        const response = await fetch(`/pharmacies/approvisionnement/besoins/{{ besoin.pk }}/validation/`, {
+            method: 'POST',
+            ...fetchConfig,
+            body: JSON.stringify({
+                action: 'rejeter'
+            })
+        });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+        
+        const result = await response.json();
+            console.log('Résultat du rejet:', result);
+        
+        if (result.success) {
+            showMessage('Expression de besoin rejetée', 'success');
+            setTimeout(() => {
+                location.reload();
+            }, 1500);
+        } else {
+            showMessage(result.message || 'Erreur lors du rejet', 'danger');
+        }
+    } catch (error) {
+        console.error('Erreur:', error);
+            showMessage('Erreur lors du rejet: ' + error.message, 'danger');
+    }
+}
+
+    // Fonction pour obtenir le cookie CSRF
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    // Fonction pour afficher les messages
+    function showMessage(message, type) {
+        // Créer l'élément d'alerte
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+        alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+
+        // Trouver le conteneur principal
+        const container = document.querySelector('.container-fluid') || document.querySelector('.container') || document.querySelector('main') || document.querySelector('[role="main"]') || document.querySelector('body');
+
+        // Insérer l'alerte en haut du conteneur
+        if (container) {
+            container.insertBefore(alertDiv, container.firstChild);
+        }
+
+        // Auto-fermeture après 5 secondes
+        setTimeout(() => {
+            alertDiv.remove();
+        }, 5000);
+    }
+
+    // Attendre que le DOM soit chargé pour vérifier Bootstrap
+    document.addEventListener('DOMContentLoaded', function () {
+        console.log('DOM chargé, vérification de Bootstrap...');
+
+        // Vérifier que Bootstrap est chargé
+        if (typeof bootstrap === 'undefined') {
+            console.error('Bootstrap n\'est pas chargé! Assurez-vous que Bootstrap 5 est inclus dans votre template de base.');
+        } else {
+            console.log('Bootstrap est chargé correctement, version:', bootstrap.VERSION || 'inconnue');
+        }
+    });
+</script>
+{% endblock %}

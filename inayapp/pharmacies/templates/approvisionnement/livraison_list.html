@@ -1,0 +1,272 @@
+<!-- templates/pharmacies/approvisionnement/livraison_list.html -->
+{% extends 'approvisionnement/base_approvisionnement.html' %}
+{% load approvisionnement_filters %}
+{% block title %}Livraisons - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-truck"></i> Livraisons</h2>
+    <a href="{% url 'pharmacies:livraison_create' %}" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Nouvelle livraison
+    </a>
+</div>
+
+<!-- Filtres -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" id="filterForm">
+            <div class="row">
+                <div class="col-md-3">
+                    <label for="statut" class="form-label">Statut</label>
+                    <select class="form-select" id="statut" name="statut">
+                        <option value="">Tous les statuts</option>
+                        {% for value, label in statuts %}
+                            <option value="{{ value }}" {% if request.GET.statut == value %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="fournisseur" class="form-label">Fournisseur</label>
+                    <input type="text" class="form-control" id="fournisseur" name="fournisseur" 
+                           value="{{ request.GET.fournisseur }}" placeholder="Nom du fournisseur">
+                </div>
+                <div class="col-md-2">
+                    <label for="date_debut" class="form-label">Date début</label>
+                    <input type="date" class="form-control" id="date_debut" name="date_debut" 
+                           value="{{ request.GET.date_debut }}">
+                </div>
+                <div class="col-md-2">
+                    <label for="date_fin" class="form-label">Date fin</label>
+                    <input type="date" class="form-control" id="date_fin" name="date_fin" 
+                           value="{{ request.GET.date_fin }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">&nbsp;</label>
+                    <div>
+                        <button type="submit" class="btn btn-outline-primary">
+                            <i class="fas fa-filter"></i> Filtrer
+                        </button>
+                        <a href="{% url 'pharmacies:livraison_list' %}" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-times"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Liste des livraisons -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Liste des livraisons</h5>
+    </div>
+    <div class="card-body">
+        {% if livraisons %}
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Référence</th>
+                            <th>Commande</th>
+                            <th>Fournisseur</th>
+                            <th>Date prévue</th>
+                            <th>Date réception</th>
+                            <th>Statut</th>
+                            <th>Récepteur</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for livraison in livraisons %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'pharmacies:livraison_detail' livraison.pk %}">
+                                        {{ livraison }}
+                                    </a>
+                                </td>
+                                <td>
+                                    <a href="{% url 'pharmacies:commande_fournisseur_detail' livraison.commande.pk %}">
+                                        {{ livraison.commande }}
+                                    </a>
+                                </td>
+                                <td>
+                                    <strong>{{ livraison.commande.fournisseur.nom }}</strong>
+                                    <br><small class="text-muted">{{ livraison.commande.fournisseur.telephone }}</small>
+                                </td>
+                                <td>
+                                    {{ livraison.date_livraison_prevue|date:"d/m/Y" }}
+                                    {% if livraison.date_livraison_prevue < today and livraison.statut == 'EN_TRANSIT' %}
+                                        <br><span class="badge bg-warning">Retard</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if livraison.date_reception %}
+                                        {{ livraison.date_reception|date:"d/m/Y H:i" }}
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if livraison.statut == 'EN_TRANSIT' %}
+                                        <span class="badge bg-warning">{{ livraison.get_statut_display }}</span>
+                                    {% elif livraison.statut == 'RECU' %}
+                                        <span class="badge bg-success">{{ livraison.get_statut_display }}</span>
+                                    {% elif livraison.statut == 'PARTIEL' %}
+                                        <span class="badge bg-info">{{ livraison.get_statut_display }}</span>
+                                    {% elif livraison.statut == 'ANNULE' %}
+                                        <span class="badge bg-danger">{{ livraison.get_statut_display }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if livraison.recepteur %}
+                                        {{ livraison.recepteur.get_full_name|default:livraison.recepteur.username }}
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{% url 'pharmacies:livraison_detail' livraison.pk %}" 
+                                           class="btn btn-outline-primary" title="Voir détails">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        {% if livraison.statut in 'EN_TRANSIT,PARTIEL' %}
+                                            <button class="btn btn-outline-success" 
+                                                    onclick="receiveLivraison({{ livraison.pk }})" 
+                                                    title="Recevoir">
+                                                <i class="fas fa-check"></i>
+                                            </button>
+                                        {% endif %}
+                                        {% if livraison.statut == 'RECU' %}
+                                            <a href="{% url 'pharmacies:bon_reception_detail' livraison.bon_reception.pk %}" 
+                                               class="btn btn-outline-info" title="Bon de réception">
+                                                <i class="fas fa-receipt"></i>
+                                            </a>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if is_paginated %}
+                <nav aria-label="Navigation des pages">
+                    <ul class="pagination justify-content-center">
+                        {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}">&laquo; Précédent</a>
+                            </li>
+                        {% endif %}
+                        
+                        {% for num in page_obj.paginator.page_range %}
+                            {% if page_obj.number == num %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ num }}</span>
+                                </li>
+                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}">Suivant &raquo;</a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            {% endif %}
+        {% else %}
+            <div class="text-center py-4">
+                <i class="fas fa-truck fa-3x text-muted mb-3"></i>
+                <p class="text-muted">Aucune livraison trouvée.</p>
+                <a href="{% url 'pharmacies:livraison_create' %}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Créer la première livraison
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Tableau de bord livraisons -->
+<div class="row mt-4">
+    <div class="col-md-3">
+        <div class="card text-center border-warning">
+            <div class="card-body">
+                <i class="fas fa-truck fa-2x text-warning mb-2"></i>
+                <h5 class="card-title">{{ stats.en_transit|default:0 }}</h5>
+                <p class="card-text">En transit</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center border-info">
+            <div class="card-body">
+                <i class="fas fa-box-open fa-2x text-info mb-2"></i>
+                <h5 class="card-title">{{ stats.partiel|default:0 }}</h5>
+                <p class="card-text">Partielles</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center border-success">
+            <div class="card-body">
+                <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+                <h5 class="card-title">{{ stats.recu|default:0 }}</h5>
+                <p class="card-text">Reçues</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center border-danger">
+            <div class="card-body">
+                <i class="fas fa-exclamation-triangle fa-2x text-danger mb-2"></i>
+                <h5 class="card-title">{{ stats.retard|default:0 }}</h5>
+                <p class="card-text">En retard</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function receiveLivraison(livraisonId) {
+    if (!confirm('Êtes-vous sûr de vouloir marquer cette livraison comme reçue ?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/pharmacies/approvisionnement/livraisons/${livraisonId}/reception/`, {
+            method: 'POST',
+            ...fetchConfig
+        });
+        
+        if (result.success) {
+            showMessage('Livraison marquée comme reçue avec succès', 'success');
+            location.reload();
+        } else {
+            showMessage(result.message || 'Erreur lors de la réception', 'danger');
+        }
+    } catch (error) {
+        showMessage('Erreur lors de la réception', 'danger');
+    }
+}
+
+// Auto-submit du formulaire de filtres
+document.getElementById('statut').addEventListener('change', function() {
+    document.getElementById('filterForm').submit();
+});
+
+// Mettre à jour la date d'aujourd'hui pour les comparaisons
+const today = new Date().toISOString().split('T')[0];
+</script>
+{% endblock %}

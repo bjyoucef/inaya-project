@@ -2,6 +2,8 @@
 from django.db import models
 from django.db.models import (Sum)
 from pharmacies.models import ConsommationProduit
+from django.db import models
+from pharmacies.models import Produit
 
 
 class Medecin(models.Model):
@@ -38,7 +40,7 @@ class Medecin(models.Model):
     created_at = models.DateTimeField(
         auto_now_add=True, verbose_name="Date de création"
     )
-    
+
     @property
     def nom_complet(self):
         """
@@ -73,3 +75,4 @@ class Medecin(models.Model):
             ).aggregate(total=Sum("montant_solde"))["total"]
             or 0.00
         )
+

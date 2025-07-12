@@ -1,0 +1,530 @@
+<!-- templates/pharmacies/approvisionnement/expression_besoin_form.html -->
+{% extends 'approvisionnement/base_approvisionnement.html' %}
+{% load approvisionnement_filters %}
+{% block title %}Nouvelle expression de besoin - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-file-alt"></i> Nouvelle expression de besoin</h2>
+    <a href="{% url 'pharmacies:expression_besoin_list' %}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Retour à la liste
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Informations générales</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <label for="typeApprovisionnement" class="form-label">Type d'approvisionnement *</label>
+                        <select class="form-select" id="typeApprovisionnement" required>
+                            <option value="EXTERNE">Externe (Fournisseur)</option>
+                            <option value="INTERNE">Interne (Pharmacie)</option>
+                        </select>
+                        <small class="form-text text-muted">
+                            <strong>Externe :</strong> Demande de produits auprès d'un fournisseur<br>
+                            <strong>Interne :</strong> Demande de produits de la pharmacie vers un service
+                        </small>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="priorite" class="form-label">Priorité *</label>
+                        <select class="form-select" id="priorite" required>
+                            <option value="NORMALE">Normale</option>
+                            <option value="URGENTE">Urgente</option>
+                            <option value="CRITIQUE">Critique</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <label for="serviceDemandeur" class="form-label">Service demandeur *</label>
+                        <select class="form-select" id="serviceDemandeur" required>
+                            <option value="">Sélectionner un service</option>
+                            {% for service in services %}
+                                <option value="{{ service.id }}">{{ service.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="serviceApprovisionneur" class="form-label">Service approvisionneur *</label>
+                        <select class="form-select" id="serviceApprovisionneur" required>
+                            <option value="">Sélectionner un service</option>
+                            {% for service in services_pharmacie %}
+                            <option value="{{ service.id }}">{{ service.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Alerte pour approvisionnement interne -->
+                <div class="alert alert-info mt-3" id="alerteInterne" style="display: none;">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>Approvisionnement interne :</strong> Cette demande sera traitée directement par la
+                    pharmacie.
+                    Les stocks disponibles seront vérifiés automatiquement.
+                </div>
+
+                <!-- Alerte pour approvisionnement externe -->
+                <div class="alert alert-warning mt-3" id="alerteExterne" style="display: none;">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Approvisionnement externe :</strong> Cette demande nécessitera la création d'une commande
+                    fournisseur
+                    après validation.
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Produits demandés</h5>
+                <button type="button" class="btn btn-primary btn-sm" onclick="addLigne()">
+                    <i class="fas fa-plus"></i> Ajouter un produit
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="lignesContainer">
+                    <!-- Les lignes seront ajoutées ici dynamiquement -->
+                </div>
+                
+                <div class="text-center py-3" id="emptyState">
+                    <i class="fas fa-box-open fa-2x text-muted mb-2"></i>
+                    <p class="text-muted">Aucun produit ajouté</p>
+                    <button type="button" class="btn btn-outline-primary" onclick="addLigne()">
+                        <i class="fas fa-plus"></i> Ajouter le premier produit
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Résumé</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Type :</span>
+                    <strong id="resumeType">Externe</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Priorité :</span>
+                    <strong id="resumePriorite">Normale</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Nombre de produits :</span>
+                    <strong id="totalProduits">0</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-3">
+                    <span>Quantité totale :</span>
+                    <strong id="totalQuantite">0</strong>
+                </div>
+                <hr>
+                <button type="button" class="btn btn-success w-100" onclick="saveBesoin()">
+                    <i class="fas fa-save"></i> Enregistrer l'expression de besoin
+                </button>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0">Recherche de produits</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <input type="text" class="form-control" id="searchProduit" placeholder="Rechercher un produit...">
+                </div>
+                <div id="searchResults" style="max-height: 200px; overflow-y: auto;">
+                    <!-- Résultats de recherche -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Stocks disponibles pour approvisionnement interne -->
+        <div class="card mt-3" id="stocksCard" style="display: none;">
+            <div class="card-header">
+                <h6 class="mb-0">Stocks disponibles</h6>
+            </div>
+            <div class="card-body" id="stocksInfo">
+                <!-- Informations sur les stocks -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Template pour une ligne de produit -->
+<template id="ligneTemplate">
+    <div class="ligne-item border rounded p-3 mb-3">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <label class="form-label">Produit *</label>
+                <select class="form-select produit-select" required>
+                    <option value="">Sélectionner un produit</option>
+                    {% for produit in produits %}
+                        <option value="{{ produit.id }}" data-nom="{{ produit.nom }}">
+                            {{ produit.nom }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Quantité *</label>
+                <div class="input-group">
+                    <input type="number" class="form-control quantite-input" 
+                           placeholder="Quantité" min="1" required>
+                    <span class="input-group-text unite-text">-</span>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">&nbsp;</label>
+                <button type="button" class="btn btn-outline-danger btn-sm w-100" onclick="removeLigne(this)">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+        <div class="row mt-2">
+            <div class="col-12">
+                <small class="text-muted produit-info"></small>
+                <div class="stock-info mt-1" style="display: none;">
+                    <small class="text-info">
+                        <i class="fas fa-warehouse"></i>
+                        Stock disponible: <span class="stock-quantite">-</span>
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let ligneCounter = 0;
+let produits = [];
+    let estApprovisionnementInterne = false;
+
+// Charger les produits au chargement de la page
+document.addEventListener('DOMContentLoaded', async function() {
+    await loadProduits();
+    setupSearchProduit();
+        setupTypeApprovisionnementChange();
+        setupPrioriteChange();
+});
+
+async function loadProduits() {
+    try {
+        const response = await fetch('/pharmacies/approvisionnement/api/produits/');
+        const data = await response.json();
+        produits = data.produits;
+    } catch (error) {
+        showMessage('Erreur lors du chargement des produits', 'danger');
+    }
+}
+
+    function setupTypeApprovisionnementChange() {
+        const typeSelect = document.getElementById('typeApprovisionnement');
+        const alerteInterne = document.getElementById('alerteInterne');
+        const alerteExterne = document.getElementById('alerteExterne');
+        const stocksCard = document.getElementById('stocksCard');
+        const resumeType = document.getElementById('resumeType');
+
+        typeSelect.addEventListener('change', function () {
+            estApprovisionnementInterne = this.value === 'INTERNE';
+
+            if (estApprovisionnementInterne) {
+                alerteInterne.style.display = 'block';
+                alerteExterne.style.display = 'none';
+                stocksCard.style.display = 'block';
+                resumeType.textContent = 'Interne';
+            } else {
+                alerteInterne.style.display = 'none';
+                alerteExterne.style.display = 'block';
+                stocksCard.style.display = 'none';
+                resumeType.textContent = 'Externe';
+            }
+
+            // Mettre à jour les informations de stock pour les lignes existantes
+            updateAllStockInfo();
+        });
+    }
+
+    function setupPrioriteChange() {
+        const prioriteSelect = document.getElementById('priorite');
+        const resumePriorite = document.getElementById('resumePriorite');
+
+        prioriteSelect.addEventListener('change', function () {
+            resumePriorite.textContent = this.options[this.selectedIndex].text;
+        });
+    }
+
+function setupSearchProduit() {
+    const searchInput = document.getElementById('searchProduit');
+    const searchResults = document.getElementById('searchResults');
+    
+    searchInput.addEventListener('input', function() {
+        const query = this.value.toLowerCase().trim();
+        
+        if (query.length < 2) {
+            searchResults.innerHTML = '';
+            return;
+        }
+        
+        const filteredProduits = produits.filter(produit => 
+            produit.nom.toLowerCase().includes(query) ||
+                (produit.code_barres && produit.code_barres.toLowerCase().includes(query))
+        );
+        
+        let html = '';
+        filteredProduits.slice(0, 10).forEach(produit => {
+            html += `
+                <div class="border rounded p-2 mb-1 cursor-pointer" 
+                     onclick="addProduitFromSearch(${produit.id}, '${produit.nom}')"
+                     style="cursor: pointer;">
+                    <small class="text-muted">${produit.code_barres || 'N/A'}</small><br>
+                    <strong>${produit.nom}</strong>
+                </div>
+            `;
+        });
+        
+        searchResults.innerHTML = html;
+    });
+}
+
+function addProduitFromSearch(produitId, nom) {
+    addLigne();
+    const lastLigne = document.querySelector('#lignesContainer .ligne-item:last-child');
+    const select = lastLigne.querySelector('.produit-select');
+    
+    select.value = produitId;
+
+        // Déclencher l'événement change pour mettre à jour les infos
+        select.dispatchEvent(new Event('change'));
+    
+    // Nettoyer la recherche
+    document.getElementById('searchProduit').value = '';
+    document.getElementById('searchResults').innerHTML = '';
+    
+    updateSummary();
+}
+
+function addLigne() {
+    const template = document.getElementById('ligneTemplate');
+    const clone = template.content.cloneNode(true);
+    
+    // Assigner un ID unique à la ligne
+    const ligneElement = clone.querySelector('.ligne-item');
+    ligneElement.dataset.ligneId = 'ligne_' + (++ligneCounter);
+    
+    // Ajouter les event listeners
+    const produitSelect = clone.querySelector('.produit-select');
+    const quantiteInput = clone.querySelector('.quantite-input');
+        const stockInfo = clone.querySelector('.stock-info');
+    
+        produitSelect.addEventListener('change', function () {
+            const produitId = this.value;
+            if (produitId && estApprovisionnementInterne) {
+                updateStockInfo(ligneElement, produitId);
+                stockInfo.style.display = 'block';
+            } else {
+                stockInfo.style.display = 'none';
+            }
+        updateSummary();
+    });
+    
+        quantiteInput.addEventListener('input', function () {
+            updateSummary();
+            if (estApprovisionnementInterne) {
+                checkStockSuffisant(ligneElement);
+            }
+        });
+    
+    document.getElementById('lignesContainer').appendChild(clone);
+    
+    // Masquer l'état vide
+    document.getElementById('emptyState').style.display = 'none';
+    
+    updateSummary();
+}
+
+function removeLigne(button) {
+    const ligne = button.closest('.ligne-item');
+    ligne.remove();
+    
+    // Afficher l'état vide si aucune ligne
+    const lignesContainer = document.getElementById('lignesContainer');
+    if (lignesContainer.children.length === 0) {
+        document.getElementById('emptyState').style.display = 'block';
+    }
+    
+    updateSummary();
+}
+
+    async function updateStockInfo(ligneElement, produitId) {
+        try {
+            const response = await fetch(`/pharmacies/approvisionnement/api/stock/${produitId}/`);
+            const data = await response.json();
+
+            if (data.success) {
+                const stockQuantite = ligneElement.querySelector('.stock-quantite');
+                stockQuantite.textContent = data.stock_disponible;
+
+                checkStockSuffisant(ligneElement);
+            }
+        } catch (error) {
+            console.error('Erreur lors de la récupération du stock:', error);
+        }
+    }
+
+    function checkStockSuffisant(ligneElement) {
+        const quantiteInput = ligneElement.querySelector('.quantite-input');
+        const stockQuantite = ligneElement.querySelector('.stock-quantite');
+        const stockInfo = ligneElement.querySelector('.stock-info small');
+
+        const quantiteDemandee = parseInt(quantiteInput.value) || 0;
+        const stockDisponible = parseInt(stockQuantite.textContent) || 0;
+
+        if (quantiteDemandee > stockDisponible) {
+            stockInfo.className = 'text-danger';
+            stockInfo.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Stock insuffisant: ${stockDisponible} disponible`;
+        } else {
+            stockInfo.className = 'text-success';
+            stockInfo.innerHTML = `<i class="fas fa-check-circle"></i> Stock suffisant: ${stockDisponible} disponible`;
+        }
+    }
+
+    function updateAllStockInfo() {
+        const lignes = document.querySelectorAll('#lignesContainer .ligne-item');
+        lignes.forEach(ligne => {
+            const produitSelect = ligne.querySelector('.produit-select');
+            const stockInfo = ligne.querySelector('.stock-info');
+
+            if (estApprovisionnementInterne && produitSelect.value) {
+                updateStockInfo(ligne, produitSelect.value);
+                stockInfo.style.display = 'block';
+            } else {
+                stockInfo.style.display = 'none';
+            }
+        });
+    }
+
+function updateSummary() {
+    const lignes = document.querySelectorAll('#lignesContainer .ligne-item');
+    let totalProduits = 0;
+    let totalQuantite = 0;
+    
+    lignes.forEach(ligne => {
+        const produitSelect = ligne.querySelector('.produit-select');
+        const quantiteInput = ligne.querySelector('.quantite-input');
+        
+        if (produitSelect.value) {
+            totalProduits++;
+        }
+        
+        const quantite = parseInt(quantiteInput.value) || 0;
+        totalQuantite += quantite;
+    });
+    
+    document.getElementById('totalProduits').textContent = totalProduits;
+    document.getElementById('totalQuantite').textContent = totalQuantite;
+}
+
+async function saveBesoin() {
+        const typeApprovisionnement = document.getElementById('typeApprovisionnement').value;
+        const priorite = document.getElementById('priorite').value;
+    const serviceDemandeur = document.getElementById('serviceDemandeur').value;
+    const serviceApprovisionneur = document.getElementById('serviceApprovisionneur').value;
+    
+    if (!serviceDemandeur || !serviceApprovisionneur) {
+        showMessage('Veuillez sélectionner les services demandeur et approvisionneur', 'warning');
+        return;
+    }
+    
+    const lignes = [];
+    const ligneElements = document.querySelectorAll('#lignesContainer .ligne-item');
+    
+    let hasError = false;
+        let hasStockInsuffisant = false;
+
+    ligneElements.forEach(ligne => {
+        const produitSelect = ligne.querySelector('.produit-select');
+        const quantiteInput = ligne.querySelector('.quantite-input');
+            const stockInfo = ligne.querySelector('.stock-info small');
+        
+        const produitId = produitSelect.value;
+        const quantite = parseInt(quantiteInput.value) || 0;
+        
+        if (!produitId || quantite <= 0) {
+            hasError = true;
+            return;
+        }
+
+            // Vérifier les stocks pour approvisionnement interne
+            if (estApprovisionnementInterne && stockInfo && stockInfo.className.includes('text-danger')) {
+                hasStockInsuffisant = true;
+            }
+        
+        lignes.push({
+            produit_id: produitId,
+            quantite_demandee: quantite
+        });
+    });
+    
+    if (hasError) {
+        showMessage('Veuillez remplir correctement tous les produits', 'warning');
+        return;
+    }
+    
+    if (lignes.length === 0) {
+        showMessage('Veuillez ajouter au moins un produit', 'warning');
+        return;
+    }
+
+        if (hasStockInsuffisant) {
+            if (!confirm('Certains produits ont un stock insuffisant. Voulez-vous continuer ?')) {
+                return;
+            }
+        }
+    
+    try {
+        // Désactiver le bouton pendant la sauvegarde
+        const saveButton = document.querySelector('button[onclick="saveBesoin()"]');
+        saveButton.disabled = true;
+        saveButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enregistrement...';
+        
+        const response = await fetch('/pharmacies/approvisionnement/besoins/nouveau/', {
+            method: 'POST',
+            ...fetchConfig,
+            body: JSON.stringify({
+                    type_approvisionnement: typeApprovisionnement,
+                    priorite: priorite,
+                service_demandeur: serviceDemandeur,
+                service_approvisionneur: serviceApprovisionneur,
+                lignes: lignes
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showMessage(result.message, 'success');
+            setTimeout(() => {
+                window.location.href = result.redirect_url;
+            }, 1500);
+        } else {
+            showMessage(result.message || 'Erreur lors de la sauvegarde', 'danger');
+            saveButton.disabled = false;
+            saveButton.innerHTML = '<i class="fas fa-save"></i> Enregistrer l\'expression de besoin';
+        }
+    } catch (error) {
+        showMessage('Erreur lors de la sauvegarde', 'danger');
+        saveButton.disabled = false;
+        saveButton.innerHTML = '<i class="fas fa-save"></i> Enregistrer l\'expression de besoin';
+    }
+}
+</script>
+{% endblock %}

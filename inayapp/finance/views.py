@@ -1,11 +1,16 @@
 # finance/views.py
-from decimal import Decimal
+import copy
+import json
+import logging
+from datetime import date, datetime
+from decimal import Decimal, InvalidOperation
 
+from accueil.models import ConfigDate
+from audit.decorators import audit_view
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
+from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.db import models, transaction
-# views.py
-# views.py
 from django.db.models import (Count, DecimalField, ExpressionWrapper, F,
                               OuterRef, Prefetch, Q, Subquery, Sum, Value)
 from django.db.models.functions import Coalesce, TruncDate
@@ -13,17 +18,24 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render, reverse
 from django.utils import timezone
 from django.utils.dateparse import parse_date
-from finance.models import Decharges, Payments
+from django.utils.safestring import mark_safe
+from django.views import View
+from finance.models import (Convention, Decharges, Payments,
+                            PrixSupplementaireConfig, TarifActe,
+                            TarifActeConvention)
 from medecin.models import Medecin
-from medical.models import PrestationActe, Prestation
+from medical.models import (Acte, ActeProduit, Prestation, PrestationActe,
+                            PrestationAudit)
+from medical.models.actes import ActeProduit
 from num2words import num2words
 from patients.models import Patient
+from pharmacies.models import ConsommationProduit, Produit
 from rh.models import Personnel, Planning
 from utils.pdf import render_to_pdf
+from utils.utils import services_autorises
 
 from .forms import DechargeForm, PaymentForm
 from .models import Decharges, Payments
-from audit.decorators import audit_view
 
 
 # decharge planning
@@ -361,6 +373,7 @@ def situation_medecins_list(request):
     # 1. Honoraires (incluant prix supplémentaire médecin)
     honoraire_sq = (
         PrestationActe.objects.filter(prestation__medecin=OuterRef("pk"))
+        .exclude(prestation__statut="planifie")
         .values("prestation__medecin")
         .annotate(
             total_honoraires_actes=Sum("honoraire_medecin"),
@@ -391,17 +404,18 @@ def situation_medecins_list(request):
     # 4. Préfetch des décharge + sommes de paiements par décharge
     decharges_non_reglees_qs = (
         Decharges.objects
+        # On exclut d’abord toute décharge qui contient au moins un acte rattaché à une prestation planifiée
+        .exclude(prestation_actes__prestation__statut='planifie')
         .annotate(
             total_paie=Coalesce(Sum('payments__payment'), Value(0), output_field=DecimalField())
         )
         .annotate(
-            solde=ExpressionWrapper(
-                F('amount') - F('total_paie'),
-                output_field=DecimalField()
-            )
+            solde=ExpressionWrapper(F('amount') - F('total_paie'), output_field=DecimalField())
         )
+        # Puis on ne garde que celles dont le solde reste positif
         .filter(solde__gt=0)
     )
+
 
     # 5. Query principal
     medecins = (
@@ -472,8 +486,12 @@ def situation_medecin(request, medecin_id):
     # Gestion des filtres
     date_debut = request.GET.get("date_debut")
     date_fin = request.GET.get("date_fin")
+    base_query = (
+        PrestationActe.objects
+        .filter(prestation__medecin=medecin)
+        .exclude(prestation__statut='planifie')
+    )
 
-    base_query = PrestationActe.objects.filter(prestation__medecin=medecin)
     prestation_query = Prestation.objects.filter(medecin=medecin)
 
     if date_debut and date_fin:
@@ -684,6 +702,7 @@ def create_decharge_medecin(request, medecin_id):
 
     prestations_non_dechargees = (
         PrestationActe.objects.filter(prestation__medecin=medecin)
+        .exclude(prestation__statut="planifie")
         .exclude(decharges__isnull=False)
         .select_related("prestation", "acte", "convention", "prestation__patient")
     )
@@ -761,6 +780,26 @@ def create_decharge_medecin(request, medecin_id):
 @audit_view
 @login_required
 def gestion_convention_accorde(request):
+    # --- Récupération / mise à jour de la config date
+    config, _ = ConfigDate.objects.get_or_create(
+        user=request.user,
+        page="convention_accorde",
+        defaults={"start_date": date.today(), "end_date": date.today()},
+    )
+
+    # Mise à jour de la config si des paramètres sont fournis
+    for param in ("start_date", "end_date"):
+        val = request.GET.get(param)
+        if val:
+            try:
+                setattr(config, param, datetime.strptime(val, "%Y-%m-%d").date())
+            except ValueError:
+                pass
+    config.save()
+
+    # Utilisation des dates de la config
+    start_date, end_date = (config.start_date, config.end_date)
+
     # Base queryset
     prestation_actes = PrestationActe.objects.filter(
         convention__isnull=False
@@ -768,8 +807,6 @@ def gestion_convention_accorde(request):
 
     # Filters
     status = request.GET.get("status")
-    date_from = request.GET.get("date_from")
-    date_to = request.GET.get("date_to")
     medecin_id = request.GET.get("medecin")
     patient_id = request.GET.get("patient")
 
@@ -781,46 +818,45 @@ def gestion_convention_accorde(request):
     elif status == "non_accorde":
         prestation_actes = prestation_actes.filter(convention_accordee=False)
 
-    if date_from and date_to:
+    # Filtrage par date (utilise les dates de la config)
+    if start_date and end_date:
         prestation_actes = prestation_actes.filter(
-            prestation__date_prestation__range=[date_from, date_to]  # Changé ici
+            prestation__date_prestation__range=[start_date, end_date]
         )
-    elif date_from:
+    elif start_date:
         prestation_actes = prestation_actes.filter(
-            prestation__date_prestation__gte=date_from
-        )  # Changé ici
-    elif date_to:
+            prestation__date_prestation__gte=start_date
+        )
+    elif end_date:
         prestation_actes = prestation_actes.filter(
-            prestation__date_prestation__lte=date_to
-        )  # Changé ici
+            prestation__date_prestation__lte=end_date
+        )
 
     if medecin_id:
         prestation_actes = prestation_actes.filter(prestation__medecin_id=medecin_id)
-
     if patient_id:
         prestation_actes = prestation_actes.filter(prestation__patient_id=patient_id)
 
     # Get distinct medecins and patients for filters
     medecins = Medecin.objects.filter(
-        prestations__actes_details__convention__isnull=False  # Changé ici
+        prestations__actes_details__convention__isnull=False
+    ).distinct()
+    patients = Patient.objects.filter(
+        prestations__actes_details__convention__isnull=False
     ).distinct()
 
-    patients = Patient.objects.filter(
-        prestations__actes_details__convention__isnull=False  # Changé ici
-    ).distinct()
     context = {
         "prestation_actes": prestation_actes,
         "medecins": medecins,
         "patients": patients,
         "current_status": status,
-        "current_date_from": date_from,
-        "current_date_to": date_to,
+        "start_date": start_date,  # Utilise les dates de la config
+        "end_date": end_date,  # Utilise les dates de la config
         "current_medecin": medecin_id,
         "current_patient": patient_id,
     }
-    return render(
-        request, "gestion_convention_accorde.html", context
-    )
+
+    return render(request, "gestion_convention_accorde.html", context)
 
 
 @audit_view
@@ -875,4 +911,86 @@ def update_convention_status(request, pk):
         JsonResponse(response_data)
         if request.headers.get("X-Requested-With") == "XMLHttpRequest"
         else redirect("gestion_convention_accorde")
+    )
+
+
+# medical/views/paiements.py
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.db.models import Q, Sum
+from django.db import transaction
+from decimal import Decimal
+from medical.models import Prestation
+from .models import BonDePaiement
+from .forms import BonDePaiementForm
+
+
+@login_required
+def paiements_especes(request):
+    # Filtrer les prestations éligibles
+    prestations = (
+        Prestation.objects.filter(
+            Q(statut="REALISE")
+            & (
+                Q(prix_supplementaire__gt=0)
+                | Q(actes_details__convention__isnull=True)
+                | Q(actes_details__convention_accordee=False)
+                | Q(
+                    actes_details__consommations__quantite_reelle__gt=F(
+                        "actes_details__consommations__quantite_defaut"
+                    )
+                )
+            )
+        )
+        .distinct()
+        .prefetch_related("patient", "actes_details")
+    )
+
+    # Calcul du reste à payer pour chaque prestation
+    for p in prestations:
+        p.total_paiements = p.bons_de_paiement.aggregate(total=Sum("montant"))[
+            "total"
+        ] or Decimal("0.00")
+        p.reste_a_payer = p.prix_total - p.total_paiements
+
+    return render(request, "BonPaiement/liste.html", {"prestations": prestations})
+
+
+@login_required
+@transaction.atomic
+def creer_bon_paiement(request, prestation_id):
+    prestation = get_object_or_404(Prestation, id=prestation_id)
+
+    # Calcul du reste à payer
+    total_paiements = prestation.bons_de_paiement.aggregate(total=Sum("montant"))[
+        "total"
+    ] or Decimal("0.00")
+    reste = prestation.prix_total - total_paiements
+
+    if request.method == "POST":
+        form = BonDePaiementForm(request.POST)
+        if form.is_valid():
+            bon = form.save(commit=False)
+            bon.prestation = prestation
+            bon.encaisse_par = request.user
+
+            # Validation du montant
+            if bon.montant > reste:
+                form.add_error("montant", f"Le montant ne peut excéder {reste}€")
+            else:
+                bon.save()
+
+                # Mettre à jour le statut de la prestation si complètement payée
+                if bon.montant >= reste:
+                    prestation.statut = "PAYE"
+                    prestation.save()
+
+                return redirect("paiements_especes")
+    else:
+        form = BonDePaiementForm(initial={"montant": reste})
+
+    return render(
+        request,
+        "BonPaiement/creer_bon.html",
+        {"form": form, "prestation": prestation, "reste": reste},
     )

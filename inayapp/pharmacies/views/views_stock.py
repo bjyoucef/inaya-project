@@ -33,9 +33,10 @@ class StockListView(LoginRequiredMixin, ListView):
     paginate_by = 20
 
     def get_queryset(self):
-        queryset = Stock.objects.select_related("produit", "service").filter(
-            quantite__gt=0
-        )
+        queryset = Stock.objects.select_related("produit", "service")
+        # .filter(
+        #     quantite__gt=0
+        # )
 
         # Filtres de recherche
         search = self.request.GET.get("search")

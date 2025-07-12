@@ -1,11 +1,17 @@
-from django.db.models.signals import post_save
+from django.db import models
+from django.db.models import F, Q, Sum, Value
+from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 from django.forms import ValidationError
-
+from django.urls import reverse_lazy
+from django.views.generic import (CreateView, DeleteView, DetailView, ListView,
+                                  UpdateView)
 from medical.models.actes import Prestation
-from pharmacies.models import Stock
-from .models import Medecin
+from pharmacies.models import ConsommationProduit, Stock
 from rh.models import Personnel
+
+from .forms import MedecinForm
+from .models import Medecin
 
 
 @receiver(post_save, sender=Medecin)

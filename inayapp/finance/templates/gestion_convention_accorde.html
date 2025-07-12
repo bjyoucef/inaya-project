@@ -1,6 +1,11 @@
 {% extends "layout.html" %}
 {% load app_filters %}
+{% load static %}
+{% load custom_filters %}
 {% block content %}
+
+<link rel="stylesheet" href="{% static 'css/choices.min.css' %}">
+<link rel="stylesheet" href="{% static 'css/daterangepicker.css' %}">
 <style>
     /* Styles personnalisés minimaux - uniquement ce qui n'existe pas dans Bootstrap */
     .glassmorphism {
@@ -123,6 +128,7 @@
     }
 </style>
 
+
 <div class="container-fluid p-1">
     <!-- Statistiques rapides -->
 
@@ -188,7 +194,7 @@
             <div class="row g-3 align-items-end">
                 <div class="col-12 col-md-6 col-lg-3">
                         <label class="form-label fw-semibold">Statut</label>
-                        <select class="form-select border-2 rounded-3"  name="status">
+                        <select class="form-select border-2 rounded-3"  name="status" id="statusFilter" onchange="this.form.submit()">
                         <option value="">Tous les statuts</option>
                         <option value="en_attente" {% if current_status == 'en_attente' %}selected{% endif %}>
                             En attente
@@ -204,7 +210,7 @@
 
                 <div class="col-12 col-md-6 col-lg-3">
                         <label class="form-label fw-semibold">Médecin</label>
-                        <select class="form-select border-2 rounded-3" name="medecin">
+                        <select class="form-select border-2 rounded-3" name="medecin" id="medecinFilter" onchange="this.form.submit()">
                         <option value="">Tous les médecins</option>
                         {% for medecin in medecins %}
                         <option value="{{ medecin.id }}" {% if current_medecin == medecin.id|stringformat:"s" %}selected{% endif %}>
@@ -216,21 +222,17 @@
 
                 <div class="col-12 col-md-6 col-lg-4">
                         <label class="form-label fw-semibold">Période</label>
-                    <div class="input-group">
-                            <input type="date" class="form-control border-2 rounded-start-3" name="date_from"
-                                value="{{ current_date_from }}">
-                        <span class="input-group-text border-2">à</span>
-                            <input type="date" class="form-control border-2 rounded-end-3" name="date_to"
-                                value="{{ current_date_to }}">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-transparent border-end-0">
+                                <i class="bi bi-calendar-range text-primary"></i>
+                            </span>
+                                    <input type="text" name="daterangepicker" id="daterangepicker"
+                                        class="form-control date-range-input" placeholder="Choisir une plage de dates">
                     </div>
                 </div>
 
                     <div class="col-12 col-md-6 col-lg-2">
                         <div class="d-flex gap-2">
-                            <button type="submit"
-                                class="btn gradient-primary text-white fw-semibold rounded-3 flex-fill">
-                        <i class="bi bi-search me-2"></i>Filtrer
-                    </button>
                     <a href="{% url 'gestion_convention_accorde' %}" class="btn btn-outline-secondary">
                         <i class="bi bi-arrow-clockwise"></i>
                     </a>
@@ -327,8 +329,93 @@
     </div>
 </div>
 </div>
+<!-- Scripts -->
+<script src="{% static 'js/jquery-3.7.1.min.js' %}"></script>
+<script src="{% static 'js/moment.min.js' %}"></script>
+<script src="{% static 'js/daterangepicker.min.js' %}"></script>
+<script src="{% static 'js/choices.min.js' %}"></script>
 
 <script>
+        // Initialisation des selects 
+        new Choices("#statusFilter", {
+            searchEnabled: false,
+            removeItemButton: true,
+            placeholder: true
+        });
+
+        new Choices("#medecinFilter", {
+            searchEnabled: true,
+            removeItemButton: true,
+            placeholder: true
+        });
+        // Récupération des dates depuis le contexte (les dates sont déjà au format "YYYY-MM-DD")
+
+    const startDateTemplate = "{{ start_date|date:'Y-m-d' }}";
+    const endDateTemplate   = "{{ end_date|date:'Y-m-d' }}";
+    console.log("Start date:", startDateTemplate);
+    console.log("End date:", endDateTemplate);
+
+    // Création des objets moment avec le format spécifié
+    let start = moment(startDateTemplate, "YYYY-MM-DD");
+    let end = moment(endDateTemplate, "YYYY-MM-DD");
+
+    console.log("Moment start:", start.format());
+    console.log("Moment end:", end.format());
+
+    const updateInput = (start, end) => {
+        $("#daterangepicker").val(start.format("YYYY-MM-DD") + " - " + end.format("YYYY-MM-DD"));
+    };
+
+    $("#daterangepicker").daterangepicker({
+        startDate: start,
+        endDate: end,
+            autoUpdateInput: true,
+            locale: {
+            format: "YYYY-MM-DD",
+            separator: " - ",
+            applyLabel: "Appliquer",
+            cancelLabel: "Annuler",
+            fromLabel: "De",
+            toLabel: "À",
+            customRangeLabel: "Personnalisée",
+            weekLabel: "S",
+            daysOfWeek: ["Di", "Lu", "Ma", "Me", "Je", "Ve", "Sa"],
+                monthNames: [
+                "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
+                "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
+            ],
+            firstDay: 1
+            },
+            ranges: {
+            "Aujourd'hui": [moment(), moment()],
+            "Hier": [moment().subtract(1, "days"), moment().subtract(1, "days")],
+            "7 derniers jours": [moment().subtract(6, "days"), moment()],
+            "30 derniers jours": [moment().subtract(29, "days"), moment()],
+            "Ce mois-ci": [moment().startOf("month"), moment().endOf("month")],
+            "Le mois dernier": [moment().subtract(1, "month").startOf("month"), moment().subtract(1, "month").endOf("month")]
+            }
+        });
+
+    $('#daterangepicker').on('apply.daterangepicker', function (ev, picker) {
+        const medecinId = $('#medecinFilter').val();
+        const patientId = $('#patientFilter').val();
+        // Construction de l'URL en utilisant une template literal
+        let url = `{% url 'gestion_convention_accorde' %}?start_date=${picker.startDate.format('YYYY-MM-DD')}&end_date=${picker.endDate.format('YYYY-MM-DD')}`;
+        if (medecinId) {
+            url += `&medecin=${medecinId}`;
+        }        
+        if (patientId) {
+            url += `&patient=${patientId}`;
+        }
+        window.location.href = url;
+        });
+
+    // Mise à jour initiale du champ
+    if ("{{ request.GET.start_date }}" && "{{ request.GET.end_date }}") {
+        $('#daterangepicker').val("{{ request.GET.start_date }} - {{ request.GET.end_date }}");
+    } else {
+        updateInput(start, end);
+    }
 document.addEventListener('DOMContentLoaded', function() {
     // Tooltips
     var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))

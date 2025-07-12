@@ -1,0 +1,268 @@
+# Documentation Système d'Approvisionnement Django
+
+## Vue d'ensemble
+
+Ce système gère deux types d'approvisionnement :
+- **Approvisionnement interne** : Services → Pharmacie
+- **Approvisionnement externe** : Pharmacie → Fournisseurs
+
+## Architecture du Système
+
+### 1. Approvisionnement Interne (Services → Pharmacie)
+
+#### 🔄 Flux de processus :
+1. **Expression de Besoin** : Un service émet une demande de produits
+2. **Validation** : La pharmacie valide et ajuste les quantités
+3. **Préparation** : La pharmacie prépare les produits du stock existant
+4. **Livraison interne** : Distribution au service demandeur
+
+#### 📋 Modèles impliqués :
+- `ExpressionBesoin` : Demande d'un service
+- `LigneBesoin` : Détail des produits demandés
+
+### 2. Approvisionnement Externe (Pharmacie → Fournisseurs)
+
+#### 🔄 Flux de processus :
+1. **Commande Fournisseur** : La pharmacie commande auprès d'un fournisseur
+2. **Confirmation** : Validation de la commande
+3. **Livraison** : Réception des produits du fournisseur
+4. **Bon de réception** : Contrôle et mise à jour du stock
+
+#### 📋 Modèles impliqués :
+- `CommandeFournisseur` : Commande passée au fournisseur
+- `LigneCommande` : Détail des produits commandés
+- `Livraison` : Réception physique des produits
+- `LigneLivraison` : Détail des produits livrés
+- `BonReception` : Document de contrôle de réception
+
+## Structure des Modèles
+
+### ExpressionBesoin (Approvisionnement Interne)
+
+```python
+class ExpressionBesoin(models.Model):
+    STATUT_CHOICES = [
+        ("EN_ATTENTE", "En attente"),
+        ("VALIDE", "Validée"),
+        ("REJETE", "Rejetée"),
+        ("SERVIE", "Servie"),
+    ]
+    
+    reference = models.CharField(max_length=50, unique=True)
+    service_demandeur = models.ForeignKey("medical.Service")
+    service_approvisionneur = models.ForeignKey("medical.Service")
+    statut = models.CharField(max_length=20, choices=STATUT_CHOICES)
+    date_creation = models.DateTimeField(auto_now_add=True)
+    valide_par = models.ForeignKey(User, null=True, blank=True)
+```
+
+### CommandeFournisseur (Approvisionnement Externe)
+
+```python
+class CommandeFournisseur(models.Model):
+    STATUT_CHOICES = [
+        ("BROUILLON", "Brouillon"),
+        ("EN_ATTENTE", "En attente"),
+        ("CONFIRME", "Confirmée"),
+        ("ANNULE", "Annulée"),
+        ("LIVREE", "Livrée"),
+    ]
+    
+    reference = models.CharField(max_length=50, unique=True)
+    besoin = models.ForeignKey(ExpressionBesoin, null=True, blank=True)
+    fournisseur = models.ForeignKey("Fournisseur")
+    statut = models.CharField(max_length=20, choices=STATUT_CHOICES)
+    date_commande = models.DateTimeField(auto_now_add=True)
+```
+
+## Vues et Fonctionnalités
+
+### 1. Dashboard Approvisionnement
+
+**URL** : `/approvisionnement/dashboard/`
+**Classe** : `DashboardView`
+
+**Fonctionnalités** :
+- Statistiques globales en temps réel
+- Alertes importantes (retards, péremptions)
+- Activité récente
+- Actions rapides
+
+### 2. Gestion des Expressions de Besoin
+
+#### Liste des Besoins
+- **URL** : `/approvisionnement/besoins/`
+- **Classe** : `ExpressionBesoinListView`
+- **Fonctionnalités** : Filtrage par statut, service, pagination
+
+#### Création de Besoin
+- **URL** : `/approvisionnement/besoins/nouveau/`
+- **Classe** : `ExpressionBesoinCreateView`
+- **Fonctionnalités** : Interface AJAX, recherche de produits
+
+#### Validation de Besoin
+- **URL** : `/approvisionnement/besoins/{id}/validation/`
+- **Classe** : `ExpressionBesoinValidationView`
+- **Fonctionnalités** : Validation/rejet avec ajustement des quantités
+
+### 3. Gestion des Commandes Fournisseurs
+
+#### Liste des Commandes
+- **URL** : `/approvisionnement/commandes/`
+- **Classe** : `CommandeFournisseurListView`
+- **Fonctionnalités** : Filtrage par statut, fournisseur
+
+#### Création de Commande
+- **URL** : `/approvisionnement/commandes/nouveau/`
+- **Classe** : `CommandeFournisseurCreateView`
+- **Fonctionnalités** : Import depuis expression de besoin, calcul automatique des totaux
+
+### 4. Gestion des Livraisons
+
+#### Réception de Livraison
+- **URL** : `/approvisionnement/livraisons/{id}/reception/`
+- **Classe** : `LivraisonReceptionView`
+- **Fonctionnalités** : Mise à jour automatique du stock, génération bon de réception
+
+## Interfaces Utilisateur
+
+### Templates Principaux
+
+1. **base_approvisionnement.html** : Template de base avec sidebar
+2. **dashboard.html** : Tableau de bord principal
+3. **expression_besoin_*.html** : Gestion des besoins internes
+4. **commande_fournisseur_*.html** : Gestion des commandes externes
+5. **livraison_*.html** : Gestion des livraisons
+6. **bon_reception_*.html** : Gestion des bons de réception
+
+### Fonctionnalités JavaScript
+
+#### Recherche de Produits
+```javascript
+function setupSearchProduit() {
+    const searchInput = document.getElementById('searchProduit');
+    searchInput.addEventListener('input', function() {
+        // Recherche en temps réel avec filtrage
+        const query = this.value.toLowerCase().trim();
+        // ... logique de filtrage
+    });
+}
+```
+
+#### Gestion Dynamique des Lignes
+```javascript
+function addLigne() {
+    const template = document.getElementById('ligneTemplate');
+    const clone = template.content.cloneNode(true);
+    // ... ajout dynamique de lignes de produits
+}
+```
+
+## API Endpoints
+
+### Données Dynamiques
+
+1. **GET** `/api/produits/` - Liste des produits actifs
+2. **GET** `/api/besoins/{id}/lignes/` - Lignes d'un besoin
+3. **GET** `/api/commandes/{id}/lignes/` - Lignes d'une commande
+
+### Actions
+
+1. **POST** `/besoins/{id}/validation/` - Validation/rejet d'un besoin
+2. **POST** `/commandes/{id}/confirmer/` - Confirmation d'une commande
+3. **POST** `/livraisons/{id}/reception/` - Réception d'une livraison
+
+## Gestion du Stock
+
+### Mise à jour automatique lors de la réception
+
+```python
+def recevoir(self, user):
+    # Mise à jour du stock
+    service_pharmacie = Service.objects.get(est_pharmacies=True)
+    
+    for ligne in self.lignes.all():
+        Stock.objects.update_or_create_stock(
+            produit=ligne.produit,
+            service=service_pharmacie,
+            date_peremption=ligne.date_peremption,
+            numero_lot=ligne.numero_lot,
+            quantite=ligne.quantite_livree,
+        )
+        
+        MouvementStock.log_mouvement(
+            instance=self,
+            type_mouvement="ENTREE",
+            produit=ligne.produit,
+            service=service_pharmacie,
+            quantite=ligne.quantite_livree,
+            lot_concerne=ligne.numero_lot,
+        )
+```
+
+## Sécurité et Permissions
+
+### Authentification
+- Toutes les vues utilisent `LoginRequiredMixin`
+- Protection CSRF sur les formulaires AJAX
+
+### Validation des Données
+- Validation côté serveur avec `transaction.atomic()`
+- Vérification des statuts avant les transitions d'état
+- Validation des quantités et dates
+
+## Fonctionnalités Avancées
+
+### 1. Suivi des Dates de Péremption
+- Alertes automatiques pour les produits bientôt périmés
+- Contrôle lors des réceptions
+- Badges colorés dans les interfaces
+
+### 2. Traçabilité des Lots
+- Numéro de lot obligatoire pour chaque ligne de livraison
+- Suivi du lot depuis la réception jusqu'à la distribution
+
+### 3. Comparaison Commande/Livraison
+- Affichage des écarts entre quantités commandées et livrées
+- Statuts : Complet, Partiel, Non livré
+
+### 4. Génération de Documents
+- Bons de réception automatiques
+- Export PDF/Excel des listes
+- Impression des documents
+
+## Points d'Extension
+
+### 1. Notifications
+```python
+# Exemple d'extension pour les notifications
+def send_notification_on_reception(livraison):
+    if livraison.statut == 'RECU':
+        # Notifier le service demandeur si besoin lié
+        if livraison.commande.besoin:
+            notify_service(livraison.commande.besoin.service_demandeur)
+```
+
+### 2. Workflow Avancé
+- États intermédiaires (En préparation, En cours de livraison)
+- Validations multiples
+- Délégation de signatures
+
+### 3. Intégrations Externes
+- API fournisseurs pour commandes automatiques
+- Codes-barres pour la réception
+- EDI (Electronic Data Interchange)
+
+## Maintenance et Monitoring
+
+### Tâches Périodiques
+1. Nettoyage des expressions de besoin anciennes
+2. Alertes sur les retards de livraison
+3. Rapports mensuels d'activité
+
+### Logs et Audit
+- Traçabilité complète des actions utilisateur
+- Logs de modification de stock
+- Historique des validations
+
+Cette architecture permet une gestion complète et traçable des approvisionnements, tant internes qu'externes, avec une interface moderne et des fonctionnalités avancées de suivi et de contrôle.

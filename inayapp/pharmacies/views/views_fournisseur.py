@@ -14,8 +14,8 @@ from django.views.generic import (CreateView, DeleteView, DetailView, ListView,
                                   UpdateView)
 from openpyxl import Workbook
 
-from ..forms import FournisseurForm, OrdrePaiementForm
-from ..models import Fournisseur, OrdrePaiement
+from ..forms import FournisseurForm
+from ..models import Fournisseur
 
 logger = logging.getLogger(__name__)
 
@@ -90,22 +90,3 @@ class FournisseurDeleteView(PermissionRequiredMixin, DeleteView):
         messages.success(request, "Fournisseur supprimé")
         return response
 
-
-# pharmacies/views.py
-class OrdrePaiementCreateView(CreateView):
-    model = OrdrePaiement
-    form_class = OrdrePaiementForm
-    template_name = "pharmacies/ordre_paiement_form.html"
-    success_url = reverse_lazy("ordre-paiement-list")
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["fournisseurs"] = Fournisseur.objects.active()
-        return context
-
-
-class OrdrePaiementUpdateView(UpdateView):
-    model = OrdrePaiement
-    form_class = OrdrePaiementForm
-    template_name = "pharmacies/ordre_paiement_form.html"
-    success_url = reverse_lazy("ordre-paiement-list")

@@ -1,0 +1,516 @@
+<!-- templates/pharmacies/approvisionnement/commande_fournisseur_form.html -->
+{% extends 'approvisionnement/base_approvisionnement.html' %}
+{% load approvisionnement_filters %}
+
+{% block title %}Nouvelle commande fournisseur - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-shopping-cart"></i> Nouvelle commande fournisseur</h2>
+    <a href="{% url 'pharmacies:commande_fournisseur_list' %}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Retour à la liste
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Informations générales</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <label for="fournisseur" class="form-label">Fournisseur *</label>
+                        <select class="form-select" id="fournisseur" required>
+                            <option value="">Sélectionner un fournisseur</option>
+                            {% for fournisseur in fournisseurs %}
+                                <option value="{{ fournisseur.id }}" 
+                                        data-nom="{{ fournisseur.nom }}"
+                                        data-telephone="{{ fournisseur.telephone }}"
+                                        data-email="{{ fournisseur.email }}">
+                                    {{ fournisseur.raison_sociale }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="besoin" class="form-label">Expression de besoin (optionnel)</label>
+                        <select class="form-select" id="besoin">
+                            <option value="">Aucune expression de besoin</option>
+                            {% for besoin in besoins %}
+                                <option value="{{ besoin.id }}" 
+                                        {% if request.GET.besoin == besoin.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ besoin }} - {{ besoin.service_demandeur.nom }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Informations fournisseur -->
+                <div class="row mt-3" id="fournisseurInfo" style="display: none;">
+                    <div class="col-12">
+                        <div class="alert alert-info">
+                            <h6><i class="fas fa-building"></i> <span id="fournisseurNom"></span></h6>
+                            <p class="mb-1"><i class="fas fa-phone"></i> <span id="fournisseurTelephone"></span></p>
+                            <p class="mb-0"><i class="fas fa-envelope"></i> <span id="fournisseurEmail"></span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Produits à commander</h5>
+                <div>
+                    <button type="button" class="btn btn-info btn-sm" onclick="importFromBesoin()" id="importBtn" style="display: none;">
+                        <i class="fas fa-download"></i> Importer du besoin
+                    </button>
+                    <button type="button" class="btn btn-primary btn-sm" onclick="addLigne()">
+                        <i class="fas fa-plus"></i> Ajouter un produit
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="lignesContainer">
+                    <!-- Les lignes seront ajoutées ici dynamiquement -->
+                </div>
+                
+                <div class="text-center py-3" id="emptyState">
+                    <i class="fas fa-box-open fa-2x text-muted mb-2"></i>
+                    <p class="text-muted">Aucun produit ajouté</p>
+                    <button type="button" class="btn btn-outline-primary" onclick="addLigne()">
+                        <i class="fas fa-plus"></i> Ajouter le premier produit
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Résumé de la commande</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Nombre de produits :</span>
+                    <strong id="totalProduits">0</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Quantité totale :</span>
+                    <strong id="totalQuantite">0</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-3">
+                    <span>Montant total :</span>
+                    <strong id="montantTotal">0.00 DA</strong>
+                </div>
+                <hr>
+                <button type="button" class="btn btn-success w-100" onclick="saveCommande()">
+                    <i class="fas fa-save"></i> Enregistrer la commande
+                </button>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0">Recherche de produits</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <input type="text" class="form-control" id="searchProduit" 
+                           placeholder="Rechercher un produit...">
+                </div>
+                <div id="searchResults" style="max-height: 200px; overflow-y: auto;">
+                    <!-- Résultats de recherche -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Template pour une ligne de commande -->
+<template id="ligneTemplate">
+    <div class="ligne-item" data-ligne-id="">
+        <div class="row align-items-center">
+            <div class="col-md-4">
+                <select class="form-select produit-select" required>
+                    <option value="">Sélectionner un produit</option>
+                    {% for produit in produits %}
+                        <option value="{{ produit.id }}" data-nom="{{ produit.nom }}" data-unite="{{ produit.unite }}">
+                            {{ produit.nom }} ({{ produit.unite }})
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <div class="input-group">
+                    <input type="number" class="form-control quantite-input" 
+                           placeholder="Quantité" min="1" required>
+                    <span class="input-group-text unite-text">-</span>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="input-group">
+                    <input type="number" class="form-control prix-input" 
+                           placeholder="Prix unitaire" min="0.01" step="0.01" required>
+                    <span class="input-group-text">DA</span>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <button type="button" class="btn btn-outline-danger btn-sm w-100" onclick="removeLigne(this)">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+        <div class="row mt-2">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <small class="text-muted produit-info"></small>
+                    <strong class="total-ligne">0.00 DA</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let ligneCounter = 0;
+let produits = [];
+
+// Charger les produits au chargement de la page
+document.addEventListener('DOMContentLoaded', async function() {
+    await loadProduits();
+    setupSearchProduit();
+    setupFournisseurChange();
+    setupBesoinChange();
+    
+    // Si un besoin est présélectionné, charger ses données
+    const besoinSelect = document.getElementById('besoin');
+    if (besoinSelect.value) {
+        loadBesoinData(besoinSelect.value);
+    }
+});
+
+async function loadProduits() {
+    try {
+        const response = await fetch('/pharmacies/approvisionnement/api/produits/');
+        const data = await response.json();
+        produits = data.produits;
+    } catch (error) {
+        showMessage('Erreur lors du chargement des produits', 'danger');
+    }
+}
+
+function setupFournisseurChange() {
+    const fournisseurSelect = document.getElementById('fournisseur');
+    const fournisseurInfo = document.getElementById('fournisseurInfo');
+    
+    fournisseurSelect.addEventListener('change', function() {
+        if (this.value) {
+            const option = this.options[this.selectedIndex];
+            document.getElementById('fournisseurNom').textContent = option.dataset.nom;
+            document.getElementById('fournisseurTelephone').textContent = option.dataset.telephone || 'Non renseigné';
+            document.getElementById('fournisseurEmail').textContent = option.dataset.email || 'Non renseigné';
+            fournisseurInfo.style.display = 'block';
+        } else {
+            fournisseurInfo.style.display = 'none';
+        }
+    });
+}
+
+function setupBesoinChange() {
+    const besoinSelect = document.getElementById('besoin');
+    const importBtn = document.getElementById('importBtn');
+    
+    besoinSelect.addEventListener('change', function() {
+        if (this.value) {
+            importBtn.style.display = 'inline-block';
+            loadBesoinData(this.value);
+        } else {
+            importBtn.style.display = 'none';
+        }
+    });
+}
+
+async function loadBesoinData(besoinId) {
+    try {
+        const response = await fetch(`/pharmacies/approvisionnement/api/besoins/${besoinId}/lignes/`);
+        const data = await response.json();
+        
+        // Stocker les données du besoin pour l'import
+        window.besoinData = data.lignes;
+    } catch (error) {
+        showMessage('Erreur lors du chargement des données du besoin', 'danger');
+    }
+}
+
+function setupSearchProduit() {
+    const searchInput = document.getElementById('searchProduit');
+    const searchResults = document.getElementById('searchResults');
+    
+    searchInput.addEventListener('input', function() {
+        const query = this.value.toLowerCase().trim();
+        
+        if (query.length < 2) {
+            searchResults.innerHTML = '';
+            return;
+        }
+        
+        const filteredProduits = produits.filter(produit => 
+            produit.nom.toLowerCase().includes(query) ||
+            produit.code_barre.toLowerCase().includes(query)
+        );
+        
+        let html = '';
+        filteredProduits.slice(0, 10).forEach(produit => {
+            html += `
+                <div class="border rounded p-2 mb-1 cursor-pointer" 
+                     onclick="addProduitFromSearch(${produit.id}, '${produit.nom}', '${produit.unite}')"
+                     style="cursor: pointer;">
+                    <small class="text-muted">${produit.code_barre}</small><br>
+                    <strong>${produit.nom}</strong> (${produit.unite})
+                </div>
+            `;
+        });
+        
+        searchResults.innerHTML = html;
+    });
+}
+
+function addProduitFromSearch(produitId, nom, unite) {
+    addLigne();
+    const lastLigne = document.querySelector('#lignesContainer .ligne-item:last-child');
+    const select = lastLigne.querySelector('.produit-select');
+    const uniteSpan = lastLigne.querySelector('.unite-text');
+    const produitInfo = lastLigne.querySelector('.produit-info');
+    
+    select.value = produitId;
+    uniteSpan.textContent = unite;
+    produitInfo.textContent = `Code: ${produits.find(p => p.id == produitId)?.code_barre || 'N/A'}`;
+    
+    // Nettoyer la recherche
+    document.getElementById('searchProduit').value = '';
+    document.getElementById('searchResults').innerHTML = '';
+    
+    updateSummary();
+}
+
+function importFromBesoin() {
+    if (!window.besoinData || window.besoinData.length === 0) {
+        showMessage('Aucune donnée à importer du besoin', 'warning');
+        return;
+    }
+    
+    // Vider les lignes existantes
+    document.getElementById('lignesContainer').innerHTML = '';
+    
+    // Ajouter les lignes du besoin
+    window.besoinData.forEach(ligne => {
+        addLigne();
+        const lastLigne = document.querySelector('#lignesContainer .ligne-item:last-child');
+        const select = lastLigne.querySelector('.produit-select');
+        const quantiteInput = lastLigne.querySelector('.quantite-input');
+        const uniteSpan = lastLigne.querySelector('.unite-text');
+        const produitInfo = lastLigne.querySelector('.produit-info');
+        
+        select.value = ligne.produit_id;
+        quantiteInput.value = ligne.quantite_validee || ligne.quantite_demandee;
+        
+        const produit = produits.find(p => p.id == ligne.produit_id);
+        if (produit) {
+            uniteSpan.textContent = produit.unite;
+            produitInfo.textContent = `Code: ${produit.code_barre}`;
+        }
+    });
+    
+    document.getElementById('emptyState').style.display = 'none';
+    updateSummary();
+    showMessage('Données importées du besoin avec succès', 'success');
+}
+
+function addLigne() {
+    const template = document.getElementById('ligneTemplate');
+    const clone = template.content.cloneNode(true);
+    
+    // Assigner un ID unique à la ligne
+    const ligneElement = clone.querySelector('.ligne-item');
+    ligneElement.dataset.ligneId = 'ligne_' + (++ligneCounter);
+    
+    // Ajouter les event listeners
+    const produitSelect = clone.querySelector('.produit-select');
+    const quantiteInput = clone.querySelector('.quantite-input');
+    const prixInput = clone.querySelector('.prix-input');
+    const uniteText = clone.querySelector('.unite-text');
+    const produitInfo = clone.querySelector('.produit-info');
+    
+    produitSelect.addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        if (selectedOption.value) {
+            uniteText.textContent = selectedOption.dataset.unite || '-';
+            const produit = produits.find(p => p.id == selectedOption.value);
+            if (produit) {
+                produitInfo.textContent = `Code: ${produit.code_barre}`;
+            }
+        } else {
+            uniteText.textContent = '-';
+            produitInfo.textContent = '';
+        }
+        updateLigneTotal(ligneElement);
+        updateSummary();
+    });
+    
+    quantiteInput.addEventListener('input', function() {
+        updateLigneTotal(ligneElement);
+        updateSummary();
+    });
+    
+    prixInput.addEventListener('input', function() {
+        updateLigneTotal(ligneElement);
+        updateSummary();
+    });
+    
+    document.getElementById('lignesContainer').appendChild(clone);
+    
+    // Masquer l'état vide
+    document.getElementById('emptyState').style.display = 'none';
+    
+    updateSummary();
+}
+
+function removeLigne(button) {
+    const ligne = button.closest('.ligne-item');
+    ligne.remove();
+    
+    // Afficher l'état vide si aucune ligne
+    const lignesContainer = document.getElementById('lignesContainer');
+    if (lignesContainer.children.length === 0) {
+        document.getElementById('emptyState').style.display = 'block';
+    }
+    
+    updateSummary();
+}
+
+function updateLigneTotal(ligneElement) {
+    const quantiteInput = ligneElement.querySelector('.quantite-input');
+    const prixInput = ligneElement.querySelector('.prix-input');
+    const totalLigne = ligneElement.querySelector('.total-ligne');
+    
+    const quantite = parseInt(quantiteInput.value) || 0;
+    const prix = parseFloat(prixInput.value) || 0;
+    const total = quantite * prix;
+    
+    totalLigne.textContent = total.toFixed(2) + ' DA';
+}
+
+function updateSummary() {
+    const lignes = document.querySelectorAll('#lignesContainer .ligne-item');
+    let totalProduits = 0;
+    let totalQuantite = 0;
+    let montantTotal = 0;
+    
+    lignes.forEach(ligne => {
+        const produitSelect = ligne.querySelector('.produit-select');
+        const quantiteInput = ligne.querySelector('.quantite-input');
+        const prixInput = ligne.querySelector('.prix-input');
+        
+        if (produitSelect.value) {
+            totalProduits++;
+        }
+        
+        const quantite = parseInt(quantiteInput.value) || 0;
+        const prix = parseFloat(prixInput.value) || 0;
+        
+        totalQuantite += quantite;
+        montantTotal += quantite * prix;
+    });
+    
+    document.getElementById('totalProduits').textContent = totalProduits;
+    document.getElementById('totalQuantite').textContent = totalQuantite;
+    document.getElementById('montantTotal').textContent = montantTotal.toFixed(2) + ' DA';
+}
+
+async function saveCommande() {
+    const fournisseurId = document.getElementById('fournisseur').value;
+    const besoinId = document.getElementById('besoin').value || null;
+    
+    if (!fournisseurId) {
+        showMessage('Veuillez sélectionner un fournisseur', 'warning');
+        return;
+    }
+    
+    const lignes = [];
+    const ligneElements = document.querySelectorAll('#lignesContainer .ligne-item');
+    
+    let hasError = false;
+    ligneElements.forEach(ligne => {
+        const produitSelect = ligne.querySelector('.produit-select');
+        const quantiteInput = ligne.querySelector('.quantite-input');
+        const prixInput = ligne.querySelector('.prix-input');
+        
+        const produitId = produitSelect.value;
+        const quantite = parseInt(quantiteInput.value) || 0;
+        const prix = parseFloat(prixInput.value) || 0;
+        
+        if (!produitId || quantite <= 0 || prix <= 0) {
+            hasError = true;
+            return;
+        }
+        
+        lignes.push({
+            produit_id: produitId,
+            quantite_commandee: quantite,
+            prix_unitaire: prix.toFixed(2)
+        });
+    });
+    
+    if (hasError) {
+        showMessage('Veuillez remplir correctement tous les produits', 'warning');
+        return;
+    }
+    
+    if (lignes.length === 0) {
+        showMessage('Veuillez ajouter au moins un produit', 'warning');
+        return;
+    }
+    
+    try {
+        // Désactiver le bouton pendant la sauvegarde
+        const saveButton = document.querySelector('button[onclick="saveCommande()"]');
+        saveButton.disabled = true;
+        saveButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enregistrement...';
+        
+        const response = await fetch('/pharmacies/approvisionnement/commandes/nouveau/', {
+            method: 'POST',
+            ...fetchConfig,
+            body: JSON.stringify({
+                fournisseur_id: fournisseurId,
+                besoin_id: besoinId,
+                lignes: lignes
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showMessage(result.message, 'success');
+            setTimeout(() => {
+                window.location.href = result.redirect_url;
+            }, 1500);
+        } else {
+            showMessage(result.message || 'Erreur lors de la sauvegarde', 'danger');
+            saveButton.disabled = false;
+            saveButton.innerHTML = '<i class="fas fa-save"></i> Enregistrer la commande';
+        }
+    } catch (error) {
+        showMessage('Erreur lors de la sauvegarde', 'danger');
+        saveButton.disabled = false;
+        saveButton.innerHTML = '<i class="fas fa-save"></i> Enregistrer la commande';
+    }
+}
+</script>
+{% endblock %}

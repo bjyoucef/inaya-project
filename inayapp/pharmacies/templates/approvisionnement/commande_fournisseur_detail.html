@@ -1,0 +1,452 @@
+<!-- templates/pharmacies/approvisionnement/commande_fournisseur_detail.html -->
+{% extends 'approvisionnement/base_approvisionnement.html' %}
+{% load approvisionnement_filters %}
+
+{% block title %}{{ commande }} - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-shopping-cart"></i> {{ commande }}</h2>
+    <div>
+        {% if commande.statut == 'BROUILLON' %}
+            <button class="btn btn-success" onclick="confirmCommande()">
+                <i class="fas fa-check"></i> Confirmer
+            </button>
+        {% endif %}
+        {% if commande.statut == 'EN_ATTENTE' %}
+            <a href="{% url 'pharmacies:livraison_create' %}?commande={{ commande.pk }}" 
+               class="btn btn-info">
+                <i class="fas fa-truck"></i> Créer livraison
+            </a>
+        {% endif %}
+        <button class="btn btn-outline-secondary" onclick="printCommande()">
+            <i class="fas fa-print"></i> Imprimer
+        </button>
+        <a href="{% url 'pharmacies:commande_fournisseur_list' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Retour à la liste
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <!-- Informations générales -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Informations de la commande</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <table class="table table-borderless">
+                            <tr>
+                                <td><strong>Référence :</strong></td>
+                                <td>{{ commande }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Date de commande :</strong></td>
+                                <td>{{ commande.date_commande|date:"d/m/Y H:i" }}</td>
+                            </tr>
+                            {% if commande.date_confirmation %}
+                            <tr>
+                                <td><strong>Date confirmation :</strong></td>
+                                <td>{{ commande.date_confirmation|date:"d/m/Y H:i" }}</td>
+                            </tr>
+                            {% endif %}
+                            {% if commande.besoin %}
+                            <tr>
+                                <td><strong>Expression de besoin :</strong></td>
+                                <td>
+                                    <a href="{% url 'pharmacies:expression_besoin_detail' commande.besoin.pk %}">
+                                        {{ commande.besoin }}
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endif %}
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <table class="table table-borderless">
+                            <tr>
+                                <td><strong>Fournisseur :</strong></td>
+                                <td>{{ commande.fournisseur.nom }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Téléphone :</strong></td>
+                                <td>{{ commande.fournisseur.telephone|default:"Non renseigné" }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Email :</strong></td>
+                                <td>{{ commande.fournisseur.email|default:"Non renseigné" }}</td>
+                            </tr>
+                            {% if commande.valide_par %}
+                            <tr>
+                                <td><strong>Validé par :</strong></td>
+                                <td>{{ commande.valide_par.get_full_name|default:commande.valide_par.username }}</td>
+                            </tr>
+                            {% endif %}
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Détails des produits -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">Produits commandés</h5>
+            </div>
+            <div class="card-body">
+                {% if lignes %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Produit</th>
+                                    <th>Code barre</th>
+                                    <th>Quantité</th>
+                                    <th>Prix unitaire</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for ligne in lignes %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ ligne.produit.nom }}</strong>
+                                            {% if ligne.produit.description %}
+                                                <br><small class="text-muted">{{ ligne.produit.description }}</small>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ ligne.produit.code_barre }}</td>
+                                        <td>
+                                            <span class="badge bg-primary">{{ ligne.quantite_commandee }} {{ ligne.produit.unite }}</span>
+                                        </td>
+                                        <td>{{ ligne.prix_unitaire|floatformat:2 }} DA</td>
+                                        <td>
+                                            <strong>{{ ligne.quantite_commandee|mul:ligne.prix_unitaire|floatformat:2 }} DA</strong>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot>
+                                <tr class="table-info">
+                                    <td colspan="4"><strong>TOTAL COMMANDE</strong></td>
+                                    <td><strong>{{ commande.montant_total|floatformat:2 }} DA</strong></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-box-open fa-2x text-muted mb-2"></i>
+                        <p class="text-muted">Aucun produit dans cette commande.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Livraisons associées -->
+        {% if commande.livraisons.exists %}
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Livraisons associées</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Référence</th>
+                                    <th>Date prévue</th>
+                                    <th>Date réception</th>
+                                    <th>Statut</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for livraison in commande.livraisons.all %}
+                                    <tr>
+                                        <td>
+                                            <a href="{% url 'pharmacies:livraison_detail' livraison.pk %}">
+                                                {{ livraison }}
+                                            </a>
+                                        </td>
+                                        <td>{{ livraison.date_livraison_prevue|date:"d/m/Y" }}</td>
+                                        <td>
+                                            {% if livraison.date_reception %}
+                                                {{ livraison.date_reception|date:"d/m/Y H:i" }}
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if livraison.statut == 'EN_TRANSIT' %}
+                                                <span class="badge bg-warning">{{ livraison.get_statut_display }}</span>
+                                            {% elif livraison.statut == 'RECU' %}
+                                                <span class="badge bg-success">{{ livraison.get_statut_display }}</span>
+                                            {% elif livraison.statut == 'PARTIEL' %}
+                                                <span class="badge bg-info">{{ livraison.get_statut_display }}</span>
+                                            {% elif livraison.statut == 'ANNULE' %}
+                                                <span class="badge bg-danger">{{ livraison.get_statut_display }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <a href="{% url 'pharmacies:livraison_detail' livraison.pk %}" 
+                                               class="btn btn-outline-primary btn-sm">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="col-md-4">
+        <!-- Résumé -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Résumé</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Statut :</span>
+                    <strong>
+                        {% if commande.statut == 'BROUILLON' %}
+                            <span class="badge bg-secondary">{{ commande.get_statut_display }}</span>
+                        {% elif commande.statut == 'EN_ATTENTE' %}
+                            <span class="badge bg-warning">{{ commande.get_statut_display }}</span>
+                        {% elif commande.statut == 'CONFIRME' %}
+                            <span class="badge bg-success">{{ commande.get_statut_display }}</span>
+                        {% elif commande.statut == 'ANNULE' %}
+                            <span class="badge bg-danger">{{ commande.get_statut_display }}</span>
+                        {% elif commande.statut == 'LIVREE' %}
+                            <span class="badge bg-info">{{ commande.get_statut_display }}</span>
+                        {% endif %}
+                    </strong>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Nombre de produits :</span>
+                    <strong>{{ lignes.count }}</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Montant total :</span>
+                    <strong>{{ commande.montant_total|floatformat:2 }} DA</strong>
+                </div>
+                {% if commande.livraisons.exists %}
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Livraisons :</span>
+                        <strong>{{ commande.livraisons.count }}</strong>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Informations fournisseur -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0">Fournisseur</h6>
+            </div>
+            <div class="card-body">
+                <h6>{{ commande.fournisseur.nom }}</h6>
+                <p class="mb-1">
+                    <i class="fas fa-phone"></i> 
+                    {{ commande.fournisseur.telephone|default:"Non renseigné" }}
+                </p>
+                <p class="mb-1">
+                    <i class="fas fa-envelope"></i> 
+                    {{ commande.fournisseur.email|default:"Non renseigné" }}
+                </p>
+                <p class="mb-0">
+                    <i class="fas fa-map-marker-alt"></i> 
+                    {{ commande.fournisseur.adresse|default:"Non renseigné" }}
+                </p>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0">Actions</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    {% if commande.statut == 'BROUILLON' %}
+                        <button class="btn btn-success" onclick="confirmCommande()">
+                            <i class="fas fa-check"></i> Confirmer la commande
+                        </button>
+                    {% endif %}
+                    {% if commande.statut == 'EN_ATTENTE' %}
+                        <a href="{% url 'pharmacies:livraison_create' %}?commande={{ commande.pk }}" 
+                           class="btn btn-info">
+                            <i class="fas fa-truck"></i> Créer une livraison
+                        </a>
+                    {% endif %}
+                    <button class="btn btn-outline-primary" onclick="printCommande()">
+                        <i class="fas fa-print"></i> Imprimer la commande
+                    </button>
+                    <button class="btn btn-outline-secondary" onclick="sendByEmail()">
+                        <i class="fas fa-envelope"></i> Envoyer par email
+                    </button>
+                    {% if commande.besoin %}
+                        <a href="{% url 'pharmacies:expression_besoin_detail' commande.besoin.pk %}" 
+                           class="btn btn-outline-info">
+                            <i class="fas fa-file-alt"></i> Voir le besoin
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Historique -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0">Historique</h6>
+            </div>
+            <div class="card-body">
+                <div class="timeline">
+                    <div class="timeline-item">
+                        <div class="timeline-marker bg-primary"></div>
+                        <div class="timeline-content">
+                            <p class="mb-1"><strong>Création</strong></p>
+                            <small class="text-muted">{{ commande.date_commande|date:"d/m/Y H:i" }}</small>
+                        </div>
+                    </div>
+                    
+                    {% if commande.date_confirmation %}
+                        <div class="timeline-item">
+                            <div class="timeline-marker bg-success"></div>
+                            <div class="timeline-content">
+                                <p class="mb-1"><strong>Confirmation</strong></p>
+                                <small class="text-muted">
+                                    {{ commande.date_confirmation|date:"d/m/Y H:i" }}
+                                    {% if commande.valide_par %}
+                                        par {{ commande.valide_par.get_full_name|default:commande.valide_par.username }}
+                                    {% endif %}
+                                </small>
+                            </div>
+                        </div>
+                    {% endif %}
+                    
+                    {% for livraison in commande.livraisons.all %}
+                        <div class="timeline-item">
+                            <div class="timeline-marker bg-info"></div>
+                            <div class="timeline-content">
+                                <p class="mb-1"><strong>Livraison créée</strong></p>
+                                <small class="text-muted">
+                                    {{ livraison.date_livraison_prevue|date:"d/m/Y" }}<br>
+                                    {{ livraison }}
+                                </small>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.timeline {
+    position: relative;
+    padding-left: 30px;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #dee2e6;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -23px;
+    top: 0;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 3px solid white;
+    box-shadow: 0 0 0 2px #dee2e6;
+}
+
+.timeline-content {
+    background: #f8f9fa;
+    border-radius: 0.375rem;
+    padding: 10px;
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function confirmCommande() {
+    if (!confirm('Êtes-vous sûr de vouloir confirmer cette commande ?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/pharmacies/approvisionnement/commandes/{{ commande.pk }}/confirmer/`, {
+            method: 'POST',
+            ...fetchConfig
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showMessage('Commande confirmée avec succès', 'success');
+            setTimeout(() => {
+                location.reload();
+            }, 1500);
+        } else {
+            showMessage(result.message || 'Erreur lors de la confirmation', 'danger');
+        }
+    } catch (error) {
+        showMessage('Erreur lors de la confirmation', 'danger');
+    }
+}
+
+function printCommande() {
+    const printUrl = `/pharmacies/approvisionnement/commandes/{{ commande.pk }}/imprimer/`;
+    window.open(printUrl, '_blank');
+}
+
+async function sendByEmail() {
+    const email = prompt('Adresse email de destination :');
+    if (!email) return;
+    
+    try {
+        const response = await fetch(`/pharmacies/approvisionnement/commandes/{{ commande.pk }}/email/`, {
+            method: 'POST',
+            ...fetchConfig,
+            body: JSON.stringify({
+                email: email
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showMessage('Commande envoyée par email avec succès', 'success');
+        } else {
+            showMessage(result.message || 'Erreur lors de l\'envoi', 'danger');
+        }
+    } catch (error) {
+        showMessage('Erreur lors de l\'envoi par email', 'danger');
+    }
+}
+</script>
+{% endblock %}

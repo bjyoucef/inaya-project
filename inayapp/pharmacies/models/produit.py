@@ -33,21 +33,7 @@ class CategorieProduit(models.Model):
         return self.nom
 
 
-class Laboratoire(models.Model):
-    """Laboratoires pharmaceutiques"""
 
-    nom = models.CharField(max_length=255, unique=True)
-    pays_origine = models.CharField(max_length=100, default="Algérie")
-    code_labo = models.CharField(max_length=20, unique=True)
-    contact_email = models.EmailField(blank=True)
-    telephone = models.CharField(max_length=20, blank=True)
-
-    class Meta:
-        verbose_name = "Laboratoire"
-        verbose_name_plural = "Laboratoires"
-
-    def __str__(self):
-        return self.nom
 
 
 class ProduitManager(models.Manager):

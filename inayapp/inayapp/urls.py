@@ -5,6 +5,7 @@ from django.contrib import admin
 from django.shortcuts import render
 from django.urls import include, path
 import nested_admin
+from django.contrib.auth import views as auth_views
 
 def custom_permission_denied_view(request, exception=None):
     return render(request, '403.html', status=403)
@@ -13,6 +14,11 @@ handler403 = custom_permission_denied_view
 
 
 urlpatterns = [
+    path(
+        "login/",
+        auth_views.LoginView.as_view(template_name="registration/login.html"),
+        name="login",
+    ),
     path("update-theme/", update_theme, name="update_theme"),
     path("", include("accueil.urls")),
     path("admin/", admin.site.urls),
@@ -25,7 +31,10 @@ urlpatterns = [
     path("patients/", include("patients.urls")),
     path("medecin/", include("medecin.urls")),
     path("medical/", include(("medical.urls", "medical"), namespace="medical")),
-    path("pharmacies/", include("pharmacies.urls")),
+    path(
+        "pharmacies/",
+        include(("pharmacies.urls", "pharmacies"), namespace="pharmacies"),
+    ),
     path("api-auth/", include("rest_framework.urls")),
     path(
         "inventaire/",

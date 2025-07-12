@@ -32,3 +32,15 @@ class PaymentForm(forms.ModelForm):
         self.fields["payment"].validators.append(
             MinValueValidator(0.01, "Le montant doit être supérieur à 0")
         )
+
+
+# finance/forms.py
+from django import forms
+from .models import BonDePaiement
+
+
+class BonDePaiementForm(forms.ModelForm):
+    class Meta:
+        model = BonDePaiement
+        fields = ["montant", "methode"]
+        widgets = {"montant": forms.NumberInput(attrs={"step": "0.01", "min": "0.01"})}

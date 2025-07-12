@@ -85,7 +85,7 @@
               class="form-select"
               required
             >
-              <option value="">Choisir un patient...</option>
+              <option value="" >Choisir un patient...</option>
               {% for p in patients %}
               <option value="{{ p.id }}" {% if p.id == prestation.patient.id %}selected{% endif %}>
                 {{ p.nom_complet }}

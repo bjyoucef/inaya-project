@@ -1,18 +1,62 @@
 # pharmacies/urls.py
-from django.urls import path
+from django.urls import include, path
 
-from .views.views_stock import AjustementStockCreateView,StockCreateView, StockDeleteView, StockDetailView, StockListView, StockUpdateView, get_stock_disponible, stocks_expires_bientot
 from . import views
-from django.urls import path
+
 from .views.views_fournisseur import (
-    FournisseurListView,
     FournisseurCreateView,
-    FournisseurDetailView,
-    FournisseurUpdateView,
     FournisseurDeleteView,
-    OrdrePaiementCreateView,
-    OrdrePaiementUpdateView,
+    FournisseurDetailView,
+    FournisseurListView,
+    FournisseurUpdateView,
 )
+from .views.views_stock import (
+    AjustementStockCreateView,
+    StockCreateView,
+    StockDeleteView,
+    StockDetailView,
+    StockListView,
+    StockUpdateView,
+    get_stock_disponible,
+    stocks_expires_bientot,
+)
+from django.urls import path
+from .views.approvisionnement import (
+    ExpressionBesoinListView,
+    ExpressionBesoinDetailView,
+    ExpressionBesoinCreateView,
+    ExpressionBesoinValidationView,
+    CommandeFournisseurListView,
+    CommandeFournisseurDetailView,
+    CommandeFournisseurCreateView,
+    CommandeFournisseurConfirmView,
+    LivraisonListView,
+    LivraisonDetailView,
+    LivraisonCreateView,
+    LivraisonReceptionView,
+    BonReceptionListView,
+    BonReceptionDetailView,
+    BonReceptionPrintView,
+    GetBesoinLignesAPIView,
+    GetCommandeLignesAPIView,
+    GetProduitsAPIView,
+    DashboardView,
+    # Nouvelles vues pour demandes internes
+    DemandeInterneListView,
+    DemandeInterneDetailView,
+    DemandeInterneValidationView,
+    DemandeInterneValiderView,
+    DemandeInterneRejeterView,
+    DemandeInternePreparerView,
+    DemandeInterneLivrerView,
+    DemandeInternePDFView,
+    DemandeInterneExcelView,
+    GetStockDisponibleAPIView,
+    GetStocksMultiplesAPIView,
+    system_alerts_api,
+    menu_stats_api,
+)
+
 
 app_name = "pharmacies"
 urlpatterns = [
@@ -32,31 +76,21 @@ urlpatterns = [
         views.ProduitDeleteView.as_view(),
         name="produit_delete",
     ),
-
-        
     # Stocks
-    path('stocks/', StockListView.as_view(), name='stock_list'),
-    path('stocks/ajouter/', StockCreateView.as_view(), name='stock_create'),
-    path('stocks/<int:pk>/', StockDetailView.as_view(), name='stock_detail'),
-    path('stocks/<int:pk>/modifier/', StockUpdateView.as_view(), name='stock_update'),
-    path('stocks/<int:pk>/supprimer/', StockDeleteView.as_view(), name='stock_delete'),
-    
-
+    path("stocks/", StockListView.as_view(), name="stock_list"),
+    path("stocks/ajouter/", StockCreateView.as_view(), name="stock_create"),
+    path("stocks/<int:pk>/", StockDetailView.as_view(), name="stock_detail"),
+    path("stocks/<int:pk>/modifier/", StockUpdateView.as_view(), name="stock_update"),
+    path("stocks/<int:pk>/supprimer/", StockDeleteView.as_view(), name="stock_delete"),
     # Ajustements
-    path('ajustements/nouveau/', AjustementStockCreateView.as_view(), name='ajustement_create'),
-    
+    path(
+        "ajustements/nouveau/",
+        AjustementStockCreateView.as_view(),
+        name="ajustement_create",
+    ),
     # API
-    path('api/stock-disponible/', get_stock_disponible, name='stock_disponible'),
-    path('api/stocks-expires/', stocks_expires_bientot, name='stocks_expires'),
-
-    # Achats
-    # path("achats/", views.AchatListView.as_view(), name="achat_list"),
-    # path("achats/create/", views.AchatCreateView.as_view(), name="achat_create"),
-    # path("achats/<int:pk>/edit/", views.AchatUpdateView.as_view(), name="achat_update"),
-    # path("achats/<int:pk>/", views.AchatDetailView.as_view(), name="achat_detail"),
-    # path(
-    #     "achats/<int:pk>/delete/", views.AchatDeleteView.as_view(), name="achat_delete"
-    # ),
+    path("api/stock-disponible/", get_stock_disponible, name="stock_disponible"),
+    path("api/stocks-expires/", stocks_expires_bientot, name="stocks_expires"),
     # Fournisseur
     path("fournisseurs/", FournisseurListView.as_view(), name="liste"),
     path("fournisseurs/ajouter/", FournisseurCreateView.as_view(), name="creer"),
@@ -71,66 +105,174 @@ urlpatterns = [
         FournisseurDeleteView.as_view(),
         name="supprimer",
     ),
-    # OrdrePaiement CRUD
+] + [
+    # Approvisionnement******************************
+    # Dashboard
     path(
-        "commandes/<int:commande_pk>/ordres/add/",
-        OrdrePaiementCreateView.as_view(),
-        name="ordre_add",
+        "approvisionnement/dashboard/",
+        DashboardView.as_view(),
+        name="approvisionnement_dashboard",
+    ),
+    # Expression de besoin
+    path(
+        "approvisionnement/besoins/",
+        ExpressionBesoinListView.as_view(),
+        name="expression_besoin_list",
     ),
     path(
-        "ordres/<int:pk>/update/",
-        OrdrePaiementUpdateView.as_view(),
-        name="ordre_update",
-    ),
-    # Bons de commande
-    path("commandes/", views.BonCommandeListView.as_view(), name="commande_list"),
-    path(
-        "commandes/creer/",
-        views.BonCommandeCreateView.as_view(),
-        name="commande_create",
+        "approvisionnement/besoins/<int:pk>/",
+        ExpressionBesoinDetailView.as_view(),
+        name="expression_besoin_detail",
     ),
     path(
-        "commandes/<int:pk>/",
-        views.BonCommandeDetailView.as_view(),
-        name="commande_detail",
+        "approvisionnement/besoins/nouveau/",
+        ExpressionBesoinCreateView.as_view(),
+        name="expression_besoin_create",
+    ),
+    # Dans pharmacies/urls.py
+    path(
+        "approvisionnement/besoins/<int:pk>/validation/",
+        ExpressionBesoinValidationView.as_view(),
+        name="expression_besoin_validation",
+    ),
+    # Demandes internes
+    path(
+        "demandes-internes/",
+        DemandeInterneListView.as_view(),
+        name="demande_interne_list",
     ),
     path(
-        "commandes/<int:pk>/modifier/",
-        views.BonCommandeUpdateView.as_view(),
-        name="commande_update",
+        "demandes-internes/<int:pk>/",
+        DemandeInterneDetailView.as_view(),
+        name="demande_interne_detail",
     ),
     path(
-        "commandes/<int:pk>/supprimer/",
-        views.BonCommandeDeleteView.as_view(),
-        name="commande_delete",
+        "demandes-internes/<int:pk>/validation/",
+        DemandeInterneValidationView.as_view(),
+        name="demande_interne_validation",
     ),
-    # pharmacies/urls.py
+    # Actions sur les demandes internes - AJOUT DE CES URLs MANQUANTES
     path(
-        "commandes/<int:pk>/statut/",
-        views.BonCommandeUpdateStatutView.as_view(),
-        name="commande_update_statut",
+        "demandes-internes/<int:pk>/valider/",
+        DemandeInterneValiderView.as_view(),
+        name="demande_interne_valider",
     ),
-    # Livraisons
-    path("livraisons/", views.BonLivraisonListView.as_view(), name="livraison_list"),
     path(
-        "livraisons/<int:pk>/",
-        views.BonLivraisonDetailView.as_view(),
+        "demandes-internes/<int:pk>/rejeter/",
+        DemandeInterneRejeterView.as_view(),
+        name="demande_interne_rejeter",
+    ),
+    path(
+        "demandes-internes/<int:pk>/preparer/",
+        DemandeInternePreparerView.as_view(),
+        name="demande_interne_preparer",
+    ),
+    path(
+        "demandes-internes/<int:pk>/livrer/",
+        DemandeInterneLivrerView.as_view(),
+        name="demande_interne_livrer",
+    ),
+    # Export des demandes internes
+    path(
+        "demandes-internes/<int:pk>/pdf/",
+        DemandeInternePDFView.as_view(),
+        name="demande_interne_pdf",
+    ),
+    path(
+        "demandes-internes/<int:pk>/excel/",
+        DemandeInterneExcelView.as_view(),
+        name="demande_interne_excel",
+    ),
+    # Commandes fournisseurs (approvisionnement externe)
+    path(
+        "commandes/",
+        CommandeFournisseurListView.as_view(),
+        name="commande_fournisseur_list",
+    ),
+    path(
+        "approvisionnement/commandes/<int:pk>/",
+        CommandeFournisseurDetailView.as_view(),
+        name="commande_fournisseur_detail",
+    ),
+    path(
+        "approvisionnement/commandes/nouveau/",
+        CommandeFournisseurCreateView.as_view(),
+        name="commande_fournisseur_create",
+    ),
+    path(
+        "approvisionnement/commandes/<int:pk>/confirmer/",
+        CommandeFournisseurConfirmView.as_view(),
+        name="commande_fournisseur_confirm",
+    ),
+    # Livraison
+    path(
+        "approvisionnement/livraisons/",
+        LivraisonListView.as_view(),
+        name="livraison_list",
+    ),
+    path(
+        "approvisionnement/livraisons/<int:pk>/",
+        LivraisonDetailView.as_view(),
         name="livraison_detail",
     ),
     path(
-        "commandes/<int:commande_pk>/livraison/creer/",
-        views.BonLivraisonCreateView.as_view(),
+        "approvisionnement/livraisons/nouveau/",
+        LivraisonCreateView.as_view(),
         name="livraison_create",
     ),
     path(
-        "livraisons/<int:pk>/valider/",
-        views.ValiderLivraisonView.as_view(),
-        name="livraison_valider",
+        "approvisionnement/livraisons/<int:pk>/reception/",
+        LivraisonReceptionView.as_view(),
+        name="livraison_reception",
     ),
-    # Documents
+    # Bon de réception
     path(
-        "commandes/<int:pk>/pdf/",
-        views.GenererPDFCommandeView.as_view(),
-        name="commande_pdf",
+        "approvisionnement/bons-reception/",
+        BonReceptionListView.as_view(),
+        name="bon_reception_list",
+    ),
+    path(
+        "approvisionnement/bons-reception/<int:pk>/",
+        BonReceptionDetailView.as_view(),
+        name="bon_reception_detail",
+    ),
+    path(
+        "approvisionnement/bons-reception/<int:pk>/imprimer/",
+        BonReceptionPrintView.as_view(),
+        name="bon_reception_print",
+    ),
+    # API
+    path(
+        "approvisionnement/api/besoins/<int:pk>/lignes/",
+        GetBesoinLignesAPIView.as_view(),
+        name="api_besoin_lignes",
+    ),
+    path(
+        "approvisionnement/api/commandes/<int:pk>/lignes/",
+        GetCommandeLignesAPIView.as_view(),
+        name="api_commande_lignes",
+    ),
+    path(
+        "approvisionnement/api/produits/",
+        GetProduitsAPIView.as_view(),
+        name="api_produits",
+    ),
+    path(
+        "api/stock-disponible/<int:produit_id>/",
+        GetStockDisponibleAPIView.as_view(),
+        name="api_stock_disponible",
+    ),
+    path(
+        "api/stocks-multiples/",
+        GetStocksMultiplesAPIView.as_view(),
+        name="api_stocks_multiples",
+    ),
+    path(
+        "approvisionnement/api/alertes-systeme/",
+        system_alerts_api,
+        name="api_alertes_systeme",
+    ),
+    path(
+        "approvisionnement/api/stats-menu/", menu_stats_api, name="api_stats_menu"
     ),
 ]

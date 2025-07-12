@@ -1,0 +1,397 @@
+<!-- templates/pharmacies/approvisionnement/livraison_detail.html -->
+{% extends 'approvisionnement/base_approvisionnement.html' %}
+{% load approvisionnement_filters %}
+{% block title %}{{ livraison }} - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-truck"></i> {{ livraison }}</h2>
+    <div>
+        {% if livraison.statut in 'EN_TRANSIT,PARTIEL' %}
+            <button class="btn btn-success" onclick="receiveLivraison()">
+                <i class="fas fa-check"></i> Marquer comme reçue
+            </button>
+        {% endif %}
+        {% if livraison.statut == 'RECU' and livraison.bon_reception %}
+            <a href="{% url 'pharmacies:bon_reception_detail' livraison.bon_reception.pk %}" 
+               class="btn btn-info">
+                <i class="fas fa-receipt"></i> Bon de réception
+            </a>
+        {% endif %}
+        <a href="{% url 'pharmacies:livraison_list' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Retour à la liste
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <!-- Informations générales -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Informations de la livraison</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <table class="table table-borderless">
+                            <tr>
+                                <td><strong>Référence :</strong></td>
+                                <td>{{ livraison }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Date prévue :</strong></td>
+                                <td>
+                                    {{ livraison.date_livraison_prevue|date:"d/m/Y" }}
+                                    {% if livraison.date_livraison_prevue < today and livraison.statut == 'EN_TRANSIT' %}
+                                        <br><span class="badge bg-warning">En retard</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% if livraison.date_reception %}
+                            <tr>
+                                <td><strong>Date de réception :</strong></td>
+                                <td>{{ livraison.date_reception|date:"d/m/Y H:i" }}</td>
+                            </tr>
+                            {% endif %}
+                            {% if livraison.recepteur %}
+                            <tr>
+                                <td><strong>Récepteur :</strong></td>
+                                <td>{{ livraison.recepteur.get_full_name|default:livraison.recepteur.username }}</td>
+                            </tr>
+                            {% endif %}
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <table class="table table-borderless">
+                            <tr>
+                                <td><strong>Commande :</strong></td>
+                                <td>
+                                    <a href="{% url 'pharmacies:commande_fournisseur_detail' livraison.commande.pk %}">
+                                        {{ livraison.commande }}
+                                    </a>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>Fournisseur :</strong></td>
+                                <td>{{ livraison.commande.fournisseur.nom }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Téléphone :</strong></td>
+                                <td>{{ livraison.commande.fournisseur.telephone|default:"Non renseigné" }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Détails des produits livrés -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">Produits livrés</h5>
+            </div>
+            <div class="card-body">
+                {% if lignes %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Produit</th>
+                                    <th>Code barre</th>
+                                    <th>Quantité</th>
+                                    <th>Unité</th>
+                                    <th>N° Lot</th>
+                                    <th>Date péremption</th>
+                                    <th>État</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for ligne in lignes %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ ligne.produit.nom }}</strong>
+                                            {% if ligne.produit.description %}
+                                                <br><small class="text-muted">{{ ligne.produit.description }}</small>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ ligne.produit.code_barre }}</td>
+                                        <td>
+                                            <span class="badge bg-primary fs-6">{{ ligne.quantite_livree }}</span>
+                                        </td>
+                                        <td>{{ ligne.produit.unite }}</td>
+                                        <td>
+                                            <code>{{ ligne.numero_lot }}</code>
+                                        </td>
+                                        <td>
+                                            {{ ligne.date_peremption|date:"d/m/Y" }}
+                                            {% if ligne.date_peremption < today %}
+                                                <br><span class="badge bg-danger">Périmé</span>
+                                            {% elif ligne.date_peremption < warning_date %}
+                                                <br><span class="badge bg-warning">Bientôt périmé</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if ligne.date_peremption >= today %}
+                                                <span class="badge bg-success">Conforme</span>
+                                            {% else %}
+                                                <span class="badge bg-danger">Non conforme</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot>
+                                <tr class="table-info">
+                                    <td colspan="2"><strong>TOTAUX</strong></td>
+                                    <td><strong>{{ total_quantite|default:0 }}</strong></td>
+                                    <td colspan="4"></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-box-open fa-2x text-muted mb-2"></i>
+                        <p class="text-muted">Aucun produit dans cette livraison.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Comparaison avec la commande -->
+        {% if livraison.commande.lignes.exists %}
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Comparaison commande vs livraison</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Produit</th>
+                                    <th>Qté commandée</th>
+                                    <th>Qté livrée</th>
+                                    <th>Écart</th>
+                                    <th>Statut</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for ligne_commande in livraison.commande.lignes.all %}
+                                    <tr>
+                                        <td>{{ ligne_commande.produit.nom }}</td>
+                                        <td>
+                                            <span class="badge bg-info">{{ ligne_commande.quantite_commandee }}</span>
+                                        </td>
+                                        <td>
+                                    {% with quantite_livree=livraison_data|get_item:ligne_commande.produit.id %}
+                                    {% if quantite_livree %}
+                                    <span class="badge bg-primary">{{ quantite_livree }}</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">0</span>
+                                            {% endif %}
+                                    {% endwith %}
+                                        </td>
+                                        <td>
+                                    {% with quantite_livree=livraison_data|get_item:ligne_commande.produit.id %}
+                                    {% if quantite_livree %}
+                                    {% with ecart=quantite_livree|add:0|add:ligne_commande.quantite_commandee|mul:-1 %}
+                                                    {% if ecart == 0 %}
+                                                        <span class="badge bg-success">0</span>
+                                                    {% elif ecart > 0 %}
+                                                        <span class="badge bg-info">+{{ ecart }}</span>
+                                                    {% else %}
+                                                        <span class="badge bg-warning">{{ ecart }}</span>
+                                                    {% endif %}
+                                                {% endwith %}
+                                            {% else %}
+                                                <span class="badge bg-danger">-{{ ligne_commande.quantite_commandee }}</span>
+                                            {% endif %}
+                                    {% endwith %}
+                                        </td>
+                                        <td>
+                                    {% with quantite_livree=livraison_data|get_item:ligne_commande.produit.id %}
+                                    {% if quantite_livree %}
+                                    {% if quantite_livree == ligne_commande.quantite_commandee %}
+                                                    <span class="badge bg-success">Complet</span>
+                                    {% elif quantite_livree > 0 %}
+                                                    <span class="badge bg-warning">Partiel</span>
+                                                {% endif %}
+                                            {% else %}
+                                                <span class="badge bg-danger">Non livré</span>
+                                            {% endif %}
+                                    {% endwith %}
+                                </td>
+                            </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="col-md-4">
+        <!-- Résumé -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Résumé</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Statut :</span>
+                    <strong>
+                        {% if livraison.statut == 'EN_TRANSIT' %}
+                            <span class="badge bg-warning">{{ livraison.get_statut_display }}</span>
+                        {% elif livraison.statut == 'RECU' %}
+                            <span class="badge bg-success">{{ livraison.get_statut_display }}</span>
+                        {% elif livraison.statut == 'PARTIEL' %}
+                            <span class="badge bg-info">{{ livraison.get_statut_display }}</span>
+                        {% elif livraison.statut == 'ANNULE' %}
+                            <span class="badge bg-danger">{{ livraison.get_statut_display }}</span>
+                        {% endif %}
+                    </strong>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Nombre de produits :</span>
+                    <strong>{{ lignes.count }}</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Quantité totale :</span>
+                    <strong>{{ total_quantite|default:0 }}</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Lots uniques :</span>
+                    <strong>{{ lots_uniques|default:0 }}</strong>
+                </div>
+                {% if livraison.statut == 'RECU' and livraison.bon_reception %}
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Bon de réception :</span>
+                        <strong>
+                            <a href="{% url 'pharmacies:bon_reception_detail' livraison.bon_reception.pk %}">
+                                {{ livraison.bon_reception }}
+                            </a>
+                        </strong>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Planning -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0">Planning</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-2">
+                    <strong>Date prévue :</strong><br>
+                    <span class="text-primary">{{ livraison.date_livraison_prevue|date:"l d F Y" }}</span>
+                    {% if livraison.date_livraison_prevue < today and livraison.statut == 'EN_TRANSIT' %}
+                        <br><small class="text-danger">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            Retard de {{ today|sub:livraison.date_livraison_prevue }} jour(s)
+                        </small>
+                    {% endif %}
+                </div>
+                {% if livraison.date_reception %}
+                    <div class="mb-2">
+                        <strong>Date de réception :</strong><br>
+                        <span class="text-success">{{ livraison.date_reception|date:"l d F Y à H:i" }}</span>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0">Actions</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    {% if livraison.statut in 'EN_TRANSIT,PARTIEL' %}
+                        <button class="btn btn-success" onclick="receiveLivraison()">
+                            <i class="fas fa-check"></i> Marquer comme reçue
+                        </button>
+                    {% endif %}
+                    {% if livraison.statut == 'RECU' and livraison.bon_reception %}
+                        <a href="{% url 'pharmacies:bon_reception_detail' livraison.bon_reception.pk %}" 
+                           class="btn btn-info">
+                            <i class="fas fa-receipt"></i> Voir le bon de réception
+                        </a>
+                        <a href="{% url 'pharmacies:bon_reception_print' livraison.bon_reception.pk %}" 
+                           class="btn btn-outline-success" target="_blank">
+                            <i class="fas fa-print"></i> Imprimer le bon
+                        </a>
+                    {% endif %}
+                    <a href="{% url 'pharmacies:commande_fournisseur_detail' livraison.commande.pk %}" 
+                       class="btn btn-outline-primary">
+                        <i class="fas fa-shopping-cart"></i> Voir la commande
+                    </a>
+                    <button class="btn btn-outline-secondary" onclick="trackLivraison()">
+                        <i class="fas fa-route"></i> Suivi livraison
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alertes -->
+        {% if alertes %}
+            <div class="card mt-3 border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <h6 class="mb-0"><i class="fas fa-exclamation-triangle"></i> Alertes</h6>
+                </div>
+                <div class="card-body">
+                    {% for alerte in alertes %}
+                        <div class="alert alert-warning alert-sm">
+                            <small>{{ alerte }}</small>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function receiveLivraison() {
+    if (!confirm('Êtes-vous sûr de vouloir marquer cette livraison comme reçue ?\n\nCela va automatiquement :\n• Mettre à jour le stock\n• Générer un bon de réception\n• Enregistrer les mouvements de stock')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/pharmacies/approvisionnement/livraisons/{{ livraison.pk }}/reception/`, {
+            method: 'POST',
+            ...fetchConfig
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showMessage('Livraison marquée comme reçue avec succès', 'success');
+            setTimeout(() => {
+                location.reload();
+            }, 2000);
+        } else {
+            showMessage(result.message || 'Erreur lors de la réception', 'danger');
+        }
+    } catch (error) {
+        showMessage('Erreur lors de la réception', 'danger');
+    }
+}
+
+function trackLivraison() {
+    // Simuler un suivi de livraison
+    showMessage('Fonctionnalité de suivi en développement', 'info');
+}
+
+// Calculer les dates pour les comparaisons
+const today = new Date();
+const warningDate = new Date();
+warningDate.setDate(today.getDate() + 30);
+</script>
+{% endblock %}

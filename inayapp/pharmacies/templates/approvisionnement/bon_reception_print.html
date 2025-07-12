@@ -1,0 +1,362 @@
+<!-- templates/pharmacies/approvisionnement/bon_reception_print.html -->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ bon_reception }} - Bon de réception</title>
+    <style>
+        @media print {
+            body { margin: 0; }
+            .no-print { display: none; }
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            line-height: 1.4;
+            color: #333;
+            margin: 20px;
+        }
+        
+        .header {
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            color: #007bff;
+            margin: 0;
+            font-size: 24px;
+        }
+        
+        .header .subtitle {
+            color: #666;
+            margin: 5px 0;
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .info-box {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            background-color: #f8f9fa;
+        }
+        
+        .info-box h3 {
+            margin: 0 0 10px 0;
+            color: #007bff;
+            font-size: 14px;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 5px;
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+        
+        .info-label {
+            font-weight: bold;
+            color: #555;
+        }
+        
+        .products-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+        
+        .products-table th,
+        .products-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        
+        .products-table th {
+            background-color: #007bff;
+            color: white;
+            font-weight: bold;
+        }
+        
+        .products-table tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        
+        .products-table tr:hover {
+            background-color: #e9ecef;
+        }
+        
+        .total-row {
+            background-color: #e3f2fd !important;
+            font-weight: bold;
+        }
+        
+        .footer {
+            margin-top: 40px;
+            border-top: 1px solid #ddd;
+            padding-top: 20px;
+        }
+        
+        .signature-area {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 50px;
+            margin-top: 30px;
+        }
+        
+        .signature-box {
+            text-align: center;
+            border: 1px dashed #ccc;
+            padding: 30px 10px;
+            height: 80px;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 2px 6px;
+            font-size: 10px;
+            font-weight: bold;
+            border-radius: 3px;
+            color: white;
+        }
+        
+        .badge-success { background-color: #28a745; }
+        .badge-warning { background-color: #ffc107; color: #212529; }
+        .badge-danger { background-color: #dc3545; }
+        .badge-primary { background-color: #007bff; }
+        
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .mb-0 { margin-bottom: 0; }
+        
+        @page {
+            margin: 2cm;
+            @bottom-center {
+                content: "Page " counter(page) " sur " counter(pages);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- En-tête -->
+    <div class="header">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <h1>BON DE RÉCEPTION</h1>
+                <div class="subtitle">{{ bon_reception }}</div>
+                <div class="subtitle">Date: {{ bon_reception.date_creation|date:"d/m/Y à H:i" }}</div>
+            </div>
+            <div style="text-align: right;">
+                <strong>SYSTÈME DE GESTION PHARMACIE</strong><br>
+                <small>Approvisionnement & Stock</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Informations générales -->
+    <div class="info-grid">
+        <div class="info-box">
+            <h3>INFORMATIONS RÉCEPTION</h3>
+            <div class="info-row">
+                <span class="info-label">Référence:</span>
+                <span>{{ bon_reception }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Date de création:</span>
+                <span>{{ bon_reception.date_creation|date:"d/m/Y H:i" }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Contrôleur:</span>
+                <span>
+                    {% if bon_reception.controleur %}
+                        {{ bon_reception.controleur.get_full_name|default:bon_reception.controleur.username }}
+                    {% else %}
+                        Automatique
+                    {% endif %}
+                </span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Livraison:</span>
+                <span>{{ bon_reception.livraison }}</span>
+            </div>
+        </div>
+
+        <div class="info-box">
+            <h3>FOURNISSEUR</h3>
+            <div class="info-row">
+                <span class="info-label">Nom:</span>
+                <span>{{ bon_reception.livraison.commande.fournisseur.nom }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Téléphone:</span>
+                <span>{{ bon_reception.livraison.commande.fournisseur.telephone|default:"Non renseigné" }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Email:</span>
+                <span>{{ bon_reception.livraison.commande.fournisseur.email|default:"Non renseigné" }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Commande:</span>
+                <span>{{ bon_reception.livraison.commande }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Détails des produits -->
+    <h3>DÉTAIL DES PRODUITS REÇUS</h3>
+    <table class="products-table">
+        <thead>
+            <tr>
+                <th style="width: 30%;">Produit</th>
+                <th style="width: 15%;">Code Barre</th>
+                <th style="width: 10%;">Qté</th>
+                <th style="width: 8%;">Unité</th>
+                <th style="width: 15%;">N° Lot</th>
+                <th style="width: 12%;">Péremption</th>
+                <th style="width: 10%;">État</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ligne in bon_reception.details_livraison %}
+                <tr>
+                    <td>
+                        <strong>{{ ligne.produit.nom }}</strong>
+                        {% if ligne.produit.description %}
+                            <br><small style="color: #666;">{{ ligne.produit.description|truncatechars:50 }}</small>
+                        {% endif %}
+                    </td>
+                    <td>{{ ligne.produit.code_barre }}</td>
+                    <td class="text-center">
+                        <span class="badge badge-primary">{{ ligne.quantite_livree }}</span>
+                    </td>
+                    <td>{{ ligne.produit.unite }}</td>
+                    <td><code>{{ ligne.numero_lot }}</code></td>
+                    <td>
+                        {{ ligne.date_peremption|date:"d/m/Y" }}
+                        {% if ligne.date_peremption < today %}
+                            <br><span class="badge badge-danger">Périmé</span>
+                        {% elif ligne.date_peremption < warning_date %}
+                            <br><span class="badge badge-warning">Attention</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if ligne.date_peremption >= today %}
+                            <span class="badge badge-success">Conforme</span>
+                        {% else %}
+                            <span class="badge badge-danger">Non conforme</span>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center" style="color: #666; font-style: italic;">
+                        Aucun produit dans ce bon de réception
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr class="total-row">
+                <td colspan="2"><strong>TOTAUX</strong></td>
+                <td class="text-center">
+                    <strong>{{ bon_reception.details_livraison.aggregate.total_quantite|default:0 }}</strong>
+                </td>
+                <td colspan="4"></td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <!-- Résumé -->
+    <div class="info-grid">
+        <div class="info-box">
+            <h3>RÉSUMÉ DE LA RÉCEPTION</h3>
+            <div class="info-row">
+                <span class="info-label">Nombre de produits:</span>
+                <span>{{ bon_reception.details_livraison.count }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Quantité totale:</span>
+                <span>{{ bon_reception.details_livraison.aggregate.total_quantite|default:0 }} unités</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Lots uniques:</span>
+                <span>{{ bon_reception.details_livraison.values.numero_lot.distinct.count|default:0 }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Statut:</span>
+                <span class="badge badge-success">Reçu et contrôlé</span>
+            </div>
+        </div>
+
+        <div class="info-box">
+            <h3>IMPACT SUR LE STOCK</h3>
+            <div style="font-size: 11px; color: #666;">
+                <p class="mb-0">✓ Stock mis à jour automatiquement</p>
+                <p class="mb-0">✓ Mouvements de stock enregistrés</p>
+                <p class="mb-0">✓ Lots et dates de péremption tracés</p>
+                <p class="mb-0">✓ Disponibilité produits actualisée</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Observations -->
+    <div class="info-box" style="margin-bottom: 30px;">
+        <h3>OBSERVATIONS ET CONTRÔLES</h3>
+        <div style="min-height: 60px; border: 1px dashed #ccc; padding: 10px; margin-top: 10px; background-color: white;">
+            <small style="color: #999;">Espace réservé aux observations du contrôleur...</small>
+        </div>
+    </div>
+
+    <!-- Signatures -->
+    <div class="footer">
+        <h3>SIGNATURES ET VALIDATION</h3>
+        <div class="signature-area">
+            <div class="signature-box">
+                <div style="margin-bottom: 10px;"><strong>LIVREUR</strong></div>
+                <div style="font-size: 10px; color: #666;">Signature et cachet</div>
+            </div>
+            <div class="signature-box">
+                <div style="margin-bottom: 10px;"><strong>PHARMACIEN RESPONSABLE</strong></div>
+                <div style="font-size: 10px; color: #666;">Signature et cachet</div>
+            </div>
+        </div>
+        
+        <div style="margin-top: 20px; font-size: 10px; color: #666; text-align: center;">
+            Document généré automatiquement le {{ "now"|date:"d/m/Y à H:i" }} par le système de gestion pharmacie.
+            <br>Ce bon de réception certifie la conformité de la livraison selon les contrôles effectués.
+        </div>
+    </div>
+
+    <!-- Boutons d'impression (masqués à l'impression) -->
+    <div class="no-print" style="position: fixed; top: 20px; right: 20px; z-index: 1000;">
+        <button onclick="window.print()" style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; margin-right: 10px;">
+            🖨️ Imprimer
+        </button>
+        <button onclick="window.close()" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer;">
+            ✖️ Fermer
+        </button>
+    </div>
+
+    <script>
+        // Impression automatique si paramètre URL présent
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('auto_print') === 'true') {
+            window.onload = function() {
+                setTimeout(() => {
+                    window.print();
+                }, 500);
+            };
+        }
+    </script>
+</body>
+</html>

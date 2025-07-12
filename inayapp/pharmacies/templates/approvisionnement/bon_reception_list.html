@@ -1,0 +1,344 @@
+<!-- templates/pharmacies/approvisionnement/bon_reception_list.html -->
+{% extends 'approvisionnement/base_approvisionnement.html' %}
+
+{% block title %}Bons de réception - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-receipt"></i> Bons de réception</h2>
+    <div class="btn-group">
+        <button class="btn btn-outline-success" onclick="exportToPDF()">
+            <i class="fas fa-file-pdf"></i> Export PDF
+        </button>
+        <button class="btn btn-outline-primary" onclick="exportToExcel()">
+            <i class="fas fa-file-excel"></i> Export Excel
+        </button>
+    </div>
+</div>
+
+<!-- Filtres -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" id="filterForm">
+            <div class="row">
+                <div class="col-md-3">
+                    <label for="fournisseur" class="form-label">Fournisseur</label>
+                    <input type="text" class="form-control" id="fournisseur" name="fournisseur" 
+                           value="{{ request.GET.fournisseur }}" placeholder="Nom du fournisseur">
+                </div>
+                <div class="col-md-2">
+                    <label for="date_debut" class="form-label">Date début</label>
+                    <input type="date" class="form-control" id="date_debut" name="date_debut" 
+                           value="{{ request.GET.date_debut }}">
+                </div>
+                <div class="col-md-2">
+                    <label for="date_fin" class="form-label">Date fin</label>
+                    <input type="date" class="form-control" id="date_fin" name="date_fin" 
+                           value="{{ request.GET.date_fin }}">
+                </div>
+                <div class="col-md-2">
+                    <label for="reference" class="form-label">Référence</label>
+                    <input type="text" class="form-control" id="reference" name="reference" 
+                           value="{{ request.GET.reference }}" placeholder="BR-...">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">&nbsp;</label>
+                    <div>
+                        <button type="submit" class="btn btn-outline-primary">
+                            <i class="fas fa-filter"></i> Filtrer
+                        </button>
+                        <a href="{% url 'pharmacies:bon_reception_list' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times"></i> Réinitialiser
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Liste des bons de réception -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Liste des bons de réception</h5>
+    </div>
+    <div class="card-body">
+        {% if bons_reception %}
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Référence</th>
+                            <th>Livraison</th>
+                            <th>Commande</th>
+                            <th>Fournisseur</th>
+                            <th>Date création</th>
+                            <th>Contrôleur</th>
+                            <th>Produits</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for bon in bons_reception %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'pharmacies:bon_reception_detail' bon.pk %}">
+                                        <strong>{{ bon }}</strong>
+                                    </a>
+                                </td>
+                                <td>
+                                    <a href="{% url 'pharmacies:livraison_detail' bon.livraison.pk %}">
+                                        {{ bon.livraison }}
+                                    </a>
+                                </td>
+                                <td>
+                                    <a href="{% url 'pharmacies:commande_fournisseur_detail' bon.livraison.commande.pk %}">
+                                        {{ bon.livraison.commande }}
+                                    </a>
+                                </td>
+                                <td>
+                                    <strong>{{ bon.livraison.commande.fournisseur.nom }}</strong>
+                                    <br><small class="text-muted">{{ bon.livraison.commande.fournisseur.telephone }}</small>
+                                </td>
+                                <td>
+                                    <strong>{{ bon.date_creation|date:"d/m/Y" }}</strong>
+                                    <br><small class="text-muted">{{ bon.date_creation|date:"H:i" }}</small>
+                                </td>
+                                <td>
+                                    {% if bon.controleur %}
+                                        {{ bon.controleur.get_full_name|default:bon.controleur.username }}
+                                    {% else %}
+                                        <span class="text-muted">Automatique</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-info">{{ bon.livraison.lignes.count }} produits</span>
+                                    <br><small class="text-muted">
+                                        {% with total_quantite=bon.livraison.lignes.aggregate.total_quantite %}
+                                            {{ total_quantite|default:0 }} unités
+                                        {% endwith %}
+                                    </small>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{% url 'pharmacies:bon_reception_detail' bon.pk %}" 
+                                           class="btn btn-outline-primary" title="Voir détails">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="{% url 'pharmacies:bon_reception_print' bon.pk %}" 
+                                           class="btn btn-outline-success" title="Imprimer" target="_blank">
+                                            <i class="fas fa-print"></i>
+                                        </a>
+                                        <button class="btn btn-outline-secondary" 
+                                                onclick="downloadPDF({{ bon.pk }})" 
+                                                title="Télécharger PDF">
+                                            <i class="fas fa-download"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if is_paginated %}
+                <nav aria-label="Navigation des pages">
+                    <ul class="pagination justify-content-center">
+                        {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?{% if request.GET.fournisseur %}fournisseur={{ request.GET.fournisseur }}&{% endif %}{% if request.GET.date_debut %}date_debut={{ request.GET.date_debut }}&{% endif %}{% if request.GET.date_fin %}date_fin={{ request.GET.date_fin }}&{% endif %}{% if request.GET.reference %}reference={{ request.GET.reference }}&{% endif %}page={{ page_obj.previous_page_number }}">&laquo; Précédent</a>
+                            </li>
+                        {% endif %}
+                        
+                        {% for num in page_obj.paginator.page_range %}
+                            {% if page_obj.number == num %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ num }}</span>
+                                </li>
+                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?{% if request.GET.fournisseur %}fournisseur={{ request.GET.fournisseur }}&{% endif %}{% if request.GET.date_debut %}date_debut={{ request.GET.date_debut }}&{% endif %}{% if request.GET.date_fin %}date_fin={{ request.GET.date_fin }}&{% endif %}{% if request.GET.reference %}reference={{ request.GET.reference }}&{% endif %}page={{ num }}">{{ num }}</a>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?{% if request.GET.fournisseur %}fournisseur={{ request.GET.fournisseur }}&{% endif %}{% if request.GET.date_debut %}date_debut={{ request.GET.date_debut }}&{% endif %}{% if request.GET.date_fin %}date_fin={{ request.GET.date_fin }}&{% endif %}{% if request.GET.reference %}reference={{ request.GET.reference }}&{% endif %}page={{ page_obj.next_page_number }}">Suivant &raquo;</a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            {% endif %}
+        {% else %}
+            <div class="text-center py-4">
+                <i class="fas fa-receipt fa-3x text-muted mb-3"></i>
+                <p class="text-muted">Aucun bon de réception trouvé.</p>
+                <p class="text-muted">Les bons de réception sont générés automatiquement lors de la réception des livraisons.</p>
+                <a href="{% url 'pharmacies:livraison_list' %}" class="btn btn-primary">
+                    <i class="fas fa-truck"></i> Voir les livraisons
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Statistiques -->
+<div class="row mt-4">
+    <div class="col-md-3">
+        <div class="card text-center border-primary">
+            <div class="card-body">
+                <i class="fas fa-receipt fa-2x text-primary mb-2"></i>
+                <h5 class="card-title">{{ stats.total|default:0 }}</h5>
+                <p class="card-text">Total bons</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center border-success">
+            <div class="card-body">
+                <i class="fas fa-calendar-day fa-2x text-success mb-2"></i>
+                <h5 class="card-title">{{ stats.aujourdhui|default:0 }}</h5>
+                <p class="card-text">Aujourd'hui</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center border-info">
+            <div class="card-body">
+                <i class="fas fa-calendar-week fa-2x text-info mb-2"></i>
+                <h5 class="card-title">{{ stats.cette_semaine|default:0 }}</h5>
+                <p class="card-text">Cette semaine</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center border-warning">
+            <div class="card-body">
+                <i class="fas fa-calendar-alt fa-2x text-warning mb-2"></i>
+                <h5 class="card-title">{{ stats.ce_mois|default:0 }}</h5>
+                <p class="card-text">Ce mois</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function exportToPDF() {
+    // Fonction pour exporter en PDF
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '{% url "pharmacies:bon_reception_export_pdf" %}';
+    
+    // Ajouter le token CSRF
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (csrfToken) {
+        form.appendChild(csrfToken.cloneNode(true));
+    }
+    
+    // Ajouter les paramètres de filtre
+    const params = new URLSearchParams(window.location.search);
+    params.forEach((value, key) => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = key;
+        input.value = value;
+        form.appendChild(input);
+    });
+    
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
+}
+
+function exportToExcel() {
+    // Fonction pour exporter en Excel
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '{% url "pharmacies:bon_reception_export_excel" %}';
+    
+    // Ajouter le token CSRF
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (csrfToken) {
+        form.appendChild(csrfToken.cloneNode(true));
+    }
+    
+    // Ajouter les paramètres de filtre
+    const params = new URLSearchParams(window.location.search);
+    params.forEach((value, key) => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = key;
+        input.value = value;
+        form.appendChild(input);
+    });
+    
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
+}
+
+function downloadPDF(bonId) {
+    // Fonction pour télécharger le PDF d'un bon spécifique
+    window.open(`{% url 'pharmacies:bon_reception_print' 0 %}`.replace('0', bonId), '_blank');
+}
+
+// Auto-submit du formulaire de filtre avec un délai
+document.addEventListener('DOMContentLoaded', function() {
+    const filterInputs = document.querySelectorAll('#filterForm input[type="text"], #filterForm input[type="date"]');
+    
+    filterInputs.forEach(input => {
+        let timeout;
+        input.addEventListener('input', function() {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => {
+                document.getElementById('filterForm').submit();
+            }, 500);
+        });
+    });
+});
+</script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.table td {
+    vertical-align: middle;
+}
+
+.badge {
+    font-size: 0.8em;
+}
+
+.card-title {
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.pagination {
+    margin-top: 1rem;
+}
+
+.btn-group-sm .btn {
+    padding: 0.25rem 0.5rem;
+}
+
+.table-responsive {
+    overflow-x: auto;
+}
+
+@media (max-width: 768px) {
+    .table-responsive table {
+        font-size: 0.9em;
+    }
+    
+    .btn-group-sm .btn {
+        padding: 0.2rem 0.4rem;
+    }
+}
+</style>
+{% endblock %}

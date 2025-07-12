@@ -272,3 +272,36 @@ class HonorairesMedecin(models.Model):
         """Validation supplémentaire"""
         if self.montant < Decimal("0"):
             raise ValidationError("Le montant ne peut pas être négatif")
+
+
+# finance/models.py
+class BonDePaiement(models.Model):
+    METHODE_CHOICES = [
+        ("ESP", "Espèces"),
+        ("CHQ", "Chèque"),
+        ("CB", "Carte Bancaire"),
+    ]
+
+    prestation = models.ForeignKey(
+        "medical.Prestation", on_delete=models.PROTECT, related_name="bons_de_paiement"
+    )
+    montant = models.DecimalField(max_digits=10, decimal_places=2)
+    date_paiement = models.DateTimeField(default=timezone.now)
+    encaisse_par = models.ForeignKey(User, on_delete=models.PROTECT)
+    methode = models.CharField(max_length=10, choices=METHODE_CHOICES, default="ESP")
+    reference = models.CharField(max_length=50, unique=True, blank=True)
+
+    def __str__(self):
+        return f"Bon #{self.reference} - {self.montant}€"
+
+    def save(self, *args, **kwargs):
+        if not self.reference:
+            # Génération automatique de la référence
+            date_part = timezone.now().strftime("%Y%m%d")
+            last_id = BonDePaiement.objects.count() + 1
+            self.reference = f"BON-{date_part}-{last_id:05d}"
+        super().save(*args, **kwargs)
+
+    class Meta:
+        verbose_name = "Bon de paiement"
+        verbose_name_plural = "Bons de paiement"

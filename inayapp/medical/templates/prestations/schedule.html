@@ -1,0 +1,280 @@
+{% extends "layout.html" %}
+{% load static %}
+{% load custom_filters %}
+{% block content %}
+    <style>
+        .card-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+        }
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        .form-control:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+        .acte-row {
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            padding: 20px;
+            border-left: 4px solid #667eea;
+        }
+        .remove-acte {
+            color: #dc3545;
+            cursor: pointer;
+            float: right;
+            margin-top: -5px;
+        }
+        .remove-acte:hover {
+            color: #c82333;
+        }
+        .alert {
+            border-radius: 10px;
+        }
+        .time-input {
+            max-width: 120px;
+        }
+        .schedule-info {
+            background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+    </style>
+
+    <div class="container mt-4">
+        <div class="row justify-content-center">
+            <div class="col-md-10">
+                <div class="card shadow-lg">
+                    <div class="card-header text-center">
+                        <h3><i class="fas fa-calendar-plus me-2"></i>Programmer une Prestation</h3>
+                    </div>
+                    <div class="card-body">
+                        <!-- Informations de programmation -->
+                        <div class="schedule-info">
+                            <h5><i class="fas fa-info-circle me-2"></i>Information</h5>
+                            <p class="mb-0">Cette prestation sera créée avec le statut <strong>"PLANIFIÉ"</strong>. 
+                            Vous pourrez l'exécuter plus tard en ajoutant les consommations de produits.</p>
+                        </div>
+
+                        <!-- Affichage des erreurs -->
+                        {% if errors %}
+                            <div class="alert alert-danger">
+                                <h6><i class="fas fa-exclamation-triangle me-2"></i>Erreurs :</h6>
+                                <ul class="mb-0">
+                                    {% for error in errors %}
+                                        <li>{{ error }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        {% endif %}
+
+                        <form method="post" id="scheduleForm">
+                            {% csrf_token %}
+                            
+                            <!-- Informations de base -->
+                            <div class="row mb-4">
+                                <div class="col-md-6">
+                                    <label for="patient" class="form-label">
+                                        <i class="fas fa-user me-1"></i>Patient *
+                                    </label>
+                                    <select name="patient" id="patient" class="form-control" required>
+                                        <option value="">Sélectionner un patient</option>
+                                        {% for patient in patients %}
+                                            <option value="{{ patient.id }}">{{ patient.nom_complet }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="medecin" class="form-label">
+                                        <i class="fas fa-user-md me-1"></i>Médecin *
+                                    </label>
+                                    <select name="medecin" id="medecin" class="form-control" required>
+                                        <option value="">Sélectionner un médecin</option>
+                                        {% for medecin in medecins %}
+                                            <option value="{{ medecin.id }}">{{ medecin.nom_complet }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Date et heure -->
+                            <div class="row mb-4">
+                                <div class="col-md-6">
+                                    <label for="date_prestation" class="form-label">
+                                        <i class="fas fa-calendar me-1"></i>Date programmée *
+                                    </label>
+                                    <input type="date" name="date_prestation" id="date_prestation" 
+                                           class="form-control" required min="{{ now|date:'Y-m-d' }}">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="heure_prestation" class="form-label">
+                                        <i class="fas fa-clock me-1"></i>Heure programmée
+                                    </label>
+                                    <input type="time" name="heure_prestation" id="heure_prestation" 
+                                           class="form-control time-input" value="08:00">
+                                </div>
+                            </div>
+
+                            <!-- Actes médicaux -->
+                            <div class="mb-4">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h5><i class="fas fa-procedures me-2"></i>Actes médicaux</h5>
+                                    <button type="button" class="btn btn-primary btn-sm" onclick="addActeRow()">
+                                        <i class="fas fa-plus me-1"></i>Ajouter un acte
+                                    </button>
+                                </div>
+                                <div id="actes-container">
+                                    <!-- Les actes seront ajoutés ici dynamiquement -->
+                                </div>
+                            </div>
+
+
+                            <!-- Observations -->
+                            <div class="mb-4">
+                                <label for="observations" class="form-label">
+                                    <i class="fas fa-notes-medical me-1"></i>Observations
+                                </label>
+                                <textarea name="observations" id="observations" class="form-control" rows="3" 
+                                          placeholder="Observations médicales pour cette prestation..."></textarea>
+                            </div>
+
+                            <!-- Boutons -->
+                            <div class="row">
+                                <div class="col-12 text-center">
+                                    <button type="submit" class="btn btn-primary btn-lg me-3">
+                                        <i class="fas fa-calendar-check me-2"></i>Programmer la Prestation
+                                    </button>
+                                    <a href="{% url 'medical:prestation_list' %}" class="btn btn-secondary btn-lg">
+                                        <i class="fas fa-times me-2"></i>Annuler
+                                    </a>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Données des actes (depuis Django)
+        const actesData = {{ actes_json|safe }};
+        let acteCounter = 0;
+
+        function addActeRow() {
+            const container = document.getElementById('actes-container');
+            const row = document.createElement('div');
+            row.className = 'acte-row';
+            row.id = `acte-${acteCounter}`;
+            
+            row.innerHTML = `
+                <i class="fas fa-times remove-acte" onclick="removeActeRow(${acteCounter})"></i>
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="form-label">Acte médical *</label>
+                        <select name="actes[]" class="form-control acte-select" required onchange="updateConventions(${acteCounter})">
+                            <option value="">Sélectionner un acte</option>
+                            ${actesData.map(acte => `<option value="${acte.id}">${acte.code} - ${acte.libelle}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Convention</label>
+                        <select name="conventions[]" class="form-control convention-select" onchange="updateTarif(${acteCounter})">
+                            <option value="">Aucune convention</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Tarif (DA) *</label>
+                        <input type="number" name="tarifs[]" class="form-control tarif-input" 
+                               step="0.01" min="0" required readonly>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Convention accordée</label>
+                        <select name="convention_accordee[]" class="form-control">
+                            <option value="">N/A</option>
+                            <option value="oui">Oui</option>
+                            <option value="non">Non</option>
+                        </select>
+                    </div>
+                </div>
+            `;
+            
+            container.appendChild(row);
+            acteCounter++;
+        }
+
+        function removeActeRow(index) {
+            const row = document.getElementById(`acte-${index}`);
+            if (row) {
+                row.remove();
+            }
+        }
+
+        function updateConventions(index) {
+            const acteSelect = document.querySelector(`#acte-${index} .acte-select`);
+            const conventionSelect = document.querySelector(`#acte-${index} .convention-select`);
+            
+            const acteId = acteSelect.value;
+            const acte = actesData.find(a => a.id == acteId);
+            
+            // Vider les conventions
+            conventionSelect.innerHTML = '<option value="">Aucune convention</option>';
+            
+            if (acte && acte.conventions) {
+                acte.conventions.forEach(conv => {
+                    const option = document.createElement('option');
+                    option.value = conv.id;
+                    option.textContent = conv.nom;
+                    conventionSelect.appendChild(option);
+                });
+            }
+            
+            // Mettre à jour le tarif
+            updateTarif(index);
+        }
+
+        function updateTarif(index) {
+            const acteSelect = document.querySelector(`#acte-${index} .acte-select`);
+            const conventionSelect = document.querySelector(`#acte-${index} .convention-select`);
+            const tarifInput = document.querySelector(`#acte-${index} .tarif-input`);
+            
+            const acteId = acteSelect.value;
+            const conventionId = conventionSelect.value;
+            
+            if (acteId) {
+                fetch(`/medical/get-tarif/?acte_id=${acteId}&convention_id=${conventionId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.tarif) {
+                            tarifInput.value = data.tarif;
+                        }
+                    })
+                    .catch(error => console.error('Erreur:', error));
+            }
+        }
+
+        // Ajouter automatiquement un premier acte
+        document.addEventListener('DOMContentLoaded', function() {
+            addActeRow();
+            
+            // Définir la date minimale à aujourd'hui
+            const dateInput = document.getElementById('date_prestation');
+            const today = new Date();
+            const tomorrow = new Date(today);
+            tomorrow.setDate(today.getDate() + 1);
+            dateInput.min = tomorrow.toISOString().split('T')[0];
+        });
+    </script>
+    {% endblock %}

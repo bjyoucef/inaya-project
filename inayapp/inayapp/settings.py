@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     "crispy_bootstrap5",
     "import_export",
     "rest_framework",
+    "django_extensions",
 ]
 INSTALLED_APPS += [
     "audit",
@@ -90,8 +91,8 @@ THUMBNAIL_PROCESSORS = (
 # settings.py
 ANVIZ_CONFIG = {
     'IP': '192.168.10.250',
-    'USERNAME': 'admin',  # À changer si possible
-    'PASSWORD': '12345',   # À changer absolument
+    'USERNAME': 'admin',
+    'PASSWORD': '12345',
     'SESSION_TIMEOUT': 1800  # 30 minutes
 }
 
@@ -156,7 +157,7 @@ X_FRAME_OPTIONS = 'ALLOWALL'
 DATABASES = {
     "default": {
         'ENGINE': 'django.db.backends.mysql',  # Django utilise mysqlclient pour MariaDB
-        'NAME': 'nvb',
+        'NAME': 'inayadb',
         'USER': 'root',
         'PASSWORD': '@Dmin1548@',
         'HOST': '127.0.0.1',
@@ -186,6 +187,8 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+LOGIN_REDIRECT_URL = "/"
+LOGIN_URL = "login"
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/

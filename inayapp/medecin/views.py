@@ -1,9 +1,13 @@
+from django.db.models import F, Q, Sum, Value
 from django.urls import reverse_lazy
-from django.views.generic import ListView, CreateView, UpdateView, DeleteView
-
-from .models import Medecin
+from django.views.generic import (CreateView, DeleteView, DetailView, ListView,
+                                  UpdateView)
+from medecin.models import Medecin
 from rh.models import Personnel
+
 from .forms import MedecinForm
+from .models import Medecin
+
 
 class MedecinListView(ListView):
     model = Medecin
@@ -48,3 +52,4 @@ class MedecinDeleteView(DeleteView):
     model = Medecin
     template_name = "medecin_confirm_delete.html"
     success_url = reverse_lazy("medecins:list")
+

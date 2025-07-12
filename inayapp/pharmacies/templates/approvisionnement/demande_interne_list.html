@@ -1,0 +1,481 @@
+<!-- templates/pharmacies/approvisionnement/demande_interne_list.html -->
+{% extends 'approvisionnement/base_approvisionnement.html' %}
+{% load approvisionnement_filters %}
+
+{% block title %}Demandes internes - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-exchange-alt"></i> Demandes internes</h2>
+    <a href="{% url 'pharmacies:expression_besoin_create' %}" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Nouvelle demande
+    </a>
+</div>
+
+<!-- Filtres -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" id="filterForm">
+            <div class="row">
+                <div class="col-md-3">
+                    <label for="statut" class="form-label">Statut</label>
+                    <select class="form-select" id="statut" name="statut">
+                        <option value="">Tous les statuts</option>
+                        {% for value, label in statuts %}
+                        <option value="{{ value }}" {% if request.GET.statut == value %}selected{% endif %}>
+                            {{ label }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="priorite" class="form-label">Priorité</label>
+                    <select class="form-select" id="priorite" name="priorite">
+                        <option value="">Toutes les priorités</option>
+                        {% for value, label in priorites %}
+                        <option value="{{ value }}" {% if request.GET.priorite == value %}selected{% endif %}>
+                            {{ label }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="service" class="form-label">Service</label>
+                    <select class="form-select" id="service" name="service">
+                        <option value="">Tous les services</option>
+                        {% for service in services %}
+                        <option value="{{ service.id }}" 
+                        {% if request.GET.service == service.id|stringformat:"s" %}selected{% endif %}>
+                            {{ service.nom }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">&nbsp;</label>
+                    <div>
+                        <button type="submit" class="btn btn-outline-primary">
+                            <i class="fas fa-filter"></i> Filtrer
+                        </button>
+                        <a href="{% url 'pharmacies:demande_interne_list' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times"></i> Réinitialiser
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Liste des demandes internes -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Liste des demandes internes</h5>
+    </div>
+    <div class="card-body">
+        {% if demandes %}
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Référence</th>
+                        <th>Service demandeur</th>
+                        <th>Priorité</th>
+                        <th>Date création</th>
+                        <th>Statut</th>
+                        <th>Total articles</th>
+                        <th>Responsable</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for demande in demandes %}
+                    <tr
+                        class="{% if demande.besoin.priorite == 'CRITIQUE' %}table-danger
+                        {% elif demande.besoin.priorite == 'URGENTE' %}table-warning{% endif %}">
+                        <td>
+                            <a href="{% url 'pharmacies:demande_interne_detail' demande.pk %}">
+                                {{ demande }}
+                            </a>
+                            <br><small class="text-muted">{{ demande.besoin }}</small>
+                        </td>
+                        <td>
+                            <strong>{{ demande.besoin.service_demandeur.nom }}</strong>
+                            <br><small class="text-muted">{{ demande.service_destinataire.nom }}</small>
+                        </td>
+                        <td>
+                            {% if demande.besoin.priorite == 'CRITIQUE' %}
+                            <span class="badge bg-danger">{{ demande.besoin.get_priorite_display }}</span>
+                            {% elif demande.besoin.priorite == 'URGENTE' %}
+                            <span class="badge bg-warning">{{ demande.besoin.get_priorite_display }}</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ demande.besoin.get_priorite_display }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ demande.date_creation|date:"d/m/Y H:i" }}</td>
+                        <td>
+                            {% if demande.statut == 'EN_ATTENTE' %}
+                            <span class="badge bg-warning">{{ demande.get_statut_display }}</span>
+                            {% elif demande.statut == 'VALIDEE' %}
+                            <span class="badge bg-info">{{ demande.get_statut_display }}</span>
+                            {% elif demande.statut == 'PREPAREE' %}
+                            <span class="badge bg-primary">{{ demande.get_statut_display }}</span>
+                            {% elif demande.statut == 'LIVREE' %}
+                            <span class="badge bg-success">{{ demande.get_statut_display }}</span>
+                            {% elif demande.statut == 'REJETEE' %}
+                            <span class="badge bg-danger">{{ demande.get_statut_display }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-info">{{ demande.lignes.count }} produits</span>
+                            <br><small class="text-muted">
+                                {% with total_quantite=demande.lignes.aggregate.total_quantite %}
+                                {{ total_quantite|default:0 }} unités
+                                {% endwith %}
+                            </small>
+                        </td>
+                        <td>
+                            {% if demande.statut == 'EN_ATTENTE' %}
+                            <small class="text-muted">En attente</small>
+                            {% elif demande.validee_par %}
+                            {{ demande.validee_par.get_full_name|default:demande.validee_par.username }}
+                            {% if demande.date_validation %}
+                            <br><small class="text-muted">{{ demande.date_validation|date:"d/m H:i" }}</small>
+                            {% endif %}
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'pharmacies:demande_interne_detail' demande.pk %}"
+                                    class="btn btn-outline-primary" title="Voir détails">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                {% if demande.statut == 'EN_ATTENTE' %}
+                                <button class="btn btn-outline-success" onclick="openValidationModal({{ demande.pk }})"
+                                    title="Valider">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                                <button class="btn btn-outline-danger" onclick="rejectDemande({{ demande.pk }})"
+                                    title="Rejeter">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                                {% elif demande.statut == 'VALIDEE' %}
+                                <button class="btn btn-outline-info" onclick="preparerDemande({{ demande.pk }})"
+                                    title="Préparer">
+                                    <i class="fas fa-boxes"></i>
+                                </button>
+                                {% elif demande.statut == 'PREPAREE' %}
+                                <button class="btn btn-outline-success" onclick="livrerDemande({{ demande.pk }})"
+                                    title="Livrer">
+                                    <i class="fas fa-truck"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if is_paginated %}
+        <nav aria-label="Navigation des pages">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}">&laquo; Précédent</a>
+                </li>
+                {% endif %}
+
+                {% for num in page_obj.paginator.page_range %}
+                {% if page_obj.number == num %}
+                <li class="page-item active">
+                    <span class="page-link">{{ num }}</span>
+                </li>
+                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %} <li class="page-item">
+                    <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                    {% endfor %}
+
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}">Suivant &raquo;</a>
+                    </li>
+                    {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+        {% else %}
+        <div class="text-center py-4">
+            <i class="fas fa-exchange-alt fa-3x text-muted mb-3"></i>
+            <p class="text-muted">Aucune demande interne trouvée.</p>
+            <a href="{% url 'pharmacies:expression_besoin_create' %}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Créer la première demande interne
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Statistiques -->
+<div class="row mt-4">
+    <div class="col-md-3">
+        <div class="card text-center border-warning">
+            <div class="card-body">
+                <i class="fas fa-clock fa-2x text-warning mb-2"></i>
+                <h5 class="card-title">{{ stats.en_attente|default:0 }}</h5>
+                <p class="card-text">En attente</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center border-info">
+            <div class="card-body">
+                <i class="fas fa-check-circle fa-2x text-info mb-2"></i>
+                <h5 class="card-title">{{ stats.validees|default:0 }}</h5>
+                <p class="card-text">Validées</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center border-primary">
+            <div class="card-body">
+                <i class="fas fa-boxes fa-2x text-primary mb-2"></i>
+                <h5 class="card-title">{{ stats.preparees|default:0 }}</h5>
+                <p class="card-text">Préparées</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center border-success">
+            <div class="card-body">
+                <i class="fas fa-truck fa-2x text-success mb-2"></i>
+                <h5 class="card-title">{{ stats.livrees|default:0 }}</h5>
+                <p class="card-text">Livrées</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de validation -->
+<div class="modal fade" id="validationModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Validation de la demande interne</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    Vous pouvez ajuster les quantités accordées en fonction des stocks disponibles.
+                </div>
+                <div id="validationContent">
+                    <!-- Contenu chargé dynamiquement -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-success" onclick="validateDemande()">
+                    <i class="fas fa-check"></i> Valider
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let currentDemandeId = null;
+
+    async function openValidationModal(demandeId) {
+        currentDemandeId = demandeId;
+
+        try {
+            // Charger les détails de la demande
+            const response = await fetch(`/pharmacies/approvisionnement/demandes-internes/${demandeId}/`);
+            const data = await response.text();
+
+            // Extraire les données des lignes (simulation - à adapter selon votre API)
+            // Dans un vrai projet, vous auriez une API dédiée
+            let content = '<div class="table-responsive"><table class="table table-striped">';
+            content += '<thead><tr><th>Produit</th><th>Quantité demandée</th><th>Stock disponible</th><th>Quantité à accorder</th><th>Observations</th></tr></thead>';
+            content += '<tbody id="lignesValidation">';
+            content += '</tbody></table></div>';
+
+            document.getElementById('validationContent').innerHTML = content;
+
+            // Charger les lignes via une requête séparée (à adapter)
+            await loadLignesValidation(demandeId);
+
+            const modal = new bootstrap.Modal(document.getElementById('validationModal'));
+            modal.show();
+        } catch (error) {
+            showMessage('Erreur lors du chargement des données', 'danger');
+        }
+    }
+
+    async function loadLignesValidation(demandeId) {
+        // Cette fonction devrait charger les lignes via une API
+        // Pour l'instant, c'est une simulation
+        const tbody = document.getElementById('lignesValidation');
+        tbody.innerHTML = `
+        <tr>
+            <td colspan="5" class="text-center">
+                <i class="fas fa-spinner fa-spin"></i> Chargement des produits...
+            </td>
+        </tr>
+    `;
+
+        // Simulation d'un délai de chargement
+        setTimeout(() => {
+            tbody.innerHTML = `
+            <tr>
+                <td>Produit exemple</td>
+                <td>10</td>
+                <td><span class="text-success">15 disponible</span></td>
+                <td>
+                    <input type="number" class="form-control quantite-accordee" 
+                           data-ligne-id="1" value="10" min="0" max="10">
+                </td>
+                <td>
+                    <textarea class="form-control" rows="1" placeholder="Observations..."></textarea>
+                </td>
+            </tr>
+        `;
+        }, 1000);
+    }
+
+    async function validateDemande() {
+        if (!currentDemandeId) return;
+
+        const lignes = [];
+        document.querySelectorAll('.quantite-accordee').forEach(input => {
+            const observations = input.closest('tr').querySelector('textarea').value;
+            lignes.push({
+                id: input.dataset.ligneId,
+                quantite_accordee: parseInt(input.value) || 0,
+                observations: observations
+            });
+        });
+
+        try {
+            const response = await fetch(`/pharmacies/approvisionnement/demandes-internes/${currentDemandeId}/validation/`, {
+                method: 'POST',
+                ...fetchConfig,
+                body: JSON.stringify({
+                    action: 'valider',
+                    lignes: lignes
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                showMessage('Demande interne validée avec succès', 'success');
+                location.reload();
+            } else {
+                showMessage(result.message || 'Erreur lors de la validation', 'danger');
+            }
+        } catch (error) {
+            showMessage('Erreur lors de la validation', 'danger');
+        }
+
+        bootstrap.Modal.getInstance(document.getElementById('validationModal')).hide();
+    }
+
+    async function rejectDemande(demandeId) {
+        const observations = prompt('Motif du rejet (optionnel) :');
+
+        if (observations === null) return; // Annulé
+
+        try {
+            const response = await fetch(`/pharmacies/approvisionnement/demandes-internes/${demandeId}/validation/`, {
+                method: 'POST',
+                ...fetchConfig,
+                body: JSON.stringify({
+                    action: 'rejeter',
+                    observations: observations
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                showMessage('Demande interne rejetée', 'success');
+                location.reload();
+            } else {
+                showMessage(result.message || 'Erreur lors du rejet', 'danger');
+            }
+        } catch (error) {
+            showMessage('Erreur lors du rejet', 'danger');
+        }
+    }
+
+    async function preparerDemande(demandeId) {
+        if (!confirm('Êtes-vous sûr de vouloir préparer cette demande ?\n\nCela vérifiera les stocks et marquera la demande comme préparée.')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/pharmacies/approvisionnement/demandes-internes/${demandeId}/validation/`, {
+                method: 'POST',
+                ...fetchConfig,
+                body: JSON.stringify({
+                    action: 'preparer'
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                showMessage('Demande interne préparée avec succès', 'success');
+                location.reload();
+            } else {
+                showMessage(result.message || 'Erreur lors de la préparation', 'danger');
+            }
+        } catch (error) {
+            showMessage('Erreur lors de la préparation', 'danger');
+        }
+    }
+
+    async function livrerDemande(demandeId) {
+        if (!confirm('Êtes-vous sûr de vouloir livrer cette demande ?\n\nCela mettra à jour les stocks et marquera la demande comme livrée.')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/pharmacies/approvisionnement/demandes-internes/${demandeId}/validation/`, {
+                method: 'POST',
+                ...fetchConfig,
+                body: JSON.stringify({
+                    action: 'livrer'
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                showMessage('Demande interne livrée avec succès', 'success');
+                location.reload();
+            } else {
+                showMessage(result.message || 'Erreur lors de la livraison', 'danger');
+            }
+        } catch (error) {
+            showMessage('Erreur lors de la livraison', 'danger');
+        }
+    }
+
+    // Auto-submit du formulaire de filtres
+    document.getElementById('statut').addEventListener('change', function () {
+        document.getElementById('filterForm').submit();
+    });
+
+    document.getElementById('priorite').addEventListener('change', function () {
+        document.getElementById('filterForm').submit();
+    });
+</script>
+{% endblock %}

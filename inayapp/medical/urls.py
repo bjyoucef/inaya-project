@@ -1,10 +1,26 @@
 from django.urls import path
+
 from . import views
 from .views import GetActeProduitsView
 
 app_name = "medical"
 
+urlaudit = [
+    path("audit", views.audit_list, name="audit_list"),
+    path(
+        "audit/prestation/<int:prestation_id>/",
+        views.audit_prestation_detail,
+        name="audit_prestation_detail",
+    ),
+    path("audit/detail/<int:audit_id>/", views.audit_detail, name="audit_detail"),
+]
+
 urlpatterns = [
+    path(
+        "programmer/",
+        views.PrestationProgrammerView.as_view(),
+        name="prestation_programmer",
+    ),
     path(
         "prestations/nouveau/",
         views.PrestationCreateView.as_view(),
@@ -42,4 +58,4 @@ urlpatterns = [
         views.PatientPrestationHistoryView.as_view(),
         name="patient_prestation_history",
     ),
-]
+] + urlaudit

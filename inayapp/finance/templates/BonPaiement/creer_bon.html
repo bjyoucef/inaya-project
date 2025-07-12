@@ -1,0 +1,15 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<h2>Créer Bon de Paiement</h2>
+<p>Patient: {{ prestation.patient.nom_complet }}</p>
+<p>Total prestation: {{ prestation.prix_total }}€</p>
+<p>Reste à payer: {{ reste }}€</p>
+
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" class="btn btn-success">Enregistrer Paiement</button>
+    <a href="{% url 'paiements_especes' %}" class="btn btn-secondary">Annuler</a>
+</form>
+{% endblock %}

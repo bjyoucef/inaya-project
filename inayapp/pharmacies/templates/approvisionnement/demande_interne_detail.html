@@ -1,0 +1,512 @@
+<!-- templates/pharmacies/approvisionnement/demande_interne_detail.html -->
+{% extends 'approvisionnement/base_approvisionnement.html' %}
+{% load approvisionnement_filters %}
+
+{% block title %}{{ demande }} - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-exchange-alt"></i> {{ demande }}</h2>
+    <div>
+        {% if demande.statut == 'EN_ATTENTE' %}
+        <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#validationModal">
+        <i class="fas fa-check"></i> Valider
+    </button>
+        <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#rejetModal">
+        <i class="fas fa-times"></i> Rejeter
+    </button>
+{% elif demande.statut == 'VALIDEE' %}
+        <button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#preparationModal">
+        <i class="fas fa-boxes"></i> Préparer
+    </button>
+{% elif demande.statut == 'PREPAREE' %}
+        <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#livraisonModal">
+        <i class="fas fa-truck"></i> Livrer
+    </button>
+{% endif %}
+       
+        <a href="{% url 'pharmacies:demande_interne_list' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Retour à la liste
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <!-- Informations générales -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Informations de la demande</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <table class="table table-borderless">
+                            <tr>
+                                <td><strong>Référence :</strong></td>
+                                <td>{{ demande }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Expression de besoin :</strong></td>
+                                <td>
+                                    <a href="{% url 'pharmacies:expression_besoin_detail' demande.besoin.pk %}">
+                                        {{ demande.besoin }}
+                                    </a>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>Service demandeur :</strong></td>
+                                <td>{{ demande.besoin.service_demandeur.name }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Service destinataire :</strong></td>
+                                <td>{{ demande.service_destinataire.name }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Priorité :</strong></td>
+                                <td>
+                                    {% if demande.besoin.priorite == 'CRITIQUE' %}
+                                        <span class="badge bg-danger">{{ demande.besoin.get_priorite_display }}</span>
+                                    {% elif demande.besoin.priorite == 'URGENTE' %}
+                                        <span class="badge bg-warning">{{ demande.besoin.get_priorite_display }}</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ demande.besoin.get_priorite_display }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <table class="table table-borderless">
+                            <tr>
+                                <td><strong>Date création :</strong></td>
+                                <td>{{ demande.date_creation|date:"d/m/Y H:i" }}</td>
+                            </tr>
+                            {% if demande.date_validation %}
+                            <tr>
+                                <td><strong>Date validation :</strong></td>
+                                <td>{{ demande.date_validation|date:"d/m/Y H:i" }}</td>
+                            </tr>
+                            {% endif %}
+                            {% if demande.date_preparation %}
+                            <tr>
+                                <td><strong>Date préparation :</strong></td>
+                                <td>{{ demande.date_preparation|date:"d/m/Y H:i" }}</td>
+                            </tr>
+                            {% endif %}
+                            {% if demande.date_livraison %}
+                            <tr>
+                                <td><strong>Date livraison :</strong></td>
+                                <td>{{ demande.date_livraison|date:"d/m/Y H:i" }}</td>
+                            </tr>
+                            {% endif %}
+                        </table>
+                    </div>
+                </div>
+                
+                {% if demande.observations %}
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <div class="alert alert-info">
+                            <strong>Observations :</strong><br>
+                            {{ demande.observations|linebreaks }}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Détails des produits -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">Produits demandés</h5>
+            </div>
+            <div class="card-body">
+                {% if lignes %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Produit</th>
+                                    <th>Code barre</th>
+                                    <th>Quantité demandée</th>
+                                    {% if demande.statut != 'EN_ATTENTE' %}
+                                        <th>Quantité accordée</th>
+                                        <th>Stock disponible</th>
+                                        <th>État</th>
+                                    {% else %}
+                                        <th>Stock disponible</th>
+                                        <th>État stock</th>
+                                    {% endif %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for info in stocks_info %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ info.ligne.produit.nom }}</strong>
+                                            {% if info.ligne.produit.description %}
+                                                <br><small class="text-muted">{{ info.ligne.produit.description }}</small>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ info.ligne.produit.code_barre|default:"-" }}</td>
+                                        <td>
+                                            <span class="badge bg-primary">{{ info.ligne.quantite_demandee }}</span>
+                                        </td>
+                                        {% if demande.statut != 'EN_ATTENTE' %}
+                                            <td>
+                                                {% if info.ligne.quantite_accordee is not None %}
+                                                    <span class="badge bg-success">{{ info.ligne.quantite_accordee }}</span>
+                                                {% else %}
+                                                    <span class="text-muted">-</span>
+                                                {% endif %}
+                                            </td>
+                                        {% endif %}
+                                        <td>
+                                            <span class="badge {% if info.stock_suffisant %}bg-success{% else %}bg-danger{% endif %}">
+                                                {{ info.stock_disponible }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            {% if info.stock_suffisant %}
+                                                <span class="badge bg-success">Stock suffisant</span>
+                                            {% else %}
+                                                <span class="badge bg-danger">Stock insuffisant</span>
+                                            {% endif %}
+                                            
+                                            {% if demande.statut != 'EN_ATTENTE' and info.ligne.quantite_accordee is not None %}
+                                                {% with ecart=info.ligne.quantite_accordee|add:0|add:info.ligne.quantite_demandee|mul:-1 %}
+                                                    {% if ecart == 0 %}
+                                                        <br><span class="badge bg-success mt-1">Accordé complet</span>
+                                                    {% elif ecart > 0 %}
+                                                        <br><span class="badge bg-info mt-1">+{{ ecart }} accordé</span>
+                                                    {% else %}
+                                                        <br><span class="badge bg-warning mt-1">{{ ecart }} refusé</span>
+                                                    {% endif %}
+                                                {% endwith %}
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% if info.ligne.observations %}
+                                        <tr>
+                                            <td colspan="6">
+                                                <small class="text-muted">
+                                                    <strong>Observations:</strong> {{ info.ligne.observations }}
+                                                </small>
+                                            </td>
+                                        </tr>
+                                    {% endif %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted">Aucun produit dans cette demande.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Panneau latéral -->
+    <div class="col-md-4">
+        <!-- Statut -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Statut</h5>
+            </div>
+            <div class="card-body">
+                <div class="text-center">
+                    {% if demande.statut == 'EN_ATTENTE' %}
+                        <i class="fas fa-clock fa-3x text-warning mb-3"></i>
+                        <h4><span class="badge bg-warning">En attente</span></h4>
+                    {% elif demande.statut == 'VALIDEE' %}
+                        <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                        <h4><span class="badge bg-success">Validée</span></h4>
+                    {% elif demande.statut == 'PREPAREE' %}
+                        <i class="fas fa-boxes fa-3x text-info mb-3"></i>
+                        <h4><span class="badge bg-info">Préparée</span></h4>
+                    {% elif demande.statut == 'LIVREE' %}
+                        <i class="fas fa-truck fa-3x text-primary mb-3"></i>
+                        <h4><span class="badge bg-primary">Livrée</span></h4>
+                    {% elif demande.statut == 'REJETEE' %}
+                        <i class="fas fa-times-circle fa-3x text-danger mb-3"></i>
+                        <h4><span class="badge bg-danger">Rejetée</span></h4>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Historique -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="mb-0">Historique</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li>
+                        <i class="fas fa-plus-circle text-success"></i>
+                        <strong>Création</strong><br>
+                        <small class="text-muted">{{ demande.date_creation|date:"d/m/Y H:i" }}</small>
+                    </li>
+                    {% if demande.date_validation %}
+                    <li class="mt-2">
+                        <i class="fas fa-check-circle text-success"></i>
+                        <strong>Validation</strong><br>
+                        <small class="text-muted">{{ demande.date_validation|date:"d/m/Y H:i" }}</small>
+                    </li>
+                    {% endif %}
+                    {% if demande.date_preparation %}
+                    <li class="mt-2">
+                        <i class="fas fa-boxes text-info"></i>
+                        <strong>Préparation</strong><br>
+                        <small class="text-muted">{{ demande.date_preparation|date:"d/m/Y H:i" }}</small>
+                    </li>
+                    {% endif %}
+                    {% if demande.date_livraison %}
+                    <li class="mt-2">
+                        <i class="fas fa-truck text-primary"></i>
+                        <strong>Livraison</strong><br>
+                        <small class="text-muted">{{ demande.date_livraison|date:"d/m/Y H:i" }}</small>
+                    </li>
+                    {% endif %}
+                    {% if demande.date_rejet %}
+                    <li class="mt-2">
+                        <i class="fas fa-times-circle text-danger"></i>
+                        <strong>Rejet</strong><br>
+                        <small class="text-muted">{{ demande.date_rejet|date:"d/m/Y H:i" }}</small>
+                        {% if demande.motif_rejet %}
+                            <br><small class="text-danger">{{ demande.motif_rejet }}</small>
+                        {% endif %}
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+
+        <!-- Actions rapides -->
+        {% if demande.statut == 'LIVREE' %}
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="mb-0">Documents</h5>
+            </div>
+            <div class="card-body">
+                <a href="{% url 'pharmacies:demande_interne_pdf' demande.pk %}" class="btn btn-outline-primary btn-sm w-100 mb-2">
+                    <i class="fas fa-file-pdf"></i> Bon de livraison
+                </a>
+                <a href="{% url 'pharmacies:demande_interne_excel' demande.pk %}" class="btn btn-outline-success btn-sm w-100">
+                    <i class="fas fa-file-excel"></i> Export Excel
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modal de validation -->
+<div class="modal fade" id="validationModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="post" action="{% url 'pharmacies:demande_interne_valider' demande.pk %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Validation de la demande</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Veuillez vérifier et ajuster les quantités à accorder :</p>
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Produit</th>
+                                    <th>Quantité demandée</th>
+                                    <th>Stock disponible</th>
+                                    <th>Quantité à accorder</th>
+                                    <th>Observations</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for info in stocks_info %}
+                                <tr>
+                                    <td>{{ info.ligne.produit.nom }}</td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ info.ligne.quantite_demandee }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge {% if info.stock_suffisant %}bg-success{% else %}bg-danger{% endif %}">
+                                            {{ info.stock_disponible }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <input type="number" 
+                                               name="quantite_{{ info.ligne.pk }}" 
+                                               class="form-control" 
+                                               min="0" 
+                                               max="{{ info.stock_disponible }}"
+                                               value="{% if info.stock_suffisant %}{{ info.ligne.quantite_demandee }}{% else %}{{ info.stock_disponible }}{% endif %}"
+                                               required>
+                                    </td>
+                                    <td>
+                                        <input type="text" name="observation_{{ info.ligne.pk }}" class="form-control"
+                                               placeholder="Observations...">
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="form-group mt-3">
+                        <label for="observations_validation">Observations générales :</label>
+                        <textarea name="observations_validation" id="observations_validation" class="form-control"
+                                  rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-check"></i> Valider la demande
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de rejet -->
+<div class="modal fade" id="rejetModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'pharmacies:demande_interne_rejeter' demande.pk %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Rejet de la demande</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Vous êtes sur le point de rejeter cette demande. Cette action est irréversible.
+                    </div>
+                    <div class="form-group">
+                        <label for="motif_rejet">Motif du rejet <span class="text-danger">*</span></label>
+                        <textarea name="motif_rejet" id="motif_rejet" class="form-control" rows="4" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-times"></i> Rejeter la demande
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de préparation -->
+<div class="modal fade" id="preparationModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'pharmacies:demande_interne_preparer' demande.pk %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Préparation de la demande</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Confirmez-vous avoir préparé tous les produits de cette demande ?</p>
+                    <div class="form-group">
+                        <label for="observations_preparation">Observations (optionnel) :</label>
+                        <textarea name="observations_preparation" 
+                                  id="observations_preparation" 
+                                  class="form-control" 
+                                  rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-info">
+                        <i class="fas fa-boxes"></i> Confirmer la préparation
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de livraison -->
+<div class="modal fade" id="livraisonModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'pharmacies:demande_interne_livrer' demande.pk %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Livraison de la demande</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="nom_receptionnaire">Nom du réceptionnaire <span class="text-danger">*</span></label>
+                        <input type="text" 
+                               name="nom_receptionnaire" 
+                               id="nom_receptionnaire" 
+                               class="form-control" 
+                               required>
+                    </div>
+                    <div class="form-group mt-3">
+                        <label for="observations_livraison">Observations (optionnel) :</label>
+                        <textarea name="observations_livraison" 
+                                  id="observations_livraison" 
+                                  class="form-control" 
+                                  rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-truck"></i> Confirmer la livraison
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Fonctions pour ouvrir les modales (déclarées globalement)
+    function openValidationModal() {
+        new bootstrap.Modal(document.getElementById('validationModal')).show();
+    }
+    
+    function rejectDemande() {
+        new bootstrap.Modal(document.getElementById('rejetModal')).show();
+    }
+    
+    function preparerDemande() {
+        new bootstrap.Modal(document.getElementById('preparationModal')).show();
+    }
+    
+    function livrerDemande() {
+        new bootstrap.Modal(document.getElementById('livraisonModal')).show();
+    }
+    
+        // Validation automatique des quantités
+    document.addEventListener('DOMContentLoaded', function () {
+        const inputs = document.querySelectorAll('input[name^="quantite_"]');
+        inputs.forEach(input => {
+            input.addEventListener('change', function () {
+                const max = parseInt(this.getAttribute('max'));
+                const value = parseInt(this.value);
+                if (value > max) {
+                    this.value = max;
+                    alert(`La quantité ne peut pas dépasser ${max} (stock disponible)`);
+                }
+            });
+        });
+    });
+    </script>
+{% endblock %}

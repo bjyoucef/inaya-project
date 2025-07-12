@@ -1,22 +1,19 @@
 # pharmacies/models/fournisseur.py
 
 
-from decimal import Decimal
-from django.db import models
-from django.urls import reverse
-from django.core.validators import MinValueValidator, MaxValueValidator, RegexValidator
-from django.utils import timezone
-from django.core.exceptions import ValidationError
-from django.db import transaction
-from django.contrib.contenttypes.fields import GenericForeignKey
-from django.contrib.contenttypes.models import ContentType
 import uuid
 from datetime import datetime, timedelta
 from decimal import Decimal
-from django.db.models import F
-from django.core.validators import MaxValueValidator, MinValueValidator
+
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import ValidationError
+from django.core.validators import (MaxValueValidator, MinValueValidator,
+                                    RegexValidator)
 from django.db import models, transaction
+from django.db.models import F
 from django.forms import ValidationError
+from django.urls import reverse
 from django.utils import timezone
 
 
@@ -122,68 +119,3 @@ class Fournisseur(models.Model):
     def save(self, *args, **kwargs):
         self.full_clean()
         super().save(*args, **kwargs)
-
-
-class HistoriquePaiement(models.Model):
-    fournisseur = models.ForeignKey(
-        Fournisseur, on_delete=models.CASCADE, related_name="historique_paiements"
-    )
-    achat = models.ForeignKey(
-        "pharmacies.Achat", on_delete=models.SET_NULL, null=True, blank=True
-    )
-    date_paiement = models.DateTimeField(default=timezone.now)
-    montant = models.DecimalField(
-        max_digits=15, decimal_places=2, validators=[MinValueValidator(Decimal("0.01"))]
-    )
-    mode_paiement = models.CharField(
-        max_length=50, choices=Fournisseur.TYPE_PAIEMENT_CHOICES
-    )
-    reference = models.CharField("Référence transaction", max_length=100, blank=True)
-    statut = models.CharField(
-        max_length=50,
-        choices=[
-            ("EN_ATTENTE", "En attente"),
-            ("COMPLETE", "Complété"),
-            ("ANNULE", "Annulé"),
-        ],
-        default="EN_ATTENTE",
-    )
-    notes = models.TextField(blank=True)
-
-    class Meta:
-        ordering = ["-date_paiement"]
-        verbose_name = "Historique de paiement"
-        verbose_name_plural = "Historiques de paiement"
-
-    def __str__(self):
-        return f"Paiement {self.montant}€ - {self.fournisseur}"
-
-    def save(self, *args, **kwargs):
-        if self.statut == "COMPLETE" and not self.reference:
-            self.reference = f"PAY-{self.date_paiement.strftime('%Y%m%d')}-{self.id}"
-        super().save(*args, **kwargs)
-        if self.statut == "COMPLETE":
-            self.fournisseur.mettre_a_jour_solde(self.montant, operation="retrait")
-
-
-class OrdrePaiement(models.Model):
-    MODES_PAIEMENT = [
-        ("VIREMENT", "Virement bancaire"),
-        ("CHEQUE", "Chèque"),
-        ("ESPECES", "Espèces"),
-    ]
-
-    commande = models.ForeignKey(
-        "BonCommande", on_delete=models.PROTECT, related_name="paiements"
-    )
-    reference = models.CharField(max_length=50, unique=True)
-    montant = models.DecimalField(max_digits=15, decimal_places=2)
-    mode_paiement = models.CharField(max_length=20, choices=MODES_PAIEMENT)
-    date_paiement = models.DateField()
-    preuve = models.FileField(upload_to="paiements/", blank=True, null=True)
-
-    def save(self, *args, **kwargs):
-        if not self.reference:
-            self.reference = f"PAY-{self.date_paiement.strftime('%Y%m%d')}-{self.id}"
-        super().save(*args, **kwargs)
-        self.commande.fournisseur.mettre_a_jour_solde(self.montant, operation="retrait")

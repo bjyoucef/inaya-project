@@ -8,3 +8,4 @@ class MedecinConfig(AppConfig):
     def ready(self):
         # importe le signal pour qu'il soit enregistré
         import medecin.signals
+
