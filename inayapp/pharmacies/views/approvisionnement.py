@@ -7,13 +7,14 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.messages.views import SuccessMessageMixin
 from django.core.exceptions import ValidationError
-from django.db import transaction, models
+from django.db import models, transaction
 from django.db.models import Count, Q, Sum
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.utils.decorators import method_decorator
+from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import (CreateView, DetailView, ListView, UpdateView,
                                   View)
@@ -94,6 +95,7 @@ class ExpressionBesoinCreateView(LoginRequiredMixin, View):
                     service_demandeur_id=data["service_demandeur"],
                     service_approvisionneur_id=data["service_approvisionneur"],
                     priorite=data.get("priorite", "NORMALE"),
+                    created_by=request.user,
                 )
 
                 # Créer les lignes
@@ -293,20 +295,6 @@ class DemandeInterneValidationView(LoginRequiredMixin, View):
 
         except ValidationError as e:
             return JsonResponse({"success": False, "message": str(e)}, status=400)
-
-# pharmacies/views/approvisionnement.py
-
-from django.contrib import messages
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.shortcuts import redirect, get_object_or_404
-from django.urls import reverse
-from django.views import View
-from django.views.generic import DetailView, ListView
-from django.db import transaction
-from django.http import HttpResponse
-from decimal import Decimal
-
-# ... autres imports et vues existantes ...
 
 
 class DemandeInterneValiderView(LoginRequiredMixin, View):
@@ -983,7 +971,7 @@ class DashboardView(LoginRequiredMixin, View):
             alertes.append(f"{stocks_epuises} produit(s) en rupture de stock")
 
         # Top fournisseurs
-        from django.db.models import Count, Sum, F, DecimalField
+        from django.db.models import Count, DecimalField, F, Sum
         from django.db.models.functions import Coalesce
 
         top_fournisseurs = (

@@ -1,261 +1,767 @@
-<!-- templates/pharmacies/approvisionnement//base_approvisionnement.html -->
 {% load approvisionnement_filters %}
 <!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <!-- Dans base_approvisionnement.html -->
-<link rel="icon" href="data:,"> <!-- Favicon vide -->
+    <link rel="icon" href="data:,">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Approvisionnement - Pharmacie{% endblock %}</title>
-<!-- Dans base_approvisionnement.html -->
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-<!-- Dans le <head> de votre base template -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- Chart.js pour les graphiques -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    
     <style>
-        .sidebar {
+        :root {
+            --primary-color: #007bff;
+            --success-color: #28a745;
+            --danger-color: #dc3545;
+            --warning-color: #ffc107;
+            --info-color: #17a2b8;
+            --dark-color: #343a40;
+            --light-bg: #f8f9fa;
+            --border-color: #dee2e6;
+            --sidebar-width: 280px;
+            --header-height: 60px;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f5f6fa;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Layout principal */
+        .main-wrapper {
+            display: flex;
             min-height: 100vh;
-            background-color: #f8f9fa;
-            padding: 20px 0;
         }
-        .main-content {
-            padding: 20px;
-        }
-        .card-header {
-            background-color: #007bff;
+
+        /* Sidebar améliorée */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
             color: white;
-        }
-        .table-responsive {
-            border-radius: 0.375rem;
-        }
-        .btn-sm {
-            padding: 0.25rem 0.5rem;
-        }
-        .badge {
-            font-size: 0.875em;
-        }
-        .alert {
-            margin-bottom: 20px;
-        }
-        .loading {
-            opacity: 0.6;
-            pointer-events: none;
-        }
-        .ligne-item {
-            border: 1px solid #dee2e6;
-            border-radius: 0.375rem;
-            padding: 15px;
-            margin-bottom: 10px;
-            background-color: #f8f9fa;
-        }
-        .ligne-item:hover {
-            background-color: #e9ecef;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            transition: all 0.3s ease;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            z-index: 1000;
         }
 
-        .nav-link.active {
-            background-color: #007bff;
-            color: white !important;
-            border-radius: 0.375rem;
+        .sidebar-header {
+            padding: 20px;
+            background: rgba(0,0,0,0.1);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            text-align: center;
         }
 
-        .timeline {
-            position: relative;
-            padding-left: 30px;
+        .sidebar-logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: white;
+            text-decoration: none;
+            margin-bottom: 15px;
         }
 
-        .timeline::before {
-            content: '';
-            position: absolute;
-            left: 15px;
-            top: 0;
-            bottom: 0;
-            width: 2px;
-            background: #dee2e6;
+        .sidebar-logo i {
+            font-size: 2rem;
+            color: #64b5f6;
         }
 
-        .timeline-item {
-            position: relative;
-            margin-bottom: 20px;
+        /* Bouton retour stylisé */
+        .btn-retour {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+            backdrop-filter: blur(10px);
         }
 
-        .timeline-marker {
-            position: absolute;
-            left: -23px;
-            top: 0;
-            width: 16px;
-            height: 16px;
-            border-radius: 50%;
-            border: 3px solid white;
-            box-shadow: 0 0 0 2px #dee2e6;
+        .btn-retour:hover {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            transform: translateX(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
         }
 
-        .timeline-content {
-            background: #f8f9fa;
-            border-radius: 0.375rem;
-            padding: 10px;
-        }
-
-        /* Nouvelles classes pour les types d'approvisionnement */
-        .type-externe {
-            border-left: 4px solid #007bff;
-        }
-
-        .type-interne {
-            border-left: 4px solid #28a745;
-        }
-
-        .priorite-critique {
-            border-top: 3px solid #dc3545;
-        }
-
-        .priorite-urgente {
-            border-top: 3px solid #ffc107;
-        }
-
+        /* Navigation */
         .nav-section {
-            margin-bottom: 20px;
+            padding: 15px 20px;
         }
 
         .nav-section-title {
-            font-size: 0.9rem;
-            font-weight: bold;
-            color: #6c757d;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: rgba(255,255,255,0.6);
             text-transform: uppercase;
+            letter-spacing: 1px;
             margin-bottom: 10px;
-            padding: 0 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nav-link {
+            color: rgba(255,255,255,0.8) !important;
+            padding: 12px 15px;
+            border-radius: 10px;
+            margin-bottom: 5px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .nav-link::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: 0;
+            background: rgba(255,255,255,0.1);
+            transition: width 0.3s ease;
+        }
+
+        .nav-link:hover {
+            color: white !important;
+            background: rgba(255,255,255,0.1);
+            transform: translateX(5px);
+        }
+
+        .nav-link:hover::before {
+            width: 100%;
+        }
+
+        .nav-link.active {
+            background: rgba(255,255,255,0.2);
+            color: white !important;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            font-weight: 500;
+        }
+
+        .nav-link i {
+            width: 20px;
+            text-align: center;
+        }
+
+        /* Badges améliorés */
+        .badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        /* Contenu principal */
+        .main-content {
+            margin-left: var(--sidebar-width);
+            flex: 1;
+            padding: 0;
+            background-color: #f5f6fa;
+            min-height: 100vh;
+        }
+
+        /* Header supérieur */
+        .top-header {
+            background: white;
+            height: var(--header-height);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+            position: sticky;
+            top: 0;
+            z-index: 999;
+            display: flex;
+            align-items: center;
+            padding: 0 30px;
+        }
+
+        /* Breadcrumb amélioré */
+        .breadcrumb {
+            background: transparent;
+            margin: 0;
+            padding: 0;
+        }
+
+        .breadcrumb-item a {
+            color: #6c757d;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        .breadcrumb-item a:hover {
+            color: var(--primary-color);
+        }
+
+        .breadcrumb-item.active {
+            color: var(--dark-color);
+            font-weight: 500;
+        }
+
+        /* Zone de contenu */
+        .content-area {
+            padding: 30px;
+        }
+
+        /* Cards améliorées */
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.12);
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, var(--primary-color), #0056b3);
+            color: white;
+            border: none;
+            padding: 20px;
+            font-weight: 600;
+        }
+
+        /* Alertes système stylisées */
+        .system-alert {
+            border-radius: 10px;
+            border-left: 4px solid;
+            padding: 15px 20px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            animation: slideIn 0.5s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(-100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .alert-danger {
+            border-left-color: var(--danger-color);
+            background: #fee;
+        }
+
+        .alert-warning {
+            border-left-color: var(--warning-color);
+            background: #fff3cd;
+        }
+
+        .alert-info {
+            border-left-color: var(--info-color);
+            background: #e7f3ff;
+        }
+
+        /* Tables améliorées */
+        .table {
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .table thead th {
+            background: var(--light-bg);
+            border: none;
+            font-weight: 600;
+            color: var(--dark-color);
+            padding: 15px;
+            white-space: nowrap;
+        }
+
+        .table tbody tr {
+            transition: background 0.3s ease;
+        }
+
+        .table tbody tr:hover {
+            background: #f0f4ff;
+        }
+
+        /* Boutons d'action rapide */
+        .quick-actions {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            z-index: 1000;
+        }
+
+        .fab-button {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary-color), #0056b3);
+            color: white;
+            border: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .fab-button:hover {
+            transform: scale(1.1) rotate(90deg);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+
+        /* Stats cards */
+        .stat-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
+            border-left: 4px solid;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.12);
+        }
+
+        .stat-card.primary { border-left-color: var(--primary-color); }
+        .stat-card.success { border-left-color: var(--success-color); }
+        .stat-card.danger { border-left-color: var(--danger-color); }
+        .stat-card.warning { border-left-color: var(--warning-color); }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--dark-color);
+            line-height: 1;
+        }
+
+        .stat-label {
+            color: #6c757d;
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+
+        /* Mobile responsiveness */
+        .mobile-menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: var(--dark-color);
+            cursor: pointer;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+
+            .sidebar.active {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            .mobile-menu-toggle {
+                display: block;
+            }
+
+            .quick-actions {
+                bottom: 20px;
+                right: 20px;
+            }
+
+            .content-area {
+                padding: 20px;
+            }
+        }
+
+        /* Loading states */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255,255,255,0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            display: none;
+        }
+
+        .loading-overlay.active {
+            display: flex;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid var(--light-bg);
+            border-top-color: var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Tooltips personnalisés */
+        [data-tooltip] {
+            position: relative;
+            cursor: help;
+        }
+
+        [data-tooltip]:before {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--dark-color);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 0.8rem;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        [data-tooltip]:hover:before {
+            opacity: 1;
+        }
+
+        /* Animations d'entrée */
+        .fade-in {
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .slide-up {
+            animation: slideUp 0.5s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container-fluid">
-        <div class="row">
-            <!-- Sidebar -->
-            <div class="col-md-3 col-lg-2 sidebar">
-                <h5 class="text-primary mb-4">
-                    <i class="fas fa-boxes"></i> Approvisionnement
-                </h5>
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+    </div>
 
-                <!-- Dashboard -->
-                <div class="nav-section">
+    <div class="main-wrapper">
+        <!-- Sidebar -->
+        <nav class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <a href="{% url 'pharmacies:approvisionnement_dashboard' %}" class="sidebar-logo">
+                    <i class="fas fa-boxes"></i>
+                    <span>Approvisionnement</span>
+                </a>
+                
+                <a href="{% url 'home' %}" class="btn-retour">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>Retour à l'accueil</span>
+                </a>
+            </div>
+
+            <!-- Dashboard -->
+            <div class="nav-section">
+                <div class="nav-section-title">
+                    <i class="fas fa-chart-line"></i>
+                    Tableau de bord
+                </div>
                 <ul class="nav flex-column">
                     <li class="nav-item">
-                            <a class="nav-link" href="{% url 'pharmacies:approvisionnement_dashboard' %}">
-                                <i class="fas fa-tachometer-alt"></i> Dashboard
-                            </a>
-                        </li>
-                    </ul>
-                </div>
+                        <a class="nav-link" href="{% url 'pharmacies:approvisionnement_dashboard' %}">
+                            <i class="fas fa-tachometer-alt"></i>
+                            Dashboard
+                        </a>
+                    </li>
+                </ul>
+            </div>
 
-                <!-- Approvisionnement externe -->
-                <div class="nav-section">
-                    <div class="nav-section-title">
-                        <i class="fas fa-exchange-alt"></i> Interne (Services)
-                    </div>
-                    <ul class="nav flex-column">
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'pharmacies:expression_besoin_list' %}?type=INTERNE">
-                                <i class="fas fa-file-alt"></i> Demandes de services
+            <!-- Approvisionnement interne -->
+            <div class="nav-section">
+                <div class="nav-section-title">
+                    <i class="fas fa-building"></i>
+                    Interne (Services)
+                </div>
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'pharmacies:expression_besoin_list' %}?type=INTERNE">
+                            <i class="fas fa-file-medical"></i>
+                            Demandes de services
+                            <span class="badge bg-info ms-auto" id="badge-demandes-services">0</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                            <a class="nav-link" href="{% url 'pharmacies:demande_interne_list' %}">
-                                <i class="fas fa-exchange-alt"></i> Demandes internes
+                        <a class="nav-link" href="{% url 'pharmacies:demande_interne_list' %}">
+                            <i class="fas fa-exchange-alt"></i>
+                            Toutes les demandes
                         </a>
                     </li>
                     <li class="nav-item">
-                            <a class="nav-link" href="{% url 'pharmacies:demande_interne_list' %}?statut=EN_ATTENTE">
-                                <i class="fas fa-clock text-warning"></i> En attente
-                                <span class="badge bg-warning ms-2" id="badge-attente">0</span>
+                        <a class="nav-link" href="{% url 'pharmacies:demande_interne_list' %}?statut=EN_ATTENTE">
+                            <i class="fas fa-clock"></i>
+                            En attente
+                            <span class="badge bg-warning ms-auto" id="badge-attente">0</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                            <a class="nav-link" href="{% url 'pharmacies:demande_interne_list' %}?priorite=URGENTE">
-                                <i class="fas fa-exclamation-triangle text-danger"></i> Urgentes
-                                <span class="badge bg-danger ms-2" id="badge-urgentes">0</span>
+                        <a class="nav-link" href="{% url 'pharmacies:demande_interne_list' %}?priorite=URGENTE">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            Urgentes
+                            <span class="badge bg-danger ms-auto" id="badge-urgentes">0</span>
                         </a>
                     </li>
+                </ul>
+            </div>
+
+            <!-- Approvisionnement externe -->
+            <div class="nav-section">
+                <div class="nav-section-title">
+                    <i class="fas fa-truck"></i>
+                    Externe (Fournisseurs)
+                </div>
+                <ul class="nav flex-column">
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'pharmacies:expression_besoin_list' %}">
-                            <i class="fas fa-file-alt"></i> Expressions de besoin
+                        <a class="nav-link" href="{% url 'pharmacies:expression_besoin_list' %}?type=EXTERNE">
+                            <i class="fas fa-file-alt"></i>
+                            Expressions de besoin
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'pharmacies:commande_fournisseur_list' %}">
-                            <i class="fas fa-shopping-cart"></i> Commandes fournisseurs
+                            <i class="fas fa-shopping-cart"></i>
+                            Commandes fournisseurs
+                            <span class="badge bg-primary ms-auto" id="badge-commandes">0</span>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'pharmacies:livraison_list' %}">
-                            <i class="fas fa-truck"></i> Livraisons
+                            <i class="fas fa-truck-loading"></i>
+                            Livraisons
+                            <span class="badge bg-success ms-auto" id="badge-livraisons">0</span>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'pharmacies:bon_reception_list' %}">
-                            <i class="fas fa-receipt"></i> Bons de réception
+                            <i class="fas fa-receipt"></i>
+                            Bons de réception
                         </a>
                     </li>
                 </ul>
-                </div>
-
-                <!-- Actions rapides -->
-                <div class="nav-section">
-                    <div class="nav-section-title">
-                        <i class="fas fa-plus"></i> Actions rapides
-                    </div>
-                    <ul class="nav flex-column">
-                        <li class="nav-item">
-                            <a class="nav-link text-success" href="{% url 'pharmacies:expression_besoin_create' %}">
-                                <i class="fas fa-plus-circle"></i> Nouvelle demande
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-info" href="{% url 'pharmacies:commande_fournisseur_create' %}">
-                                <i class="fas fa-shopping-cart"></i> Nouvelle commande
-                            </a>
-                        </li>
-                    </ul>
-                </div>
             </div>
 
-            <!-- Main content -->
-            <div class="col-md-9 col-lg-10 main-content">
-                <!-- Alertes système -->
-                <div id="system-alerts">
-                    <!-- Les alertes seront injectées ici via JavaScript -->
+            <!-- Actions rapides -->
+            <div class="nav-section">
+                <div class="nav-section-title">
+                    <i class="fas fa-bolt"></i>
+                    Actions rapides
+                </div>
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link text-success" href="{% url 'pharmacies:expression_besoin_create' %}">
+                            <i class="fas fa-plus-circle"></i>
+                            Nouvelle demande
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-info" href="{% url 'pharmacies:commande_fournisseur_create' %}">
+                            <i class="fas fa-cart-plus"></i>
+                            Nouvelle commande
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Ressources -->
+            <div class="nav-section">
+                <div class="nav-section-title">
+                    <i class="fas fa-database"></i>
+                    Ressources
+                </div>
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'pharmacies:produit_list' %}">
+                            <i class="fas fa-pills"></i>
+                            Produits
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'pharmacies:stock_list' %}">
+                            <i class="fas fa-warehouse"></i>
+                            Stocks
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'pharmacies:liste' %}">
+                            <i class="fas fa-industry"></i>
+                            Fournisseurs
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+
+        <!-- Main content -->
+        <main class="main-content">
+            <!-- Top header -->
+            <header class="top-header">
+                <button class="mobile-menu-toggle" onclick="toggleSidebar()">
+                    <i class="fas fa-bars"></i>
+                </button>
+                
+                <nav aria-label="breadcrumb" class="flex-fill">
+                    <ol class="breadcrumb mb-0">
+                        <li class="breadcrumb-item">
+                            <a href="{% url 'home' %}">
+                                <i class="fas fa-home"></i> Accueil
+                            </a>
+                        </li>
+                        <li class="breadcrumb-item">
+                            <a href="{% url 'pharmacies:approvisionnement_dashboard' %}">
+                                Approvisionnement
+                            </a>
+                        </li>
+                        {% block breadcrumb %}{% endblock %}
+                    </ol>
+                </nav>
+
+                <!-- User info (optional) -->
+                <div class="d-flex align-items-center ms-auto">
+                    <span class="text-muted me-3">{{ user.get_full_name|default:user.username }}</span>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-light dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user-circle"></i>
+                        </button>
+                        {% comment %} <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-cog"></i> Paramètres</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{% url 'logout' %}"><i class="fas fa-sign-out-alt"></i> Déconnexion</a></li>
+                        </ul> {% endcomment %}
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content area -->
+            <div class="content-area">
+                <!-- System alerts -->
+                <div id="system-alerts" class="mb-4">
+                    <!-- Les alertes système seront injectées ici -->
                 </div>
 
+                <!-- Django messages -->
                 {% if messages %}
                     {% for message in messages %}
-                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show system-alert" role="alert">
+                            <i class="fas fa-{% if message.tags == 'success' %}check-circle{% elif message.tags == 'error' %}exclamation-circle{% elif message.tags == 'warning' %}exclamation-triangle{% else %}info-circle{% endif %}"></i>
                             {{ message }}
                             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                         </div>
                     {% endfor %}
                 {% endif %}
 
-                {% block content %}{% endblock %}
+                <!-- Page content -->
+                <div class="fade-in">
+                    {% block content %}{% endblock %}
+                </div>
             </div>
-        </div>
+        </main>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/js/bootstrap.bundle.min.js"></script>
+    <!-- Quick actions button -->
+    <div class="quick-actions">
+        <button class="fab-button" data-bs-toggle="dropdown">
+            <i class="fas fa-plus"></i>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end">
+            <li>
+                <a class="dropdown-item" href="{% url 'pharmacies:expression_besoin_create' %}">
+                    <i class="fas fa-file-medical text-primary"></i> Nouvelle demande
+                </a>
+            </li>
+            <li>
+                <a class="dropdown-item" href="{% url 'pharmacies:commande_fournisseur_create' %}">
+                    <i class="fas fa-shopping-cart text-info"></i> Nouvelle commande
+                </a>
+            </li>
+            <li><hr class="dropdown-divider"></li>
+            <li>
+                <a class="dropdown-item" href="{% url 'pharmacies:stock_create' %}">
+                    <i class="fas fa-plus-square text-success"></i> Ajouter du stock
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Scripts -->
     <script>
-        // Fonction globale pour afficher les messages
-        function showMessage(message, type = 'info') {
-            const alertDiv = document.createElement('div');
-            alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
-            alertDiv.innerHTML = `
-                ${message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            `;
-            document.querySelector('.main-content').insertBefore(alertDiv, document.querySelector('.main-content').firstChild);
-            
-            // Auto-dismiss après 5 secondes
-            setTimeout(() => {
-                alertDiv.remove();
-            }, 5000);
-        }
+        // Configuration globale
+        const API_ENDPOINTS = {
+            alertes: '/pharmacies/approvisionnement/api/alertes-systeme/',
+            stats: '/pharmacies/approvisionnement/api/stats-menu/',
+            stockDisponible: '/pharmacies/api/stock-disponible/',
+            stocksMultiples: '/pharmacies/api/stocks-multiples/'
+        };
 
         // Fonction pour obtenir le token CSRF
         function getCookie(name) {
@@ -273,8 +779,9 @@
             return cookieValue;
         }
 
-        // Configuration globale pour les requêtes fetch
         const csrftoken = getCookie('csrftoken');
+
+        // Configuration fetch par défaut
         const fetchConfig = {
             headers: {
                 'Content-Type': 'application/json',
@@ -282,99 +789,144 @@
             }
         };
 
-        // Fonction pour mettre à jour les badges du menu
+        // Toggle sidebar mobile
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('active');
+        }
+
+        // Afficher le loader
+        function showLoader() {
+            document.getElementById('loadingOverlay').classList.add('active');
+        }
+
+        // Cacher le loader
+        function hideLoader() {
+            document.getElementById('loadingOverlay').classList.remove('active');
+        }
+
+        // Fonction pour afficher les messages
+        function showMessage(message, type = 'info') {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show system-alert`;
+            
+            const icon = type === 'success' ? 'check-circle' : 
+                        type === 'danger' || type === 'error' ? 'exclamation-circle' :
+                        type === 'warning' ? 'exclamation-triangle' : 'info-circle';
+            
+            alertDiv.innerHTML = `
+                <i class="fas fa-${icon}"></i>
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            document.getElementById('system-alerts').prepend(alertDiv);
+            
+            // Auto-dismiss après 5 secondes
+            setTimeout(() => {
+                alertDiv.remove();
+            }, 5000);
+        }
+
+        // Mise à jour des badges du menu
         async function updateMenuBadges() {
             try {
-                const response = await fetch('/pharmacies/approvisionnement/api/stats-menu/');
+                const response = await fetch(API_ENDPOINTS.stats);
                 const data = await response.json();
 
                 if (data.success) {
-                    // Mettre à jour les badges
-                    const badgeAttente = document.getElementById('badge-attente');
-                    const badgeUrgentes = document.getElementById('badge-urgentes');
+                    // Mettre à jour tous les badges
+                    const badges = {
+                        'badge-attente': data.demandes_attente || 0,
+                        'badge-urgentes': data.demandes_urgentes || 0,
+                        'badge-commandes': data.commandes_en_cours || 0,
+                        'badge-livraisons': data.livraisons_en_transit || 0,
+                        'badge-demandes-services': data.demandes_services || 0
+                    };
 
-                    if (badgeAttente) {
-                        badgeAttente.textContent = data.demandes_attente || 0;
-                        badgeAttente.style.display = data.demandes_attente > 0 ? 'inline' : 'none';
-                    }
-
-                    if (badgeUrgentes) {
-                        badgeUrgentes.textContent = data.demandes_urgentes || 0;
-                        badgeUrgentes.style.display = data.demandes_urgentes > 0 ? 'inline' : 'none';
-                    }
+                    Object.entries(badges).forEach(([id, count]) => {
+                        const badge = document.getElementById(id);
+                        if (badge) {
+                            badge.textContent = count;
+                            badge.style.display = count > 0 ? 'inline-block' : 'none';
+                        }
+                    });
                 }
             } catch (error) {
-                console.log('Erreur lors de la mise à jour des badges:', error);
+                console.error('Erreur lors de la mise à jour des badges:', error);
             }
         }
 
-        // Fonction pour charger les alertes système
+        // Charger les alertes système
         async function loadSystemAlerts() {
             try {
-                const response = await fetch('/pharmacies/approvisionnement/api/alertes-systeme/');
+                const response = await fetch(API_ENDPOINTS.alertes);
                 const data = await response.json();
 
                 if (data.success && data.alertes.length > 0) {
                     const alertsContainer = document.getElementById('system-alerts');
-                    let alertsHtml = '';
+                    alertsContainer.innerHTML = '';
 
                     data.alertes.forEach(alerte => {
                         const alertClass = alerte.type === 'critique' ? 'danger' :
-                            alerte.type === 'urgent' ? 'warning' : 'info';
+                                         alerte.type === 'urgent' ? 'warning' : 'info';
 
-                        alertsHtml += `
-                            <div class="alert alert-${alertClass} alert-dismissible fade show" role="alert">
-                                <i class="fas fa-${alerte.icon || 'info-circle'}"></i>
-                                <strong>${alerte.titre}:</strong> ${alerte.message}
-                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                            </div>
+                        const alertDiv = document.createElement('div');
+                        alertDiv.className = `alert alert-${alertClass} alert-dismissible fade show system-alert`;
+                        alertDiv.innerHTML = `
+                            <i class="fas fa-${alerte.icon || 'info-circle'}"></i>
+                            <strong>${alerte.titre}:</strong> ${alerte.message}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                         `;
+                        alertsContainer.appendChild(alertDiv);
                     });
-
-                    alertsContainer.innerHTML = alertsHtml;
                 }
             } catch (error) {
-                console.log('Erreur lors du chargement des alertes:', error);
+                console.error('Erreur lors du chargement des alertes:', error);
             }
         }
 
-        // Fonction pour marquer le lien actif dans la navigation
+        // Marquer le lien actif dans la navigation
         function setActiveNavLink() {
             const currentPath = window.location.pathname;
             const navLinks = document.querySelectorAll('.sidebar .nav-link');
 
             navLinks.forEach(link => {
                 link.classList.remove('active');
-                if (link.getAttribute('href') === currentPath ||
-                    (currentPath.includes('expression-besoin') && link.getAttribute('href').includes('expression-besoin')) ||
-                    (currentPath.includes('demande-interne') && link.getAttribute('href').includes('demande-interne')) ||
-                    (currentPath.includes('commande') && link.getAttribute('href').includes('commande')) ||
-                    (currentPath.includes('livraison') && link.getAttribute('href').includes('livraison')) ||
-                    (currentPath.includes('bon-reception') && link.getAttribute('href').includes('bon-reception'))) {
+                const linkPath = link.getAttribute('href');
+                
+                if (linkPath === currentPath) {
+                    link.classList.add('active');
+                } else if (currentPath.includes(linkPath) && linkPath !== '/') {
                     link.classList.add('active');
                 }
             });
         }
 
-        // Initialisation au chargement de la page
-        document.addEventListener('DOMContentLoaded', function () {
-            setActiveNavLink();
-            updateMenuBadges();
-            loadSystemAlerts();
+        // Gestion du bouton retour avec confirmation
+        function handleReturnButton() {
+            const forms = document.querySelectorAll('form');
+            let formModified = false;
 
-            // Actualiser les badges toutes les 30 secondes
-            setInterval(updateMenuBadges, 30000);
+            forms.forEach(form => {
+                form.addEventListener('change', () => {
+                    formModified = true;
+                });
+            });
 
-            // Actualiser les alertes toutes les 2 minutes
-            setInterval(loadSystemAlerts, 120000);
-        });
+            window.addEventListener('beforeunload', (e) => {
+                if (formModified) {
+                    e.preventDefault();
+                    e.returnValue = '';
+                }
+            });
+        }
 
-        // Fonction pour formater les nombres
+        // Formatage des nombres
         function formatNumber(num) {
             return new Intl.NumberFormat('fr-FR').format(num);
         }
 
-        // Fonction pour formater les devises
+        // Formatage des devises
         function formatCurrency(amount) {
             return new Intl.NumberFormat('fr-FR', {
                 style: 'currency',
@@ -383,7 +935,7 @@
             }).format(amount);
         }
 
-        // Fonction pour formater les dates
+        // Formatage des dates
         function formatDate(dateString) {
             const date = new Date(dateString);
             return new Intl.DateTimeFormat('fr-FR', {
@@ -395,7 +947,7 @@
             }).format(date);
         }
 
-        // Fonction pour calculer le temps écoulé
+        // Temps écoulé
         function timeAgo(dateString) {
             const date = new Date(dateString);
             const now = new Date();
@@ -404,23 +956,153 @@
             if (diffInSeconds < 60) return 'À l\'instant';
             if (diffInSeconds < 3600) return `Il y a ${Math.floor(diffInSeconds / 60)} min`;
             if (diffInSeconds < 86400) return `Il y a ${Math.floor(diffInSeconds / 3600)} h`;
-            return `Il y a ${Math.floor(diffInSeconds / 86400)} j`;
+            if (diffInSeconds < 604800) return `Il y a ${Math.floor(diffInSeconds / 86400)} j`;
+            return formatDate(dateString);
         }
 
-        // Fonction pour gérer les erreurs de réseau
+        // Gestion des erreurs réseau
         function handleNetworkError(error) {
             console.error('Erreur réseau:', error);
             showMessage('Erreur de connexion. Veuillez vérifier votre connexion internet.', 'danger');
         }
 
-        // Fonction pour confirmer les actions critiques
-        function confirmCriticalAction(message, callback) {
+        // Confirmation des actions critiques
+        function confirmAction(message, callback) {
             if (confirm(message)) {
                 callback();
             }
         }
+
+        // Initialisation des tooltips Bootstrap
+        function initTooltips() {
+            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+        }
+
+        // Fonction pour charger du contenu dynamiquement
+        async function loadContent(url, targetSelector) {
+            showLoader();
+            try {
+                const response = await fetch(url);
+                const html = await response.text();
+                document.querySelector(targetSelector).innerHTML = html;
+            } catch (error) {
+                handleNetworkError(error);
+            } finally {
+                hideLoader();
+            }
+        }
+
+        // Gestion des raccourcis clavier
+        document.addEventListener('keydown', (e) => {
+            // Ctrl/Cmd + K pour recherche rapide
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                e.preventDefault();
+                // Ouvrir la recherche rapide (à implémenter)
+                console.log('Recherche rapide');
+            }
+            
+            // Ctrl/Cmd + N pour nouvelle demande
+            if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+                e.preventDefault();
+                window.location.href = "{% url 'pharmacies:expression_besoin_create' %}";
+            }
+        });
+
+        // Animation des compteurs
+        function animateCounter(element, target) {
+            const duration = 1000;
+            const start = parseInt(element.textContent) || 0;
+            const increment = (target - start) / (duration / 16);
+            let current = start;
+            
+            const timer = setInterval(() => {
+                current += increment;
+                if ((increment > 0 && current >= target) || (increment < 0 && current <= target)) {
+                    element.textContent = target;
+                    clearInterval(timer);
+                } else {
+                    element.textContent = Math.round(current);
+                }
+            }, 16);
+        }
+
+        // Gestion de la recherche en temps réel
+        function initSearchHandlers() {
+            const searchInputs = document.querySelectorAll('.search-input');
+            searchInputs.forEach(input => {
+                let debounceTimer;
+                input.addEventListener('input', (e) => {
+                    clearTimeout(debounceTimer);
+                    debounceTimer = setTimeout(() => {
+                        // Effectuer la recherche
+                        const searchTerm = e.target.value;
+                        if (searchTerm.length >= 2) {
+                            // Appeler l'API de recherche
+                            console.log('Recherche:', searchTerm);
+                        }
+                    }, 300);
+                });
+            });
+        }
+
+        // Initialisation au chargement de la page
+        document.addEventListener('DOMContentLoaded', function() {
+            setActiveNavLink();
+            updateMenuBadges();
+            loadSystemAlerts();
+            handleReturnButton();
+            initTooltips();
+            initSearchHandlers();
+
+            // Actualiser les données périodiquement
+            setInterval(updateMenuBadges, 30000); // Toutes les 30 secondes
+            setInterval(loadSystemAlerts, 120000); // Toutes les 2 minutes
+
+            // Ajouter des animations aux éléments
+            const cards = document.querySelectorAll('.card');
+            cards.forEach((card, index) => {
+                card.style.animationDelay = `${index * 0.1}s`;
+                card.classList.add('slide-up');
+            });
+
+            // Gérer les clics sur les liens avec loader
+            document.querySelectorAll('a[href^="/"]').forEach(link => {
+                if (!link.hasAttribute('data-no-loader')) {
+                    link.addEventListener('click', (e) => {
+                        if (!e.ctrlKey && !e.metaKey && !link.hasAttribute('download')) {
+                            showLoader();
+                        }
+                    });
+                }
+            });
+
+            // Auto-hide des alertes après 5 secondes
+            const alerts = document.querySelectorAll('.alert:not(.alert-permanent)');
+            alerts.forEach(alert => {
+                setTimeout(() => {
+                    const bsAlert = new bootstrap.Alert(alert);
+                    bsAlert.close();
+                }, 5000);
+            });
+        });
+
+        // Export des fonctions globales
+        window.appFunctions = {
+            showMessage,
+            showLoader,
+            hideLoader,
+            formatNumber,
+            formatCurrency,
+            formatDate,
+            timeAgo,
+            confirmAction,
+            animateCounter
+        };
     </script>
-    
+
     {% block scripts %}{% endblock %}
 </body>
 </html>

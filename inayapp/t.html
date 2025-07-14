@@ -1,199 +1,1000 @@
-<!-- templates/pharmacies/base_approvisionnement.html -->
+<!-- templates/pharmacies/approvisionnement/expression_besoin_list.html -->
+{% extends 'approvisionnement/base_approvisionnement.html' %}
 {% load approvisionnement_filters %}
-<!DOCTYPE html>
-<html lang="fr">
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Approvisionnement - Pharmacie{% endblock %}</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        .sidebar {
-            min-height: 100vh;
-            background-color: #f8f9fa;
-            padding: 20px 0;
-        }
+{% block title %}
+{% if view_type == 'INTERNE' %}
+Demandes internes (Services)
+{% elif view_type == 'EXTERNE' %}
+Expressions de besoin externes (Fournisseurs)
+{% else %}
+Toutes les expressions de besoin
+{% endif %}
+- {{ block.super }}
+{% endblock %}
 
-        .main-content {
-            padding: 20px;
-        }
+{% block breadcrumb %}
+<li class="breadcrumb-item active">
+    {% if view_type == 'INTERNE' %}
+    Demandes internes
+    {% elif view_type == 'EXTERNE' %}
+    Besoins externes
+    {% else %}
+    Expressions de besoin
+    {% endif %}
+</li>
+{% endblock %}
 
-        .card-header {
-            background-color: #007bff;
-            color: white;
-        }
-
-        .table-responsive {
-            border-radius: 0.375rem;
-        }
-
-        .btn-sm {
-            padding: 0.25rem 0.5rem;
-        }
-
-        .badge {
-            font-size: 0.875em;
-        }
-
-        .alert {
-            margin-bottom: 20px;
-        }
-
-        .loading {
-            opacity: 0.6;
-            pointer-events: none;
-        }
-
-        .ligne-item {
-            border: 1px solid #dee2e6;
-            border-radius: 0.375rem;
-            padding: 15px;
-            margin-bottom: 10px;
-            background-color: #f8f9fa;
-        }
-
-        .ligne-item:hover {
-            background-color: #e9ecef;
-        }
-
-        .nav-link.active {
-            background-color: #007bff;
-            color: white !important;
-            border-radius: 0.375rem;
-        }
-
-        .timeline {
-            position: relative;
-            padding-left: 30px;
-        }
-
-        .timeline::before {
-            content: '';
-            position: absolute;
-            left: 15px;
-            top: 0;
-            bottom: 0;
-            width: 2px;
-            background: #dee2e6;
-        }
-
-        .timeline-item {
-            position: relative;
-            margin-bottom: 20px;
-        }
-
-        .timeline-marker {
-            position: absolute;
-            left: -23px;
-            top: 0;
-            width: 16px;
-            height: 16px;
-            border-radius: 50%;
-            border: 3px solid white;
-            box-shadow: 0 0 0 2px #dee2e6;
-        }
-
-        .timeline-content {
-            background: #f8f9fa;
-            border-radius: 0.375rem;
-            padding: 10px;
-        }
-    </style>
-</head>
-
-<body>
-    <div class="container-fluid">
-        <div class="row">
-            <!-- Sidebar -->
-            <div class="col-md-3 col-lg-2 sidebar">
-                <h5 class="text-primary">Approvisionnement</h5>
-                <ul class="nav flex-column">
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'pharmacies:approvisionnement:expression_besoin_list' %}">
-                            <i class="fas fa-file-alt"></i> Expressions de besoin
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'pharmacies:approvisionnement:commande_fournisseur_list' %}">
-                            <i class="fas fa-shopping-cart"></i> Commandes fournisseurs
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'pharmacies:approvisionnement:livraison_list' %}">
-                            <i class="fas fa-truck"></i> Livraisons
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'pharmacies:approvisionnement:bon_reception_list' %}">
-                            <i class="fas fa-receipt"></i> Bons de réception
-                        </a>
-                    </li>
-                </ul>
+{% block content %}
+<div class="container-fluid">
+    <!-- Header avec titre et actions -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">
+                {% if view_type == 'INTERNE' %}
+                <i class="fas fa-building text-success"></i> Demandes internes (Services)
+                {% elif view_type == 'EXTERNE' %}
+                <i class="fas fa-truck text-primary"></i> Expressions de besoin externes
+                {% else %}
+                <i class="fas fa-file-alt"></i> Toutes les expressions de besoin
+                {% endif %}
+            </h2>
+            <p class="text-muted mb-0">
+                {% if view_type == 'INTERNE' %}
+                Demandes de médicaments entre services hospitaliers
+                {% elif view_type == 'EXTERNE' %}
+                Demandes d'approvisionnement auprès des fournisseurs
+                {% else %}
+                Gestion complète des expressions de besoin
+                {% endif %}
+            </p>
+        </div>
+        <div class="d-flex gap-2">
+            <!-- Boutons de vue -->
+            <div class="btn-group" role="group">
+                <a href="{% url 'pharmacies:expression_besoin_list' %}"
+                    class="btn btn-outline-secondary {% if not view_type %}active{% endif %}">
+                    <i class="fas fa-list"></i> Toutes
+                </a>
+                <a href="{% url 'pharmacies:expression_besoin_list' %}?type=INTERNE"
+                    class="btn btn-outline-success {% if view_type == 'INTERNE' %}active{% endif %}">
+                    <i class="fas fa-building"></i> Internes
+                </a>
+                <a href="{% url 'pharmacies:expression_besoin_list' %}?type=EXTERNE"
+                    class="btn btn-outline-primary {% if view_type == 'EXTERNE' %}active{% endif %}">
+                    <i class="fas fa-truck"></i> Externes
+                </a>
             </div>
 
-            <!-- Main content -->
-            <div class="col-md-9 col-lg-10 main-content">
-                {% if messages %}
-                {% for message in messages %}
-                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-                {% endfor %}
-                {% endif %}
+            <!-- Bouton nouvelle demande -->
+            <a href="{% url 'pharmacies:expression_besoin_create' %}{% if view_type %}?type={{ view_type }}{% endif %}"
+                class="btn btn-primary">
+                <i class="fas fa-plus"></i> Nouvelle demande
+            </a>
+        </div>
+    </div>
 
-                {% block content %}{% endblock %}
+    <!-- Statistiques rapides -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stat-card primary">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stat-number">{{ stats.total|default:0 }}</div>
+                        <div class="stat-label">Total demandes</div>
+                    </div>
+                    <i class="fas fa-file-alt fa-2x text-primary opacity-25"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card warning">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stat-number">{{ stats.en_attente|default:0 }}</div>
+                        <div class="stat-label">En attente</div>
+                    </div>
+                    <i class="fas fa-clock fa-2x text-warning opacity-25"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card success">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stat-number">{{ stats.validees|default:0 }}</div>
+                        <div class="stat-label">Validées</div>
+                    </div>
+                    <i class="fas fa-check-circle fa-2x text-success opacity-25"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card danger">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stat-number">{{ stats.urgentes|default:0 }}</div>
+                        <div class="stat-label">Urgentes</div>
+                    </div>
+                    <i class="fas fa-exclamation-triangle fa-2x text-danger opacity-25"></i>
+                </div>
             </div>
         </div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/js/bootstrap.bundle.min.js"></script>
-    <script>
-        // Fonction globale pour afficher les messages
-        function showMessage(message, type = 'info') {
-            const alertDiv = document.createElement('div');
-            alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
-            alertDiv.innerHTML = `
-                ${message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    <!-- Filtres avancés -->
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">
+                <i class="fas fa-filter"></i> Filtres
+                <button class="btn btn-sm btn-link float-end" onclick="toggleFilters()">
+                    <i class="fas fa-chevron-down" id="filterToggleIcon"></i>
+                </button>
+            </h5>
+        </div>
+        <div class="card-body" id="filterSection">
+            <form method="get" id="filterForm">
+                <!-- Conserver le type si présent -->
+                {% if view_type %}
+                <input type="hidden" name="type" value="{{ view_type }}">
+                {% endif %}
+
+                <div class="row g-3">
+                    <!-- Statut -->
+                    <div class="col-md-3">
+                        <label for="statut" class="form-label">
+                            <i class="fas fa-tag"></i> Statut
+                        </label>
+                        <select class="form-select" id="statut" name="statut">
+                            <option value="">Tous les statuts</option>
+                            {% for value, label in statuts %}
+                            <option value="{{ value }}" {% if request.GET.statut==value %}selected{% endif %}
+                                class="{% if value == 'EN_ATTENTE' %}text-warning{% elif value == 'VALIDE' %}text-success{% elif value == 'REJETE' %}text-danger{% endif %}">
+                                {{ label }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Service demandeur -->
+                    <div class="col-md-3">
+                        <label for="service" class="form-label">
+                            <i class="fas fa-hospital"></i> Service demandeur
+                        </label>
+                        <select class="form-select" id="service" name="service">
+                            <option value="">Tous les services</option>
+                            {% for service in services %}
+                            <option value="{{ service.id }}" {% if request.GET.service==service.id|stringformat:"s"
+                                %}selected{% endif %}>
+                                {{ service.nom }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Priorité -->
+                    <div class="col-md-3">
+                        <label for="priorite" class="form-label">
+                            <i class="fas fa-exclamation-circle"></i> Priorité
+                        </label>
+                        <select class="form-select" id="priorite" name="priorite">
+                            <option value="">Toutes les priorités</option>
+                            <option value="NORMALE" {% if request.GET.priorite=='NORMALE' %}selected{% endif %}>
+                                Normale
+                            </option>
+                            <option value="URGENTE" {% if request.GET.priorite=='URGENTE' %}selected{% endif %}
+                                class="text-warning">
+                                Urgente
+                            </option>
+                            <option value="CRITIQUE" {% if request.GET.priorite=='CRITIQUE' %}selected{% endif %}
+                                class="text-danger">
+                                Critique
+                            </option>
+                        </select>
+                    </div>
+
+                    <!-- Période -->
+                    <div class="col-md-3">
+                        <label for="periode" class="form-label">
+                            <i class="fas fa-calendar"></i> Période
+                        </label>
+                        <select class="form-select" id="periode" name="periode" onchange="handlePeriodChange()">
+                            <option value="">Toutes les dates</option>
+                            <option value="today" {% if request.GET.periode=='today' %}selected{% endif %}>
+                                Aujourd'hui
+                            </option>
+                            <option value="week" {% if request.GET.periode=='week' %}selected{% endif %}>
+                                Cette semaine
+                            </option>
+                            <option value="month" {% if request.GET.periode=='month' %}selected{% endif %}>
+                                Ce mois
+                            </option>
+                            <option value="custom" {% if request.GET.periode=='custom' %}selected{% endif %}>
+                                Personnalisée
+                            </option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Dates personnalisées -->
+                <div class="row g-3 mt-2 {% if request.GET.periode != 'custom' %}d-none{% endif %}" id="customDates">
+                    <div class="col-md-3">
+                        <label for="date_debut" class="form-label">Date début</label>
+                        <input type="date" class="form-control" id="date_debut" name="date_debut"
+                            value="{{ request.GET.date_debut }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="date_fin" class="form-label">Date fin</label>
+                        <input type="date" class="form-control" id="date_fin" name="date_fin"
+                            value="{{ request.GET.date_fin }}">
+                    </div>
+                </div>
+
+                <!-- Boutons d'action -->
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search"></i> Rechercher
+                        </button>
+                        <a href="{% url 'pharmacies:expression_besoin_list' %}{% if view_type %}?type={{ view_type }}{% endif %}"
+                            class="btn btn-outline-secondary">
+                            <i class="fas fa-undo"></i> Réinitialiser
+                        </a>
+                        <button type="button" class="btn btn-outline-info" onclick="exportData()">
+                            <i class="fas fa-download"></i> Exporter
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Liste des expressions de besoin -->
+    <div class="card">
+        <div class="card-header bg-white">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-list"></i>
+                    Liste des demandes ({{ besoins.paginator.count }} résultat{{ besoins.paginator.count|pluralize }})
+                </h5>
+                <div class="btn-group btn-group-sm" role="group">
+                    <button type="button" class="btn btn-outline-secondary active" onclick="setView('table')">
+                        <i class="fas fa-table"></i>
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="setView('cards')">
+                        <i class="fas fa-th-large"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card-body">
+            {% if besoins %}
+            <!-- Vue tableau -->
+            <div id="tableView" class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th width="15%">
+                                <i class="fas fa-hashtag"></i> Référence
+                            </th>
+                            <th width="10%">
+                                <i class="fas fa-tag"></i> Type
+                            </th>
+                            <th width="20%">
+                                <i class="fas fa-hospital"></i> Service
+                            </th>
+                            <th width="15%">
+                                <i class="fas fa-calendar"></i> Date
+                            </th>
+                            <th width="10%">
+                                <i class="fas fa-info-circle"></i> Statut
+                            </th>
+                            <th width="10%">
+                                <i class="fas fa-exclamation"></i> Priorité
+                            </th>
+                            <th width="10%" class="text-center">
+                                <i class="fas fa-boxes"></i> Articles
+                            </th>
+                            <th width="10%" class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for besoin in besoins %}
+                        <tr
+                            class="{% if besoin.priorite == 'CRITIQUE' %}table-danger{% elif besoin.priorite == 'URGENTE' %}table-warning{% endif %}">
+                            <td>
+                                <a href="{% url 'pharmacies:expression_besoin_detail' besoin.pk %}"
+                                    class="text-decoration-none fw-bold">
+                                    {{ besoin.reference }}
+                                </a>
+                            </td>
+                            <td>
+                                {% if besoin.type_approvisionnement == 'INTERNE' %}
+                                <span class="badge bg-success">
+                                    <i class="fas fa-building"></i> Interne
+                                </span>
+                                {% else %}
+                                <span class="badge bg-primary">
+                                    <i class="fas fa-truck"></i> Externe
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div>
+                                    <strong>{{ besoin.service_demandeur.nom }}</strong>
+                                    {% if besoin.type_approvisionnement == 'INTERNE' %}
+                                    <small class="text-muted d-block">
+                                        → {{ besoin.service_approvisionneur.nom }}
+                                    </small>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <div>
+                                    {{ besoin.date_creation|date:"d/m/Y" }}
+                                    <small class="text-muted d-block">
+                                        {{ besoin.date_creation|date:"H:i" }}
+                                    </small>
+                                </div>
+                            </td>
+                            <td>
+                                {% if besoin.statut == 'EN_ATTENTE' %}
+                                <span class="badge bg-warning">
+                                    <i class="fas fa-clock"></i> En attente
+                                </span>
+                                {% elif besoin.statut == 'VALIDE' %}
+                                <span class="badge bg-success">
+                                    <i class="fas fa-check"></i> Validé
+                                </span>
+                                {% elif besoin.statut == 'REJETE' %}
+                                <span class="badge bg-danger">
+                                    <i class="fas fa-times"></i> Rejeté
+                                </span>
+                                {% elif besoin.statut == 'SERVIE' %}
+                                <span class="badge bg-info">
+                                    <i class="fas fa-check-double"></i> Servi
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if besoin.priorite == 'CRITIQUE' %}
+                                <span class="badge bg-danger">
+                                    <i class="fas fa-exclamation-triangle"></i> Critique
+                                </span>
+                                {% elif besoin.priorite == 'URGENTE' %}
+                                <span class="badge bg-warning">
+                                    <i class="fas fa-exclamation"></i> Urgente
+                                </span>
+                                {% else %}
+                                <span class="badge bg-secondary">Normale</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-light text-dark">
+                                    {{ besoin.lignes.count }}
+                                </span>
+                            </td>
+                            <td class="text-end">
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a href="{% url 'pharmacies:expression_besoin_detail' besoin.pk %}"
+                                        class="btn btn-outline-primary" data-bs-toggle="tooltip" title="Voir détails">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+
+                                    {% if besoin.statut == 'EN_ATTENTE' and perms.pharmacies.valider_expression_besoin
+                                    %}
+                                    <button class="btn btn-outline-success"
+                                        onclick="openValidationModal({{ besoin.pk }})" data-bs-toggle="tooltip"
+                                        title="Valider">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                    <button class="btn btn-outline-danger" onclick="openRejectModal({{ besoin.pk }})"
+                                        data-bs-toggle="tooltip" title="Rejeter">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                    {% endif %}
+
+                                    {% if besoin.statut == 'VALIDE' and besoin.type_approvisionnement == 'EXTERNE' %}
+                                    <a href="{% url 'pharmacies:commande_fournisseur_create' %}?besoin={{ besoin.pk }}"
+                                        class="btn btn-outline-info" data-bs-toggle="tooltip" title="Créer commande">
+                                        <i class="fas fa-shopping-cart"></i>
+                                    </a>
+                                    {% endif %}
+
+                                    {% if besoin.type_approvisionnement == 'INTERNE' and
+                                    besoin.demandeinterne_set.exists %}
+                                    <a href="{% url 'pharmacies:demande_interne_detail' besoin.demandeinterne_set.first.pk %}"
+                                        class="btn btn-outline-success" data-bs-toggle="tooltip"
+                                        title="Voir demande interne">
+                                        <i class="fas fa-exchange-alt"></i>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Vue cartes (cachée par défaut) -->
+            <div id="cardsView" class="row g-3 d-none">
+                {% for besoin in besoins %}
+                <div class="col-md-6 col-lg-4">
+                    <div
+                        class="card h-100 {% if besoin.priorite == 'CRITIQUE' %}border-danger{% elif besoin.priorite == 'URGENTE' %}border-warning{% endif %}">
+                        <div class="card-header bg-light">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="fw-bold">{{ besoin.reference }}</span>
+                                {% if besoin.type_approvisionnement == 'INTERNE' %}
+                                <span class="badge bg-success">Interne</span>
+                                {% else %}
+                                <span class="badge bg-primary">Externe</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-2 text-muted">
+                                {{ besoin.service_demandeur.nom }}
+                            </h6>
+                            <div class="mb-3">
+                                <small class="text-muted">
+                                    <i class="fas fa-calendar"></i> {{ besoin.date_creation|date:"d/m/Y H:i" }}
+                                </small>
+                            </div>
+                            <div class="d-flex justify-content-between mb-3">
+                                <span>
+                                    {% if besoin.statut == 'EN_ATTENTE' %}
+                                    <span class="badge bg-warning">En attente</span>
+                                    {% elif besoin.statut == 'VALIDE' %}
+                                    <span class="badge bg-success">Validé</span>
+                                    {% elif besoin.statut == 'REJETE' %}
+                                    <span class="badge bg-danger">Rejeté</span>
+                                    {% elif besoin.statut == 'SERVIE' %}
+                                    <span class="badge bg-info">Servi</span>
+                                    {% endif %}
+                                </span>
+                                <span>
+                                    <i class="fas fa-boxes"></i> {{ besoin.lignes.count }} articles
+                                </span>
+                            </div>
+                            <a href="{% url 'pharmacies:expression_besoin_detail' besoin.pk %}"
+                                class="btn btn-sm btn-primary w-100">
+                                Voir détails
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Pagination -->
+            {% if is_paginated %}
+            <nav aria-label="Navigation des pages" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?{% if view_type %}type={{ view_type }}&{% endif %}page=1">
+                            <i class="fas fa-angle-double-left"></i>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link"
+                            href="?{% if view_type %}type={{ view_type }}&{% endif %}page={{ page_obj.previous_page_number }}">
+                            <i class="fas fa-angle-left"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ num }}</span>
+                    </li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %} <li class="page-item">
+                        <a class="page-link" href="?{% if view_type %}type={{ view_type }}&{% endif %}page={{ num }}">{{
+                            num }}</a>
+                        </li>
+                        {% endif %}
+                        {% endfor %}
+
+                        {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link"
+                                href="?{% if view_type %}type={{ view_type }}&{% endif %}page={{ page_obj.next_page_number }}">
+                                <i class="fas fa-angle-right"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link"
+                                href="?{% if view_type %}type={{ view_type }}&{% endif %}page={{ page_obj.paginator.num_pages }}">
+                                <i class="fas fa-angle-double-right"></i>
+                            </a>
+                        </li>
+                        {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+            {% else %}
+            <!-- État vide -->
+            <div class="text-center py-5">
+                <i class="fas fa-inbox fa-4x text-muted mb-3"></i>
+                <h5 class="text-muted">Aucune expression de besoin trouvée</h5>
+                <p class="text-muted">
+                    {% if view_type %}
+                    Aucune demande {{ view_type|lower }} ne correspond à vos critères.
+                    {% else %}
+                    Commencez par créer votre première expression de besoin.
+                    {% endif %}
+                </p>
+                <a href="{% url 'pharmacies:expression_besoin_create' %}{% if view_type %}?type={{ view_type }}{% endif %}"
+                    class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Créer une nouvelle demande
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Modal de validation -->
+<div class="modal fade" id="validationModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-check-circle"></i> Validation de l'expression de besoin
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="validationContent">
+                    <!-- Contenu chargé dynamiquement -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i> Annuler
+                </button>
+                <button type="button" class="btn btn-success" onclick="validateBesoin()">
+                    <i class="fas fa-check"></i> Valider la demande
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de rejet -->
+<div class="modal fade" id="rejectModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-times-circle"></i> Rejet de l'expression de besoin
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Cette action est irréversible. L'expression de besoin sera définitivement rejetée.
+                </div>
+                <div class="form-group">
+                    <label for="rejectReason" class="form-label">Motif du rejet <span
+                            class="text-danger">*</span></label>
+                    <textarea class="form-control" id="rejectReason" rows="3"
+                        placeholder="Veuillez indiquer le motif du rejet..." required></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i> Annuler
+                </button>
+                <button type="button" class="btn btn-danger" onclick="rejectBesoin()">
+                    <i class="fas fa-times-circle"></i> Confirmer le rejet
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Variables globales
+    let currentBesoinId = null;
+    const viewType = '{{ view_type|default:"" }}';
+
+    // Initialisation
+    document.addEventListener('DOMContentLoaded', function () {
+        // Initialiser les tooltips
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+
+        // Animer les stats cards
+        document.querySelectorAll('.stat-number').forEach(el => {
+            const target = parseInt(el.textContent);
+            window.appFunctions.animateCounter(el, target);
+        });
+    });
+
+    // Toggle des filtres
+    function toggleFilters() {
+        const filterSection = document.getElementById('filterSection');
+        const icon = document.getElementById('filterToggleIcon');
+
+        if (filterSection.style.display === 'none') {
+            filterSection.style.display = 'block';
+            icon.classList.remove('fa-chevron-right');
+            icon.classList.add('fa-chevron-down');
+        } else {
+            filterSection.style.display = 'none';
+            icon.classList.remove('fa-chevron-down');
+            icon.classList.add('fa-chevron-right');
+        }
+    }
+
+    // Gestion de la période personnalisée
+    function handlePeriodChange() {
+        const periode = document.getElementById('periode').value;
+        const customDates = document.getElementById('customDates');
+
+        if (periode === 'custom') {
+            customDates.classList.remove('d-none');
+        } else {
+            customDates.classList.add('d-none');
+        }
+    }
+
+    // Changement de vue (table/cartes)
+    function setView(view) {
+        const tableView = document.getElementById('tableView');
+        const cardsView = document.getElementById('cardsView');
+        const buttons = document.querySelectorAll('.btn-group-sm button');
+
+        buttons.forEach(btn => btn.classList.remove('active'));
+
+        if (view === 'cards') {
+            tableView.classList.add('d-none');
+            cardsView.classList.remove('d-none');
+            buttons[1].classList.add('active');
+        } else {
+            tableView.classList.remove('d-none');
+            cardsView.classList.add('d-none');
+            buttons[0].classList.add('active');
+        }
+
+        // Sauvegarder la préférence
+        localStorage.setItem('expressionBesoinView', view);
+    }
+
+    // Restaurer la vue préférée
+    const savedView = localStorage.getItem('expressionBesoinView');
+    if (savedView === 'cards') {
+        setView('cards');
+    }
+
+    // Modal de validation
+    async function openValidationModal(besoinId) {
+        currentBesoinId = besoinId;
+        window.appFunctions.showLoader();
+
+        try {
+            const response = await fetch(`/pharmacies/approvisionnement/api/besoins/${besoinId}/lignes/`);
+            const data = await response.json();
+
+            let content = `
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i> 
+                Vérifiez et ajustez si nécessaire les quantités à valider pour chaque produit.
+            </div>
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Produit</th>
+                            <th class="text-center">Qté demandée</th>
+                            <th class="text-center">Stock disponible</th>
+                            <th class="text-center">Qté à valider</th>
+                            <th>Observations</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+            // Charger les stocks disponibles
+            const produitIds = data.lignes.map(l => l.produit_id);
+            const stocksResponse = await fetch('/pharmacies/api/stocks-multiples/', {
+                method: 'POST',
+                ...window.fetchConfig,
+                body: JSON.stringify({ produit_ids: produitIds })
+            });
+            const stocksData = await stocksResponse.json();
+
+            data.lignes.forEach(ligne => {
+                const stock = stocksData.stocks[ligne.produit_id] || { stock_disponible: 0 };
+                const stockClass = stock.stock_disponible >= ligne.quantite_demandee ? 'text-success' : 'text-danger';
+
+                content += `
+                <tr>
+                    <td>
+                        <strong>${ligne.produit_nom}</strong>
+                        <small class="text-muted d-block">Code: ${ligne.produit_code || 'N/A'}</small>
+                    </td>
+                    <td class="text-center">
+                        <span class="badge bg-primary">${ligne.quantite_demandee}</span>
+                    </td>
+                    <td class="text-center">
+                        <span class="badge ${stockClass}">
+                            ${stock.stock_disponible}
+                        </span>
+                    </td>
+                    <td>
+                        <input type="number" 
+                               class="form-control form-control-sm quantite-validee text-center" 
+                               data-ligne-id="${ligne.id}" 
+                               value="${Math.min(ligne.quantite_demandee, stock.stock_disponible)}" 
+                               min="0" 
+                               max="${ligne.quantite_demandee}"
+                               ${stock.stock_disponible === 0 ? 'disabled' : ''}>
+                    </td>
+                    <td>
+                        <input type="text" 
+                               class="form-control form-control-sm observation-ligne" 
+                               data-ligne-id="${ligne.id}"
+                               placeholder="Observation..."
+                               ${stock.stock_disponible === 0 ? 'value="Stock insuffisant"' : ''}>
+                    </td>
+                </tr>
             `;
-            document.querySelector('.main-content').insertBefore(alertDiv, document.querySelector('.main-content').firstChild);
+            });
 
-            // Auto-dismiss après 5 secondes
-            setTimeout(() => {
-                alertDiv.remove();
-            }, 5000);
+            content += `
+                    </tbody>
+                </table>
+            </div>
+            <div class="mt-3">
+                <label for="validationObservation" class="form-label">Observations générales</label>
+                <textarea class="form-control" id="validationObservation" rows="2" 
+                          placeholder="Observations sur la validation (optionnel)"></textarea>
+            </div>
+        `;
+
+            document.getElementById('validationContent').innerHTML = content;
+
+            const modal = new bootstrap.Modal(document.getElementById('validationModal'));
+            modal.show();
+
+        } catch (error) {
+            window.appFunctions.showMessage('Erreur lors du chargement des données', 'danger');
+            console.error('Erreur:', error);
+        } finally {
+            window.appFunctions.hideLoader();
+        }
+    }
+
+    // Valider l'expression de besoin
+    async function validateBesoin() {
+        if (!currentBesoinId) return;
+
+        const lignes = [];
+        document.querySelectorAll('.quantite-validee').forEach(input => {
+            const observation = document.querySelector(`.observation-ligne[data-ligne-id="${input.dataset.ligneId}"]`);
+            lignes.push({
+                id: input.dataset.ligneId,
+                quantite_validee: parseInt(input.value) || 0,
+                observations: observation ? observation.value : ''
+            });
+        });
+
+        const observationGenerale = document.getElementById('validationObservation').value;
+
+        window.appFunctions.showLoader();
+
+        try {
+            const response = await fetch(`/pharmacies/approvisionnement/besoins/${currentBesoinId}/validation/`, {
+                method: 'POST',
+                ...window.fetchConfig,
+                body: JSON.stringify({
+                    action: 'valider',
+                    lignes: lignes,
+                    observations: observationGenerale
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                window.appFunctions.showMessage('Expression de besoin validée avec succès', 'success');
+
+                // Fermer le modal
+                bootstrap.Modal.getInstance(document.getElementById('validationModal')).hide();
+
+                // Recharger la page après un court délai
+                setTimeout(() => {
+                    location.reload();
+                }, 1500);
+            } else {
+                window.appFunctions.showMessage(result.message || 'Erreur lors de la validation', 'danger');
+            }
+        } catch (error) {
+            window.appFunctions.showMessage('Erreur lors de la validation', 'danger');
+            console.error('Erreur:', error);
+        } finally {
+            window.appFunctions.hideLoader();
+        }
+    }
+
+    // Modal de rejet
+    function openRejectModal(besoinId) {
+        currentBesoinId = besoinId;
+        document.getElementById('rejectReason').value = '';
+
+        const modal = new bootstrap.Modal(document.getElementById('rejectModal'));
+        modal.show();
+    }
+
+    // Rejeter l'expression de besoin
+    async function rejectBesoin() {
+        if (!currentBesoinId) return;
+
+        const reason = document.getElementById('rejectReason').value.trim();
+
+        if (!reason) {
+            window.appFunctions.showMessage('Veuillez indiquer le motif du rejet', 'warning');
+            return;
         }
 
-        // Fonction pour obtenir le token CSRF
-        function getCookie(name) {
-            let cookieValue = null;
-            if (document.cookie && document.cookie !== '') {
-                const cookies = document.cookie.split(';');
-                for (let i = 0; i < cookies.length; i++) {
-                    const cookie = cookies[i].trim();
-                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                        break;
-                    }
-                }
+        window.appFunctions.showLoader();
+
+        try {
+            const response = await fetch(`/pharmacies/approvisionnement/besoins/${currentBesoinId}/validation/`, {
+                method: 'POST',
+                ...window.fetchConfig,
+                body: JSON.stringify({
+                    action: 'rejeter',
+                    observations: reason
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                window.appFunctions.showMessage('Expression de besoin rejetée', 'success');
+
+                // Fermer le modal
+                bootstrap.Modal.getInstance(document.getElementById('rejectModal')).hide();
+
+                // Recharger la page
+                setTimeout(() => {
+                    location.reload();
+                }, 1500);
+            } else {
+                window.appFunctions.showMessage(result.message || 'Erreur lors du rejet', 'danger');
             }
-            return cookieValue;
+        } catch (error) {
+            window.appFunctions.showMessage('Erreur lors du rejet', 'danger');
+            console.error('Erreur:', error);
+        } finally {
+            window.appFunctions.hideLoader();
+        }
+    }
+
+    // Export des données
+    function exportData() {
+        window.appFunctions.confirmAction(
+            'Voulez-vous exporter les données filtrées au format Excel ?',
+            () => {
+                // Construire l'URL avec les paramètres actuels
+                const params = new URLSearchParams(window.location.search);
+                params.append('export', 'excel');
+
+                window.location.href = `${window.location.pathname}?${params.toString()}`;
+            }
+        );
+    }
+
+    // Raccourcis clavier pour cette page
+    document.addEventListener('keydown', (e) => {
+        // Alt + F pour focus sur les filtres
+        if (e.altKey && e.key === 'f') {
+            e.preventDefault();
+            document.getElementById('statut').focus();
         }
 
-        // Configuration globale pour les requêtes fetch
-        const csrftoken = getCookie('csrftoken');
-        const fetchConfig = {
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrftoken
-            }
-        };
-    </script>
+        // Alt + V pour changer de vue
+        if (e.altKey && e.key === 'v') {
+            e.preventDefault();
+            const currentView = document.getElementById('tableView').classList.contains('d-none') ? 'cards' : 'table';
+            setView(currentView === 'table' ? 'cards' : 'table');
+        }
+    });
 
-    {% block scripts %}{% endblock %}
-</body>
+    // Auto-refresh si des demandes sont en attente
+    if ({{ stats.en_attente |default: 0 }} > 0) {
+        // Actualiser la page toutes les 5 minutes si des demandes sont en attente
+        setTimeout(() => {
+            location.reload();
+        }, 300000); // 5 minutes
+    }
+</script>
 
-</html>
+<style>
+    /* Styles spécifiques à cette page */
+    .stat-card {
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-card::after {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+        transform: rotate(45deg);
+    }
+
+    .table tbody tr {
+        transition: all 0.3s ease;
+    }
+
+    .table tbody tr:hover {
+        transform: translateX(5px);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .badge {
+        font-weight: 500;
+        padding: 0.375rem 0.75rem;
+    }
+
+    .card {
+        transition: all 0.3s ease;
+    }
+
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Animation pour les nouveaux éléments */
+    @keyframes slideInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    tbody tr {
+        animation: slideInUp 0.5s ease;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .btn-group-sm {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .table {
+            font-size: 0.875rem;
+        }
+
+        .stat-card {
+            margin-bottom: 1rem;
+        }
+    }
+</style>
+{% endblock %}

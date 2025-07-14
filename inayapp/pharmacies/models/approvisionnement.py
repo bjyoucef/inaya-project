@@ -12,6 +12,8 @@ from django.utils import timezone
 from medical.models.services import Service
 
 from .stock import MouvementStock, Stock
+from django.db import models
+from django.contrib.auth.models import User
 
 User = get_user_model()
 
@@ -33,7 +35,7 @@ class ExpressionBesoin(models.Model):
         ("URGENTE", "Urgente"),
         ("CRITIQUE", "Critique"),
     ]
-    reference = models.CharField(max_length=50, unique=True, default=uuid.uuid4)
+    reference = models.CharField(max_length=100, unique=True, blank=True)
     type_approvisionnement = models.CharField(
         max_length=20,
         choices=TYPE_APPROVISIONNEMENT_CHOICES,
@@ -47,6 +49,8 @@ class ExpressionBesoin(models.Model):
         "medical.Service",
         on_delete=models.PROTECT,
         related_name="besoins_recus",
+        null=True,
+        blank=True,
         help_text="Service qui traite la demande (pharmacie pour externe, pharmacie pour interne)",
     )
     date_creation = models.DateTimeField(auto_now_add=True)
@@ -66,14 +70,43 @@ class ExpressionBesoin(models.Model):
         choices=PRIORITE_CHOICES,
         default="NORMALE",
     )
-
+    created_by = models.ForeignKey(
+        User, on_delete=models.PROTECT, related_name="expressions_besoin_creees"
+    )
     class Meta:
         verbose_name = "Expression de besoin"
         verbose_name_plural = "Expressions de besoin"
-        ordering = ["-date_creation"]
+
+    def save(self, *args, **kwargs):
+        if not self.reference:
+            # Générer la référence au format : EB-ANNÉE-SERVICE-USER
+            year = datetime.now().year
+
+            # Obtenir le code du service (3-4 premières lettres en majuscules)
+            service_code = self.service_demandeur.name[:6].upper().replace(" ", "")
+
+            # Obtenir le nom de l'utilisateur (prénom ou username)
+            user_code = (
+                self.created_by.first_name[:6].upper()
+                if self.created_by.first_name
+                else self.created_by.username[:6].upper()
+            )
+
+            # Compter le nombre d'expressions de besoin pour ce service cette année
+            count = (
+                ExpressionBesoin.objects.filter(
+                    date_creation__year=year, service_demandeur=self.service_demandeur
+                ).count()
+                + 1
+            )
+
+            # Générer la référence
+            self.reference = f"EB-{count:03d}-{year}-{service_code}-{user_code}"
+
+        super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"EB-{self.reference}"
+        return f"{self.reference}"
 
     def valider(self, user):
         if self.statut != "EN_ATTENTE":
@@ -106,7 +139,7 @@ class DemandeInterne(models.Model):
     reference = models.CharField(max_length=50, unique=True, default=uuid.uuid4)
     besoin = models.OneToOneField(
         ExpressionBesoin,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name="demande_interne",
         limit_choices_to={"type_approvisionnement": "INTERNE"},
     )
@@ -217,7 +250,7 @@ class DemandeInterne(models.Model):
                     produit=ligne.produit,
                     service=service_pharmacie,
                     quantite=ligne.quantite_accordee,
-                    observations=f"Livraison vers {service_destinataire.nom}",
+                    observations=f"Livraison vers {service_destinataire.name}",
                 )
 
                 if service_destinataire.gere_stock:
@@ -242,7 +275,7 @@ class DemandeInterne(models.Model):
 
 class LigneDemandeInterne(models.Model):
     demande = models.ForeignKey(
-        DemandeInterne, on_delete=models.CASCADE, related_name="lignes"
+        DemandeInterne, on_delete=models.PROTECT, related_name="lignes"
     )
     produit = models.ForeignKey("Produit", on_delete=models.PROTECT)
     quantite_demandee = models.PositiveIntegerField()
@@ -260,7 +293,7 @@ class LigneDemandeInterne(models.Model):
 
 class LigneBesoin(models.Model):
     besoin = models.ForeignKey(
-        ExpressionBesoin, on_delete=models.CASCADE, related_name="lignes"
+        ExpressionBesoin, on_delete=models.PROTECT, related_name="lignes"
     )
     produit = models.ForeignKey("Produit", on_delete=models.PROTECT)
     quantite_demandee = models.PositiveIntegerField()
@@ -335,7 +368,7 @@ class CommandeFournisseur(models.Model):
 
 class LigneCommande(models.Model):
     commande = models.ForeignKey(
-        CommandeFournisseur, on_delete=models.CASCADE, related_name="lignes"
+        CommandeFournisseur, on_delete=models.PROTECT, related_name="lignes"
     )
     produit = models.ForeignKey("Produit", on_delete=models.PROTECT)
     quantite_commandee = models.PositiveIntegerField()
@@ -423,7 +456,7 @@ class Livraison(models.Model):
 
 class LigneLivraison(models.Model):
     livraison = models.ForeignKey(
-        Livraison, on_delete=models.CASCADE, related_name="lignes"
+        Livraison, on_delete=models.PROTECT, related_name="lignes"
     )
     produit = models.ForeignKey("Produit", on_delete=models.PROTECT)
     quantite_livree = models.PositiveIntegerField()
@@ -442,7 +475,7 @@ class LigneLivraison(models.Model):
 class BonReception(models.Model):
     reference = models.CharField(max_length=50, unique=True, default=uuid.uuid4)
     livraison = models.OneToOneField(
-        Livraison, on_delete=models.CASCADE, related_name="bon_reception"
+        Livraison, on_delete=models.PROTECT, related_name="bon_reception"
     )
     date_creation = models.DateTimeField(auto_now_add=True)
     controleur = models.ForeignKey(

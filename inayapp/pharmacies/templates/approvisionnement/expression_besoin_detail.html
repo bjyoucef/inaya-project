@@ -46,8 +46,8 @@
                             <strong>Date de validation :</strong> {{ besoin.date_validation|date:"d/m/Y H:i" }}<br>
                         {% endif %}
                         {% if besoin.valide_par %}
-                        <strong>Validé par :</strong> {{
-                        besoin.valide_par.get_full_name|default:besoin.valide_par.username }}
+                        <strong>Validé par :</strong> 
+                        {{ besoin.valide_par.get_full_name|default:besoin.valide_par.username }}
                         {% endif %}
                     </div>
                 </div>
