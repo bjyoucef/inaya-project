@@ -72,42 +72,11 @@ class Payments(models.Model):
         managed = True
 
 
-class Tarif_Gardes(models.Model):
-    poste = models.ForeignKey(
-        "rh.Poste", on_delete=models.CASCADE, related_name="tarifs"
-    )
-    service = models.ForeignKey(
-        "medical.Service", on_delete=models.CASCADE, related_name="tarifs"
-    )
-    shift = models.ForeignKey(
-        "rh.Shift",
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name="tarifs",
-    )
-    prix = models.DecimalField(
-        "Prix (€)", max_digits=10, decimal_places=2, null=True, blank=True
-    )
-    salaire = models.DecimalField(
-        "Salaire (€)", max_digits=12, decimal_places=2, null=True, blank=True
-    )
-
-    class Meta:
-        unique_together = ("poste", "service", "shift")
-        verbose_name = "Tarif_Gardes"
-        verbose_name_plural = "Tarif_Gardes"
-
-    def __str__(self):
-        desc = f"{self.poste} / {self.service}"
-        if self.shift:
-            desc += f" ({self.shift})"
-        return desc
 
 
 class TarifActe(models.Model):
     acte = models.ForeignKey(
-        "medical.Acte", on_delete=models.CASCADE, related_name="tarifs"
+        "medical.ActeKt", on_delete=models.CASCADE, related_name="tarifs"
     )
     montant = models.DecimalField(max_digits=10, decimal_places=2)
     montant_honoraire_base = models.DecimalField(
@@ -137,7 +106,7 @@ class Convention(models.Model):
     description = models.TextField(blank=True, null=True)
     active = models.BooleanField(default=True)
     actes = models.ManyToManyField(
-        "medical.Acte", through="TarifActeConvention", related_name="conventions"
+        "medical.ActeKt", through="TarifActeConvention", related_name="conventions"
     )
 
     def __str__(self):
@@ -153,7 +122,7 @@ class TarifActeConvention(models.Model):
         "Convention", on_delete=models.CASCADE, related_name="tarifs"
     )
     acte = models.ForeignKey(
-        "medical.Acte", on_delete=models.CASCADE, related_name="tarifs_convention"
+        "medical.ActeKt", on_delete=models.CASCADE, related_name="tarifs_convention"
     )
     tarif_acte = models.ForeignKey(
         "TarifActe",
@@ -234,10 +203,10 @@ class HonorairesMedecin(models.Model):
         verbose_name="Médecin",
     )
     acte = models.ForeignKey(
-        "medical.Acte",
+        "medical.ActeKt",
         on_delete=models.CASCADE,
         related_name="honoraires_medecins",
-        verbose_name="Acte médical",
+        verbose_name="ActeKt médical",
     )
     convention = models.ForeignKey(
         "Convention",
@@ -283,7 +252,7 @@ class BonDePaiement(models.Model):
     ]
 
     prestation = models.ForeignKey(
-        "medical.Prestation", on_delete=models.PROTECT, related_name="bons_de_paiement"
+        "medical.PrestationKt", on_delete=models.PROTECT, related_name="bons_de_paiement"
     )
     montant = models.DecimalField(max_digits=10, decimal_places=2)
     date_paiement = models.DateTimeField(default=timezone.now)

@@ -24,9 +24,9 @@ from finance.models import (Convention, Decharges, Payments,
                             PrixSupplementaireConfig, TarifActe,
                             TarifActeConvention)
 from medecin.models import Medecin
-from medical.models import (Acte, ActeProduit, Prestation, PrestationActe,
-                            PrestationAudit)
-from medical.models.actes import ActeProduit
+from medical.models import (ActeKt, ActeProduit, PrestationActe,
+                            PrestationAudit, PrestationKt)
+from medical.models.prestation_Kt import ActeProduit
 from num2words import num2words
 from patients.models import Patient
 from pharmacies.models import ConsommationProduit, Produit
@@ -34,30 +34,58 @@ from rh.models import Personnel, Planning
 from utils.pdf import render_to_pdf
 from utils.utils import services_autorises
 
-from .forms import DechargeForm, PaymentForm
-from .models import Decharges, Payments
+from .forms import BonDePaiementForm, DechargeForm, PaymentForm
+from .models import BonDePaiement, Decharges, Payments
 
 
-# decharge planning
 @permission_required("accueil.view_menu_items_plannings", raise_exception=True)
 def add_decharge_multiple(request):
+    """
+    Crée plusieurs décharges en une seule fois pour les employés sélectionnés
+    """
     if request.method != "POST":
         messages.error(request, "Méthode non autorisée.")
         return redirect(reverse("planning"))
-    employee_ids = request.POST.getlist("employeurs")
+
+    # Récupérer les IDs des employés en filtrant les valeurs vides
+    employee_ids = [eid for eid in request.POST.getlist("employeurs") if eid.strip()]
+
     start_date_str = request.POST.get("start_date", "").strip()
     end_date_str = request.POST.get("end_date", "").strip()
     date_str = request.POST.get("date", "").strip()
 
-    if not employee_ids or not date_str:
-        messages.error(request, "Tous les champs sont requis.")
+    print(f"Start Date: {start_date_str}, End Date: {end_date_str}, Date: {date_str}")
+    print(f"Employee IDs: {employee_ids}")
+
+    # Vérifier qu'il y a au moins un employé sélectionné et une date
+    if not employee_ids:
+        messages.error(request, "Veuillez sélectionner au moins un employé.")
         return redirect(reverse("planning"))
 
-    date_obj = parse_date(date_str)
-    start_date_obj = parse_date(start_date_str)
-    end_date_obj = parse_date(end_date_str)
+    if not date_str:
+        messages.error(request, "La date de décharge est requise.")
+        return redirect(reverse("planning"))
+
+    if not start_date_str or not end_date_str:
+        messages.error(request, "Les dates de début et fin sont requises.")
+        return redirect(reverse("planning"))
+
+    # Parser les dates
+    try:
+        date_obj = parse_date(date_str)
+        start_date_obj = parse_date(start_date_str)
+        end_date_obj = parse_date(end_date_str)
+
+        if not all([date_obj, start_date_obj, end_date_obj]):
+            messages.error(request, "Format de date invalide.")
+            return redirect(reverse("planning"))
+
+    except Exception as e:
+        messages.error(request, f"Erreur lors du parsing des dates: {str(e)}")
+        return redirect(reverse("planning"))
 
     errors = []
+    success_count = 0
 
     try:
         # Récupérer l'instance Personnel liée à l'utilisateur connecté
@@ -70,74 +98,113 @@ def add_decharge_multiple(request):
         with transaction.atomic():
             for emp_id in employee_ids:
                 try:
-                    emp_id_int = int(emp_id)
-                except ValueError:
-                    errors.append(f"Identifiant invalide pour l'employé : {emp_id}")
+                    # Valider l'ID employé
+                    try:
+                        emp_id_int = int(emp_id)
+                    except ValueError:
+                        if emp_id:  # Seulement si l'ID n'est pas vide
+                            errors.append(
+                                f"Identifiant invalide pour l'employé : {emp_id}"
+                            )
+                        continue
+
+                    # Récupération de l'employé
+                    try:
+                        employee_obj = Personnel.objects.get(pk=emp_id_int)
+                        full_name = employee_obj.nom_prenom
+                    except Personnel.DoesNotExist:
+                        errors.append(f"Employé introuvable avec l'ID : {emp_id_int}")
+                        continue
+
+                    # Filtrage des plannings pour l'employé sur la période définie
+                    # et qui n'ont pas encore de décharge (decharge est null)
+                    plannings = Planning.objects.filter(
+                        employee_id=emp_id_int,
+                        shift_date__range=(start_date_obj, end_date_obj),
+                        decharge__isnull=True,  # Corrected: use decharge instead of id_decharge
+                        pointage_created_at__isnull=False,  # Only validated plannings
+                    )
+
+                    # Calculer le salaire total avec gestion des valeurs nulles
+                    aggregation = plannings.aggregate(
+                        total_salary=Sum(
+                            F("prix") + F("prix_acte"),
+                            output_field=DecimalField(max_digits=10, decimal_places=2),
+                        )
+                    )
+                    total_salary = aggregation["total_salary"] or Decimal("0.00")
+
+                    if total_salary <= 0:
+                        errors.append(
+                            f"L'employé {full_name} n'a pas de salaire positif pour cette période."
+                        )
+                        continue
+
+                    # Construction des informations de dossiers pour chaque planning filtré
+                    dossiers_list = []
+                    for p in plannings.select_related(
+                        "service", "employee", "shift", "poste"
+                    ):
+                        service_name = p.service.name if p.service else "Inconnu"
+                        shift_name = p.shift.label if p.shift else "Inconnu"
+                        poste_name = p.poste.label if p.poste else "Inconnu"
+
+                        dossier = f"{service_name} - {p.shift_date} - {shift_name} - {poste_name} - Garde: {p.prix}"
+                        if p.prix_acte and p.prix_acte != 0:
+                            dossier += f" - Actes: {p.prix_acte}"
+                        dossiers_list.append(dossier)
+
+                    if not dossiers_list:
+                        errors.append(
+                            f"Aucun planning validé trouvé pour {full_name} sur cette période."
+                        )
+                        continue
+
+                    # Création de la décharge
+                    decharge = Decharges.objects.create(
+                        name=full_name,
+                        amount=total_salary,
+                        date=date_obj,
+                        note="\n".join(dossiers_list),
+                        created_at=timezone.now(),
+                        id_created_par=request.user,
+                        id_employe=emp_id_int,
+                    )
+
+                    # Mise à jour des plannings concernés avec l'instance de la décharge
+                    plannings_updated = plannings.update(
+                        decharge=decharge,  # Use the decharge instance, not the ID
+                    )
+
+                    success_count += 1
+                    print(
+                        f"Décharge créée pour {full_name}: {total_salary} DA, {plannings_updated} plannings mis à jour"
+                    )
+
+                except Exception as e:
+                    errors.append(f"Erreur pour l'employé {emp_id}: {str(e)}")
+                    print(f"Erreur pour employé {emp_id}: {str(e)}")
                     continue
 
-                # Récupération du nom complet de l'employé
-                try:
-                    employee_obj = Personnel.objects.get(pk=emp_id_int)
-                    full_name = employee_obj.nom_prenom
-                except Personnel.DoesNotExist:
-                    full_name = "Inconnu"
-                    employee_obj = None
+        # Messages de retour
+        if success_count > 0:
+            messages.success(
+                request, f"✅ {success_count} décharge(s) créée(s) avec succès."
+            )
 
-                # Filtrage des plannings pour l'employé sur la période définie
-                # et qui n'ont pas encore de décharge (decharge_created_at est null)
-                plannings = Planning.objects.filter(
-                    employee_id=emp_id_int,
-                    shift_date__range=(start_date_obj, end_date_obj),
-                    id_decharge__isnull=True,
-                )
+        if errors:
+            for err in errors[:5]:  # Limiter le nombre d'erreurs affichées
+                messages.warning(request, err)
+            if len(errors) > 5:
+                messages.warning(request, f"... et {len(errors) - 5} autres erreurs.")
 
-                aggregation = plannings.aggregate(
-                    total_salary=Sum(
-                        F("prix") + F("prix_acte"), output_field=DecimalField()
-                    )
-                )
-                total_salary = aggregation["total_salary"] or Decimal("0.00")
-
-                if total_salary <= 0:
-                    errors.append(f"L'employé {full_name} n'a pas de salaire positif.")
-                    continue
-
-                dossiers_list = []
-                # Construction des informations de dossiers pour chaque planning filtré
-                for p in plannings.select_related("id_service", "employee"):
-                    service_name = (
-                        p.id_service.name if p.id_service else "Inconnu"
-                    )
-                    dossier = f"{service_name} - {p.shift_date} - {p.shift} - {p.prix}"
-                    if p.prix_acte and p.prix_acte != 0:
-                        dossier += f" - Actes {p.prix_acte}"
-                    dossiers_list.append(dossier)
-
-                # Création de la décharge et récupération de l'instance
-                decharge = Decharges.objects.create(
-                    name=full_name,
-                    amount=total_salary,
-                    date=date_obj,
-                    note="\n".join(dossiers_list),
-                    created_at=timezone.now(),
-                    id_created_par=request.user,
-                    id_employe=emp_id_int,
-                )
-
-                # Mise à jour des plannings concernés avec l’ID de la décharge
-                plannings.update(
-                    id_decharge=decharge.id_decharge,
-                )
-
-            if errors:
-                for err in errors:
-                    messages.error(request, err)
-            else:
-                messages.success(request, "Décharges ajoutées avec succès.")
+        if success_count == 0 and errors:
+            messages.error(request, "Aucune décharge n'a pu être créée.")
 
     except Exception as e:
+        print(f"Erreur générale: {str(e)}")
         messages.error(
-            request, "Une erreur est survenue lors de l'ajout des décharges."
+            request, f"Une erreur est survenue lors de l'ajout des décharges: {str(e)}"
         )
 
     return redirect(reverse("planning"))
@@ -145,7 +212,8 @@ def add_decharge_multiple(request):
 
 @login_required
 def decharge_list(request):
-    decharges = (
+    # Base queryset avec les annotations
+    base_queryset = (
         Decharges.objects.annotate(
             total_payments=Coalesce(
                 Sum("payments__payment"),
@@ -163,14 +231,31 @@ def decharge_list(request):
         .order_by("-date")
     )
 
-    return render(
-        request, "decharges/decharges_list.html", {"decharges": decharges}
+    # Séparer par type
+    decharges_medecin = base_queryset.filter(medecin__isnull=False)
+    decharges_employe = base_queryset.filter(
+        id_employe__isnull=False, medecin__isnull=True
     )
+    decharges_autre = base_queryset.filter(
+        medecin__isnull=True, id_employe__isnull=True
+    )
+
+    context = {
+        "decharges_medecin": decharges_medecin,
+        "decharges_employe": decharges_employe,
+        "decharges_autre": decharges_autre,
+        "total_medecin": decharges_medecin.count(),
+        "total_employe": decharges_employe.count(),
+        "total_autre": decharges_autre.count(),
+    }
+
+    return render(request, "decharges/decharges_list.html", context)
 
 
 @login_required
 def decharge_settled(request):
-    decharges = (
+    # Base queryset avec les annotations pour les décharges réglées
+    base_queryset = (
         Decharges.objects.annotate(
             total_payments=Coalesce(
                 Sum("payments__payment", output_field=models.DecimalField()),
@@ -187,9 +272,52 @@ def decharge_settled(request):
         .order_by("-date")
     )
 
-    return render(
-        request, "decharges/decharges_settled.html", {"decharges": decharges}
+    # Séparer par type
+    decharges_medecin = base_queryset.filter(medecin__isnull=False)
+    decharges_employe = base_queryset.filter(
+        id_employe__isnull=False, medecin__isnull=True
     )
+    decharges_autre = base_queryset.filter(
+        medecin__isnull=True, id_employe__isnull=True
+    )
+
+    # Calculer les totaux pour chaque type
+    total_amount_medecin = (
+        decharges_medecin.aggregate(total=Sum("amount"))["total"] or 0
+    )
+    total_amount_employe = (
+        decharges_employe.aggregate(total=Sum("amount"))["total"] or 0
+    )
+    total_amount_autre = decharges_autre.aggregate(total=Sum("amount"))["total"] or 0
+
+    # Calculer les totaux des paiements pour chaque type
+    total_payments_medecin = (
+        decharges_medecin.aggregate(total=Sum("total_payments"))["total"] or 0
+    )
+    total_payments_employe = (
+        decharges_employe.aggregate(total=Sum("total_payments"))["total"] or 0
+    )
+    total_payments_autre = (
+        decharges_autre.aggregate(total=Sum("total_payments"))["total"] or 0
+    )
+
+    context = {
+        "decharges_medecin": decharges_medecin,
+        "decharges_employe": decharges_employe,
+        "decharges_autre": decharges_autre,
+        "total_medecin": decharges_medecin.count(),
+        "total_employe": decharges_employe.count(),
+        "total_autre": decharges_autre.count(),
+        "total_amount_medecin": total_amount_medecin,
+        "total_amount_employe": total_amount_employe,
+        "total_amount_autre": total_amount_autre,
+        "total_payments_medecin": total_payments_medecin,
+        "total_payments_employe": total_payments_employe,
+        "total_payments_autre": total_payments_autre,
+        "grand_total": total_amount_medecin + total_amount_employe + total_amount_autre,
+    }
+
+    return render(request, "decharges/decharges_settled.html", context)
 
 
 @login_required
@@ -492,7 +620,7 @@ def situation_medecin(request, medecin_id):
         .exclude(prestation__statut='planifie')
     )
 
-    prestation_query = Prestation.objects.filter(medecin=medecin)
+    prestation_query = PrestationKt.objects.filter(medecin=medecin)
 
     if date_debut and date_fin:
         base_query = base_query.filter(
@@ -672,7 +800,7 @@ def situation_medecin(request, medecin_id):
             c["convention__nom"] or "Non renseigné" for c in conventions_data
         ],
         "convention_values": [safe_float(c.get("total")) for c in conventions_data],
-        "acte_labels": [a["acte__libelle"] or "Acte inconnu" for a in actes_data],
+        "acte_labels": [a["acte__libelle"] or "ActeKt inconnu" for a in actes_data],
         "acte_values": [safe_float(a.get("total")) for a in actes_data],
         "evolution_dates": [
             e["date"].isoformat() for e in evolution_data if e.get("date")
@@ -737,7 +865,7 @@ def create_decharge_medecin(request, medecin_id):
         for prestation in prestations:
             details = [
                 f"Date: {prestation.prestation.date_prestation.date()}",
-                f"Acte: {prestation.acte.libelle} ({prestation.acte.code})",
+                f"ActeKt: {prestation.acte.libelle} ({prestation.acte.code})",
                 f"Patient: {prestation.prestation.patient.nom_complet}",
                 f"Convention: {prestation.convention.nom if prestation.convention else 'Non conventionné'}",
                 f"Honoraire: {prestation.honoraire_medecin} DA\n",
@@ -914,22 +1042,11 @@ def update_convention_status(request, pk):
     )
 
 
-# medical/views/paiements.py
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required
-from django.db.models import Q, Sum
-from django.db import transaction
-from decimal import Decimal
-from medical.models import Prestation
-from .models import BonDePaiement
-from .forms import BonDePaiementForm
-
-
 @login_required
 def paiements_especes(request):
     # Filtrer les prestations éligibles
     prestations = (
-        Prestation.objects.filter(
+        PrestationKt.objects.filter(
             Q(statut="REALISE")
             & (
                 Q(prix_supplementaire__gt=0)
@@ -959,7 +1076,7 @@ def paiements_especes(request):
 @login_required
 @transaction.atomic
 def creer_bon_paiement(request, prestation_id):
-    prestation = get_object_or_404(Prestation, id=prestation_id)
+    prestation = get_object_or_404(PrestationKt, id=prestation_id)
 
     # Calcul du reste à payer
     total_paiements = prestation.bons_de_paiement.aggregate(total=Sum("montant"))[

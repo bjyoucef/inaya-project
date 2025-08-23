@@ -14,7 +14,7 @@ from django.views.generic import (CreateView, DeleteView, DetailView, ListView,
                                   UpdateView)
 from openpyxl import Workbook
 
-from ..forms import FournisseurForm
+from ..forms.ph_forms import FournisseurForm
 from ..models import Fournisseur
 
 logger = logging.getLogger(__name__)

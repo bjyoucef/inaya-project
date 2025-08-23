@@ -1,0 +1,212 @@
+{% extends 'layout.html' %}
+{% load static %}
+{% block content %}
+
+
+
+<!-- templates/patients/patient_detail.html -->
+
+<div class="row">
+    <!-- En-tête -->
+    <div class="col-12 mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{% url 'patients:patient_list' %}">Patients</a></li>
+                        <li class="breadcrumb-item active">{{ patient.nom_complet }}</li>
+                    </ol>
+                </nav>
+                <h2>
+                    <i class="fas fa-user me-2"></i>
+                    {{ patient.nom_complet }}
+                    {% if not patient.is_active %}
+                        <span class="badge bg-secondary ms-2">Inactif</span>
+                    {% elif patient.is_currently_hospitalized %}
+                        <span class="badge bg-warning ms-2">Hospitalisé</span>
+                    {% endif %}
+                </h2>
+            </div>
+            <div class="btn-group" role="group">
+                <a href="{% url 'patients:patient_update' patient.id %}" class="btn btn-warning">
+                    <i class="fas fa-edit me-1"></i>Modifier
+                </a>
+                <form method="post" action="{% url 'patients:patient_toggle_status' patient.id %}" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-{% if patient.is_active %}secondary{% else %}success{% endif %}"
+                            onclick="return confirm('Confirmer le changement de statut?')">
+                        <i class="fas fa-{% if patient.is_active %}pause{% else %}play{% endif %} me-1"></i>
+                        {% if patient.is_active %}Désactiver{% else %}Activer{% endif %}
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Informations personnelles -->
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-id-card me-2"></i>Informations Personnelles</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <strong>Nom complet:</strong><br>
+                        {{ patient.nom_complet }}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <strong>Genre:</strong><br>
+                        {% if patient.gender %}
+                            <i class="fas fa-{% if patient.gender == 'M' %}mars{% else %}venus{% endif %} me-1"></i>
+                            {{ patient.get_gender_display }}
+                        {% else %}
+                            <em class="text-muted">Non spécifié</em>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <strong>Date de naissance:</strong><br>
+                        {% if patient.date_of_birth %}
+                            {{ patient.date_of_birth|date:"d/m/Y" }}
+                            {% if patient.age %}({{ patient.age }} ans){% endif %}
+                        {% else %}
+                            <em class="text-muted">Non spécifiée</em>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <strong>Lieu de naissance:</strong><br>
+                        {{ patient.place_of_birth|default:"<em class='text-muted'>Non spécifié</em>" }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Informations de contact -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-address-book me-2"></i>Contact</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <strong>Téléphone:</strong><br>
+                        {% if patient.phone_number %}
+                            <a href="tel:{{ patient.phone_number }}">{{ patient.phone_number }}</a>
+                        {% else %}
+                            <em class="text-muted">Non spécifié</em>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <strong>Email:</strong><br>
+                        {% if patient.email %}
+                            <a href="mailto:{{ patient.email }}">{{ patient.email }}</a>
+                        {% else %}
+                            <em class="text-muted">Non spécifié</em>
+                        {% endif %}
+                    </div>
+                    <div class="col-12 mb-3">
+                        <strong>Adresse:</strong><br>
+                        {% if patient.address %}
+                            {{ patient.address|linebreaks }}
+                        {% else %}
+                            <em class="text-muted">Non spécifiée</em>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sécurité sociale -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-shield-alt me-2"></i>Sécurité Sociale</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <strong>Numéro de sécurité sociale:</strong><br>
+                        {{ patient.social_security_number|default:"<em class='text-muted'>Non spécifié</em>" }}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <strong>Type de sécurité sociale:</strong><br>
+                        {% if patient.securite_sociale %}
+                            {{ patient.get_securite_sociale_display }}
+                        {% else %}
+                            <em class="text-muted">Non spécifié</em>
+                        {% endif %}
+                    </div>
+                    <div class="col-12 mb-3">
+                        <strong>Nom de l'assuré:</strong><br>
+                        {{ patient.nom_de_assure|default:"<em class='text-muted'>Non spécifié</em>" }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistiques -->
+    <div class="col-lg-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Statistiques</h5>
+            </div>
+            <div class="card-body text-center">
+                <div class="row">
+                    <div class="col-12 mb-3">
+                        <h3 class="text-primary">{{ total_admissions }}</h3>
+                        <small class="text-muted">Total admissions</small>
+                    </div>
+                    <div class="col-12 mb-3">
+                        <h3 class="text-info">{{ total_days }}</h3>
+                        <small class="text-muted">Jours d'hospitalisation</small>
+                    </div>
+                    <div class="col-12 mb-3">
+                        <h3 class="text-success">{{ total_costs|floatformat:2 }}€</h3>
+                        <small class="text-muted">Coût total</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% if current_admission %}
+        <div class="card mb-4">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0"><i class="fas fa-bed me-2"></i>Admission Actuelle</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Date d'admission:</strong><br>{{ current_admission.admission_date|date:"d/m/Y H:i" }}</p>
+                <p><strong>Service:</strong><br>{{ current_admission.service|default:"Non spécifié" }}</p>
+                <p><strong>Durée:</strong><br>
+                    {% with current_admission.admission_date.date as admission_date %}
+                        {% with "today"|date:"Y-m-d"|date as today %}
+                            {% with today|timeuntil:admission_date as duration %}
+                                {{ duration }}
+                            {% endwith %}
+                        {% endwith %}
+                    {% endwith %}
+                </p>
+                <a href="#" class="btn btn-warning btn-sm w-100">
+                    <i class="fas fa-eye me-1"></i>Voir l'admission
+                </a>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Informations système -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Informations Système</h5>
+            </div>
+            <div class="card-body small">
+                <p><strong>Créé le:</strong><br>{{ patient.created_at|date:"d/m/Y H:i" }}</p>
+                <p><strong>Modifié le:</strong><br>{{ patient.updated_at|date:"d/m/Y H:i" }}</p>
+                <p><strong>Statut:</strong><br>
+                    <span class="badge bg-{% if patient.is_active %}success{% else %}secondary{% endif %}">
+                        {% if patient.is_active %}Actif{% else %}Inactif{% endif %}
+                    </span>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

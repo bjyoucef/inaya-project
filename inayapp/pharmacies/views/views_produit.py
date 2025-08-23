@@ -15,7 +15,7 @@ from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404
 
 from ..models import Produit
-from ..forms import ProduitForm, ProduitSearchForm
+from ..forms.ph_forms import ProduitForm, ProduitSearchForm
 
 
 class ProduitListView(LoginRequiredMixin, ListView):

@@ -1,0 +1,229 @@
+{% extends "layout.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="h3 text-primary"><i class="bi bi-building me-2"></i>Modifier Location de Bloc</h1>
+    <p class="text-muted mb-4">Modifier les détails de la location de bloc opératoire</p>
+
+    {% if errors %}
+    <div class="alert alert-danger">
+        <ul>
+            {% for error in errors %}
+            <li>{{ error }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <form method="post" action="{% url 'medical:location_bloc_edit' location.id %}">
+        {% csrf_token %}
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Patient</label>
+                        <select name="patient" class="form-select" required>
+                            <option value="">Sélectionner un patient</option>
+                            {% for patient in patients %}
+                            <option value="{{ patient.id }}" {% if patient.id == location.patient.id %}selected{% endif %}>
+                                {{ patient.nom }} {{ patient.prenom }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Médecin</label>
+                        <select name="medecin" class="form-select" required>
+                            <option value="">Sélectionner un médecin</option>
+                            {% for medecin in medecins %}
+                            <option value="{{ medecin.id }}" {% if medecin.id == location.medecin.id %}selected{% endif %}>
+                                Dr. {{ medecin.nom }} {{ medecin.prenom }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Bloc</label>
+                        <select name="bloc" class="form-select" required>
+                            <option value="">Sélectionner un bloc</option>
+                            {% for bloc in blocs %}
+                            <option value="{{ bloc.id }}" {% if bloc.id == location.bloc.id %}selected{% endif %}>
+                                {{ bloc.nom_bloc }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Date opération</label>
+                        <input type="date" name="date_operation" class="form-control" value="{{ location.date_operation|date:'Y-m-d' }}" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Heure opération</label>
+                        <input type="time" name="heure_operation" class="form-control" value="{{ location.heure_operation|time:'H:i' }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Durée réelle (min)</label>
+                        <input type="number" name="duree_reelle" class="form-control" value="{{ location.duree_reelle }}" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Type tarification</label>
+                        <select name="type_tarification" class="form-select" id="type_tarification">
+                            <option value="DUREE" {% if location.type_tarification == 'DUREE' %}selected{% endif %}>Durée</option>
+                            <option value="FORFAIT" {% if location.type_tarification == 'FORFAIT' %}selected{% endif %}>Forfait</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3" id="forfait_field" style="{% if location.type_tarification != 'FORFAIT' %}display: none;{% endif %}">
+                        <label class="form-label">Forfait</label>
+                        <select name="forfait" class="form-select">
+                            <option value="">Sélectionner un forfait</option>
+                            {% for forfait in forfaits %}
+                            <option value="{{ forfait.id }}" {% if forfait.id == location.forfait.id %}selected{% endif %}>
+                                {{ forfait.nom }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Nom de l'acte</label>
+                        <input type="text" name="nom_acte" class="form-control" value="{{ location.nom_acte }}" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Observations</label>
+                        <textarea name="observations" class="form-control">{{ location.observations }}</textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Actes supplémentaires -->
+        <div class="card mb-3">
+            <div class="card-body">
+                <h5 class="card-title">Actes supplémentaires</h5>
+                <div id="actes-container">
+                    {% for acte in actes_selected %}
+                    <div class="row g-3 mb-2 acte-row">
+                        <div class="col-md-5">
+                            <select name="acte_id[]" class="form-select">
+                                <option value="">Sélectionner un acte</option>
+                                {% for acte_option in actes_location %}
+                                <option value="{{ acte_option.id }}" {% if acte_option.id == acte.acte.id %}selected{% endif %}>
+                                    {{ acte_option.nom }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <input type="number" name="acte_quantite[]" class="form-control" value="{{ acte.quantite }}" min="1">
+                        </div>
+                        <div class="col-md-3">
+                            <input type="number" name="acte_prix[]" class="form-control" value="{{ acte.prix_unitaire }}" step="0.01">
+                        </div>
+                        <div class="col-md-1">
+                            <button type="button" class="btn btn-danger btn-sm remove-acte">X</button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <button type="button" class="btn btn-secondary mt-2" id="add-acte">Ajouter un acte</button>
+            </div>
+        </div>
+
+        <!-- Produits supplémentaires -->
+        <div class="card mb-3">
+            <div class="card-body">
+                <h5 class="card-title">Produits supplémentaires</h5>
+                <div id="produits-container">
+                    {% for produit in produits_selected %}
+                    <div class="row g-3 mb-2 produit-row">
+                        <div class="col-md-5">
+                            <select name="produit_id[]" class="form-select">
+                                <option value="">Sélectionner un produit</option>
+                                {% for produit_option in produits %}
+                                <option value="{{ produit_option.id }}" {% if produit_option.id == produit.produit.id %}selected{% endif %}>
+                                    {{ produit_option.nom }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <input type="number" name="quantite[]" class="form-control" value="{{ produit.quantite }}" min="1">
+                        </div>
+                        <div class="col-md-1">
+                            <button type="button" class="btn btn-danger btn-sm remove-produit">X</button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <button type="button" class="btn btn-secondary mt-2" id="add-produit">Ajouter un produit</button>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-end">
+            <a href="{% url 'medical:location_bloc_detail' location.id %}" class="btn btn-secondary me-2">Annuler</a>
+            <button type="submit" name="action" value="submit" class="btn btn-primary">Enregistrer</button>
+        </div>
+    </form>
+</div>
+
+<script>
+document.getElementById('type_tarification').addEventListener('change', function() {
+    document.getElementById('forfait_field').style.display = this.value === 'FORFAIT' ? 'block' : 'none';
+});
+
+document.getElementById('add-acte').addEventListener('click', function() {
+    const container = document.getElementById('actes-container');
+    const row = document.createElement('div');
+    row.className = 'row g-3 mb-2 acte-row';
+    row.innerHTML = `
+        <div class="col-md-5">
+            <select name="acte_id[]" class="form-select">
+                <option value="">Sélectionner un acte</option>
+                {% for acte in actes_location %}
+                <option value="{{ acte.id }}">{{ acte.nom }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <input type="number" name="acte_quantite[]" class="form-control" value="1" min="1">
+        </div>
+        <div class="col-md-3">
+            <input type="number" name="acte_prix[]" class="form-control" step="0.01">
+        </div>
+        <div class="col-md-1">
+            <button type="button" class="btn btn-danger btn-sm remove-acte">X</button>
+        </div>
+    `;
+    container.appendChild(row);
+});
+
+document.getElementById('add-produit').addEventListener('click', function() {
+    const container = document.getElementById('produits-container');
+    const row = document.createElement('div');
+    row.className = 'row g-3 mb-2 produit-row';
+    row.innerHTML = `
+        <div class="col-md-5">
+            <select name="produit_id[]" class="form-select">
+                <option value="">Sélectionner un produit</option>
+                {% for produit in produits %}
+                <option value="{{ produit.id }}">{{ produit.nom }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <input type="number" name="quantite[]" class="form-control" value="1" min="1">
+        </div>
+        <div class="col-md-1">
+            <button type="button" class="btn btn-danger btn-sm remove-produit">X</button>
+        </div>
+    `;
+    container.appendChild(row);
+});
+
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('remove-acte') || e.target.classList.contains('remove-produit')) {
+        e.target.closest('.row').remove();
+    }
+});
+</script>
+{% endblock %}

@@ -2,63 +2,91 @@
 from django.urls import include, path
 
 from . import views
-
-from .views.views_fournisseur import (
-    FournisseurCreateView,
-    FournisseurDeleteView,
-    FournisseurDetailView,
-    FournisseurListView,
-    FournisseurUpdateView,
-)
-from .views.views_stock import (
-    AjustementStockCreateView,
-    StockCreateView,
-    StockDeleteView,
-    StockDetailView,
-    StockListView,
-    StockUpdateView,
-    get_stock_disponible,
-    stocks_expires_bientot,
-)
-from django.urls import path
-from .views.approvisionnement import (
-    ExpressionBesoinListView,
-    ExpressionBesoinDetailView,
-    ExpressionBesoinCreateView,
-    ExpressionBesoinValidationView,
-    CommandeFournisseurListView,
-    CommandeFournisseurDetailView,
-    CommandeFournisseurCreateView,
-    CommandeFournisseurConfirmView,
-    LivraisonListView,
-    LivraisonDetailView,
-    LivraisonCreateView,
-    LivraisonReceptionView,
-    BonReceptionListView,
-    BonReceptionDetailView,
-    BonReceptionPrintView,
-    GetBesoinLignesAPIView,
-    GetCommandeLignesAPIView,
-    GetProduitsAPIView,
-    DashboardView,
-    # Nouvelles vues pour demandes internes
-    DemandeInterneListView,
-    DemandeInterneDetailView,
-    DemandeInterneValidationView,
-    DemandeInterneValiderView,
-    DemandeInterneRejeterView,
-    DemandeInternePreparerView,
-    DemandeInterneLivrerView,
-    DemandeInternePDFView,
-    DemandeInterneExcelView,
-    GetStockDisponibleAPIView,
-    GetStocksMultiplesAPIView,
-    system_alerts_api,
-    menu_stats_api,
-)
-
+from .views.approvisionnement import (  # Nouvelles vues pour demandes internes
+    BonReceptionDetailView, BonReceptionListView, BonReceptionPrintView,
+    CommandeFournisseurConfirmView, CommandeFournisseurCreateView,
+    CommandeFournisseurDetailView, CommandeFournisseurListView, DashboardView,
+    ExpressionBesoinCreateView, ExpressionBesoinDetailView,
+    ExpressionBesoinListView, ExpressionBesoinValidationView,
+    GetBesoinLignesAPIView, GetCommandeLignesAPIView, GetProduitsAPIView,
+    GetStockDisponibleAPIView, GetStocksMultiplesAPIView, LivraisonCreateView,
+    LivraisonDetailView, LivraisonListView, LivraisonReceptionView,
+    menu_stats_api, system_alerts_api)
+from .views.views_fournisseur import (FournisseurCreateView,
+                                      FournisseurDeleteView,
+                                      FournisseurDetailView,
+                                      FournisseurListView,
+                                      FournisseurUpdateView)
+from .views.views_stock import (AjustementStockCreateView, StockCreateView,
+                                StockDeleteView, StockDetailView,
+                                StockListView, StockUpdateView,
+                                get_stock_disponible, stocks_expires_bientot)
+from .views import approvisionnement_interne
 
 app_name = "pharmacies"
+
+urls_interne = [
+    # Liste et gestion des demandes internes
+    path(
+        "approvisionnement/demandes-internes/",
+        approvisionnement_interne.liste_demandes_internes,
+        name="liste_demandes_internes",
+    ),
+    path(
+        "approvisionnement/demandes-internes/nouvelle/",
+        approvisionnement_interne.nouvelle_demande_interne,
+        name="nouvelle_demande_interne",
+    ),
+    path(
+        "approvisionnement/demandes-internes/<int:demande_id>/",
+        approvisionnement_interne.detail_demande_interne,
+        name="detail_demande_interne",
+    ),
+    # Actions sur les demandes
+    path(
+        "approvisionnement/demandes-internes/<int:demande_id>/valider/",
+        approvisionnement_interne.valider_demande_interne,
+        name="valider_demande_interne",
+    ),
+    path(
+        "approvisionnement/demandes-internes/<int:demande_id>/rejeter/",
+        approvisionnement_interne.rejeter_demande_interne,
+        name="rejeter_demande_interne",
+    ),
+    path(
+        "approvisionnement/demandes-internes/<int:demande_id>/preparer/",
+        approvisionnement_interne.preparer_demande_interne,
+        name="preparer_demande_interne",
+    ),
+    path(
+        "approvisionnement/demandes-internes/<int:demande_id>/livrer/",
+        approvisionnement_interne.livrer_demande_interne,
+        name="livrer_demande_interne",
+    ),
+    path(
+        "approvisionnement/demandes-internes/<int:demande_id>/annuler/",
+        approvisionnement_interne.annuler_demande_interne,
+        name="annuler_demande_interne",
+    ),
+    # APIs
+    path(
+        "approvisionnement/api/stock-disponible/",
+        approvisionnement_interne.api_stock_disponible,
+        name="api_stock_disponible",
+    ),
+    path(
+        "approvisionnement/api/recherche-produits/",
+        approvisionnement_interne.api_recherche_produits,
+        name="api_recherche_produits",
+    ),
+    # Rapports
+    path(
+        "approvisionnement/rapports/demandes-internes/",
+        approvisionnement_interne.rapport_demandes_internes,
+        name="rapport_demandes_internes",
+    ),
+]
+
 urlpatterns = [
     # Produits
     path("produits/", views.ProduitListView.as_view(), name="produit_list"),
@@ -135,54 +163,7 @@ urlpatterns = [
         ExpressionBesoinValidationView.as_view(),
         name="expression_besoin_validation",
     ),
-    # Demandes internes
-    path(
-        "demandes-internes/",
-        DemandeInterneListView.as_view(),
-        name="demande_interne_list",
-    ),
-    path(
-        "demandes-internes/<int:pk>/",
-        DemandeInterneDetailView.as_view(),
-        name="demande_interne_detail",
-    ),
-    path(
-        "demandes-internes/<int:pk>/validation/",
-        DemandeInterneValidationView.as_view(),
-        name="demande_interne_validation",
-    ),
-    # Actions sur les demandes internes - AJOUT DE CES URLs MANQUANTES
-    path(
-        "demandes-internes/<int:pk>/valider/",
-        DemandeInterneValiderView.as_view(),
-        name="demande_interne_valider",
-    ),
-    path(
-        "demandes-internes/<int:pk>/rejeter/",
-        DemandeInterneRejeterView.as_view(),
-        name="demande_interne_rejeter",
-    ),
-    path(
-        "demandes-internes/<int:pk>/preparer/",
-        DemandeInternePreparerView.as_view(),
-        name="demande_interne_preparer",
-    ),
-    path(
-        "demandes-internes/<int:pk>/livrer/",
-        DemandeInterneLivrerView.as_view(),
-        name="demande_interne_livrer",
-    ),
-    # Export des demandes internes
-    path(
-        "demandes-internes/<int:pk>/pdf/",
-        DemandeInternePDFView.as_view(),
-        name="demande_interne_pdf",
-    ),
-    path(
-        "demandes-internes/<int:pk>/excel/",
-        DemandeInterneExcelView.as_view(),
-        name="demande_interne_excel",
-    ),
+
     # Commandes fournisseurs (approvisionnement externe)
     path(
         "commandes/",
@@ -272,7 +253,5 @@ urlpatterns = [
         system_alerts_api,
         name="api_alertes_systeme",
     ),
-    path(
-        "approvisionnement/api/stats-menu/", menu_stats_api, name="api_stats_menu"
-    ),
-]
+    path("approvisionnement/api/stats-menu/", menu_stats_api, name="api_stats_menu"),
+] + urls_interne

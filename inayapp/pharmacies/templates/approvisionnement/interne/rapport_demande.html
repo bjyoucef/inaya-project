@@ -1,0 +1,715 @@
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+<script>
+// Variables globales
+let monthlyChart;
+let selectedRows = new Set();
+
+document.addEventListener('DOMContentLoaded', function() {
+    initializeChart();
+    setupEventListeners();
+    animateBars();
+});
+
+function initializeChart() {
+    const ctx = document.getElementById('monthlyChart');
+    if (!ctx) return;
+    
+    // Données simulées - à remplacer par des données réelles
+    const monthlyData = {
+        labels: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun'],
+        datasets: [{
+            label: 'Demandes créées',
+            data: [12, 19, 3, 5, 2, 3],
+            backgroundColor: 'rgba(37, 99, 235, 0.1)',
+            borderColor: 'rgba(37, 99, 235, 1)',
+            borderWidth: 2,
+            fill: true
+        }, {
+            label: 'Demandes livrées',
+            data: [10, 15, 2, 4, 1, 2],
+            backgroundColor: 'rgba(5, 150, 105, 0.1)',
+            borderColor: 'rgba(5, 150, 105, 1)',
+            borderWidth: 2,
+            fill: true
+        }]
+    };
+    
+    monthlyChart = new Chart(ctx, {
+        type: 'line',
+        data: monthlyData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+function setupEventListeners() {
+    // Gestion de la sélection multiple
+    document.getElementById('selectAll').addEventListener('change', toggleAllRows);
+    
+    // Gestion des cases à cocher individuelles
+    document.querySelectorAll('.row-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            if (this.checked) {
+                selectedRows.add(this.value);
+            } else {
+                selectedRows.delete(this.value);
+            }
+            updateSelectAllState();
+        });
+    });
+}
+
+function toggleAllRows() {
+    const selectAll = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.row-checkbox');
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = selectAll.checked;
+        if (selectAll.checked) {
+            selectedRows.add(checkbox.value);
+        } else {
+            selectedRows.delete(checkbox.value);
+        }
+    });
+}
+
+function updateSelectAllState() {
+    const selectAll = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.row-checkbox');
+    const checkedBoxes = document.querySelectorAll('.row-checkbox:checked');
+    
+    if (checkedBoxes.length === 0) {
+        selectAll.indeterminate = false;
+        selectAll.checked = false;
+    } else if (checkedBoxes.length === checkboxes.length) {
+        selectAll.indeterminate = false;
+        selectAll.checked = true;
+    } else {
+        selectAll.indeterminate = true;
+    }
+}
+
+function animateBars() {
+    const bars = document.querySelectorAll('.bar-fill');
+    
+    bars.forEach((bar, index) => {
+        const width = bar.style.width;
+        bar.style.width = '0%';
+        
+        setTimeout(() => {
+            bar.style.width = width;
+        }, index * 100);
+    });
+}
+
+function toggleColumns() {
+    const optionalColumns = document.querySelectorAll('.optional-column');
+    const isHidden = optionalColumns[0].style.display === 'none';
+    
+    optionalColumns.forEach(column => {
+        column.style.display = isHidden ? '' : 'none';
+    });
+}
+
+function exportToExcel() {
+    // Créer un tableau pour l'export
+    const table = document.querySelector('#demandesTable');
+    if (!table) return;
+    
+    // Convertir le tableau en CSV
+    let csv = '';
+    const rows = table.querySelectorAll('tr');
+    
+    rows.forEach(row => {
+        const cells = row.querySelectorAll('th:not(:first-child), td:not(:first-child)');
+        const rowData = [];
+        
+        cells.forEach(cell => {
+            // Nettoyer le texte de la cellule
+            let text = cell.textContent.trim();
+            text = text.replace(/\s+/g, ' '); // Normaliser les espaces
+            text = text.replace(/"/g, '""'); // Échapper les guillemets
+            rowData.push(`"${text}"`);
+        });
+        
+        if (rowData.length > 0) {
+            csv += rowData.join(',') + '\n';
+        }
+    });
+    
+    // Créer et télécharger le fichier
+    downloadCSV(csv, 'rapport_demandes_approvisionnement.csv');
+}
+
+function exportToCSV() {
+    exportToExcel(); // Réutiliser la même fonction
+}
+
+function exportSelectedToExcel() {
+    if (selectedRows.size === 0) {
+        alert('Veuillez sélectionner au moins une demande à exporter.');
+        return;
+    }
+    
+    const table = document.querySelector('#demandesTable');
+    let csv = '';
+    
+    // Header
+    const headerRow = table.querySelector('thead tr');
+    const headerCells = headerRow.querySelectorAll('th:not(:first-child)');
+    const headerData = [];
+    headerCells.forEach(cell => {
+        headerData.push(`"${cell.textContent.trim()}"`);
+    });
+    csv += headerData.join(',') + '\n';
+    
+    // Selected rows
+    selectedRows.forEach(rowId => {
+        const row = document.querySelector(`tr[data-demande-id="${rowId}"]`);
+        if (row) {
+            const cells = row.querySelectorAll('td:not(:first-child)');
+            const rowData = [];
+            cells.forEach(cell => {
+                let text = cell.textContent.trim();
+                text = text.replace(/\s+/g, ' ');
+                text = text.replace(/"/g, '""');
+                rowData.push(`"${text}"`);
+            });
+            csv += rowData.join(',') + '\n';
+        }
+    });
+    
+    downloadCSV(csv, `rapport_demandes_selection_${new Date().toISOString().split('T')[0]}.csv`);
+}
+
+function downloadCSV(csv, filename){% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Rapport des demandes d'approvisionnement{% endblock %}
+
+{% block extra_css %}
+<style>
+    .report-card {
+        background: white;
+        border-radius: 8px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 1.5rem;
+    }
+    
+    .card-header {
+        border-bottom: 1px solid #e5e7eb;
+        padding-bottom: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .card-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #1f2937;
+        margin: 0;
+    }
+    
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+    
+    .stat-card {
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        color: white;
+        padding: 1.5rem;
+        border-radius: 8px;
+        text-align: center;
+    }
+    
+    .stat-card.warning {
+        background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+    }
+    
+    .stat-card.success {
+        background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    }
+    
+    .stat-card.danger {
+        background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+    }
+    
+    .stat-number {
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+    
+    .stat-label {
+        font-size: 0.875rem;
+        opacity: 0.9;
+    }
+    
+    .filters-section {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 8px;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        align-items: end;
+    }
+    
+    .form-group {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .form-label {
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+        color: #374151;
+    }
+    
+    .form-control {
+        padding: 0.5rem;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 0.875rem;
+    }
+    
+    .form-control:focus {
+        outline: none;
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+    
+    .btn {
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        text-decoration: none;
+        border: none;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .btn-primary { background: #2563eb; color: white; }
+    .btn-success { background: #059669; color: white; }
+    .btn-outline { background: transparent; border: 1px solid #d1d5db; color: #374151; }
+    
+    .btn:hover { opacity: 0.9; }
+    
+    .chart-container {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 1.5rem;
+    }
+    
+    .chart-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1.5rem;
+    }
+    
+    .bar-chart {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    
+    .bar-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+    
+    .bar-label {
+        min-width: 120px;
+        font-size: 0.875rem;
+        color: #374151;
+    }
+    
+    .bar-container {
+        flex: 1;
+        height: 24px;
+        background: #f3f4f6;
+        border-radius: 12px;
+        overflow: hidden;
+        position: relative;
+    }
+    
+    .bar-fill {
+        height: 100%;
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        border-radius: 12px;
+        transition: width 0.3s ease;
+    }
+    
+    .bar-fill.warning {
+        background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+    }
+    
+    .bar-fill.success {
+        background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    }
+    
+    .bar-fill.danger {
+        background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+    }
+    
+    .bar-value {
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: white;
+    }
+    
+    .table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    .table th, .table td {
+        padding: 0.75rem;
+        text-align: left;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .table th {
+        background: #f9fafb;
+        font-weight: 600;
+        color: #374151;
+    }
+    
+    .table tbody tr:hover {
+        background: #f9fafb;
+    }
+    
+    .status-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+    
+    .status-en-attente { background: #fef3c7; color: #d97706; }
+    .status-validee { background: #dbeafe; color: #2563eb; }
+    .status-preparee { background: #f3e8ff; color: #7c3aed; }
+    .status-livree { background: #d1fae5; color: #059669; }
+    .status-rejetee { background: #fee2e2; color: #dc2626; }
+    .status-annulee { background: #f3f4f6; color: #6b7280; }
+    
+    .priority-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+    
+    .priority-normale { background: #f3f4f6; color: #374151; }
+    .priority-urgente { background: #fef3c7; color: #d97706; }
+    .priority-critique { background: #fee2e2; color: #dc2626; }
+    
+    .export-buttons {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    @media print {
+        .filters-section,
+        .export-buttons,
+        .btn {
+            display: none !important;
+        }
+        
+        .report-card {
+            box-shadow: none;
+            border: 1px solid #e5e7eb;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h2">Rapport des demandes d'approvisionnement</h1>
+        <div class="export-buttons">
+            <button onclick="window.print()" class="btn btn-outline">
+                <i class="fas fa-print"></i>
+                Imprimer
+            </button>
+            <button onclick="exportToExcel()" class="btn btn-success">
+                <i class="fas fa-file-excel"></i>
+                Export Excel
+            </button>
+            <a href="{% url 'pharmacies:liste_demandes_internes' %}" class="btn btn-primary">
+                <i class="fas fa-arrow-left"></i>
+                Retour à la liste
+            </a>
+        </div>
+    </div>
+    
+    <!-- Filtres -->
+    <div class="filters-section">
+        <form method="get" class="form-grid">
+            <div class="form-group">
+                <label class="form-label">Date début</label>
+                <input type="date" name="date_debut" class="form-control" value="{{ date_debut }}">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Date fin</label>
+                <input type="date" name="date_fin" class="form-control" value="{{ date_fin }}">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Service</label>
+                <select name="service" class="form-control">
+                    <option value="">Tous les services</option>
+                    {% for service in services %}
+                        <option value="{{ service.id }}" {% if service_filter == service.id|stringformat:"s" %}selected{% endif %}>
+                            {{ service.nom }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Statut</label>
+                <select name="statut" class="form-control">
+                    <option value="">Tous les statuts</option>
+                    {% for statut_code, statut_label in statuts %}
+                        <option value="{{ statut_code }}" {% if statut_filter == statut_code %}selected{% endif %}>
+                            {{ statut_label }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-filter"></i>
+                    Filtrer
+                </button>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Statistiques générales -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-number">{{ stats.total_demandes }}</div>
+            <div class="stat-label">Total demandes</div>
+        </div>
+        <div class="stat-card success">
+            <div class="stat-number">{{ stats.par_statut.Livrée|default:0 }}</div>
+            <div class="stat-label">Demandes livrées</div>
+        </div>
+        <div class="stat-card warning">
+            <div class="stat-number">{{ stats.par_statut.En attente|default:0 }}</div>
+            <div class="stat-label">En attente</div>
+        </div>
+        <div class="stat-card danger">
+            <div class="stat-number">{{ stats.par_statut.Rejetée|default:0 }}</div>
+            <div class="stat-label">Rejetées</div>
+        </div>
+    </div>
+    
+    <!-- Graphiques -->
+    <div class="chart-grid">
+        <!-- Répartition par statut -->
+        <div class="chart-container">
+            <div class="card-header">
+                <h3 class="card-title">Répartition par statut</h3>
+            </div>
+            <div class="bar-chart">
+                {% for statut, count in stats.par_statut.items %}
+                {% if count > 0 %}
+                <div class="bar-item">
+                    <div class="bar-label">{{ statut }}</div>
+                    <div class="bar-container">
+                        <div class="bar-fill" style="width: {% widthratio count stats.total_demandes 100 %}%">
+                            <div class="bar-value">{{ count }}</div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+        
+        <!-- Répartition par priorité -->
+        <div class="chart-container">
+            <div class="card-header">
+                <h3 class="card-title">Répartition par priorité</h3>
+            </div>
+            <div class="bar-chart">
+                {% for priorite, count in stats.par_priorite.items %}
+                {% if count > 0 %}
+                <div class="bar-item">
+                    <div class="bar-label">{{ priorite }}</div>
+                    <div class="bar-container">
+                        <div class="bar-fill {% if priorite == 'Critique' %}danger{% elif priorite == 'Urgente' %}warning{% endif %}" 
+                             style="width: {% widthratio count stats.total_demandes 100 %}%">
+                            <div class="bar-value">{{ count }}</div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Statistiques par service -->
+    {% if stats.par_service %}
+    <div class="chart-container">
+        <div class="card-header">
+            <h3 class="card-title">Demandes par service</h3>
+        </div>
+        <div class="bar-chart">
+            {% for service_nom, service_stats in stats.par_service.items %}
+            <div class="bar-item">
+                <div class="bar-label">{{ service_nom }}</div>
+                <div class="bar-container">
+                    <div class="bar-fill success" 
+                         style="width: {% widthratio service_stats.demandes stats.total_demandes 100 %}%">
+                        <div class="bar-value">{{ service_stats.demandes }}</div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Tableau détaillé -->
+    <div class="report-card">
+        <div class="card-header">
+            <h3 class="card-title">Détail des demandes</h3>
+        </div>
+        
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Référence</th>
+                        <th>Service demandeur</th>
+                        <th>Date création</th>
+                        <th>Priorité</th>
+                        <th>Statut</th>
+                        <th>Nb produits</th>
+                        <th>Qté totale</th>
+                        <th>Qté accordée</th>
+                        <th>Créée par</th>
+                        <th>Délai traitement</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for demande in demandes %}
+                    <tr>
+                        <td>
+                            <strong>{{ demande.reference }}</strong>
+                        </td>
+                        <td>{{ demande.service_demandeur.nom }}</td>
+                        <td>{{ demande.date_creation|date:"d/m/Y H:i" }}</td>
+                        <td>
+                            <span class="priority-badge priority-{{ demande.priorite|lower }}">
+                                {{ demande.get_priorite_display }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="status-badge status-{{ demande.statut|lower|slugify }}">
+                                {{ demande.get_statut_display }}
+                            </span>
+                        </td>
+                        <td>{{ demande.total_produits }}</td>
+                        <td>{{ demande.total_quantite }}</td>
+                        <td>{{ demande.total_quantite_accordee|default:"-" }}</td>
+                        <td>{{ demande.creee_par.get_full_name }}</td>
+                        <td>
+                            {% if demande.date_livraison %}
+                                {% with delai=demande.date_livraison|timeuntil:demande.date_creation %}
+                                    {{ delai }}
+                                {% endwith %}
+                            {% elif demande.statut == 'REJETEE' and demande.date_validation %}
+                                {% with delai=demande.date_validation|timeuntil:demande.date_creation %}
+                                    {{ delai }} (rejetée)
+                                {% endwith %}
+                            {% else %}
+                                En cours
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="10" class="text-center text-muted py-4">
+                            Aucune demande trouvée pour les critères sélectionnés
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Résumé -->
+        {% if demandes %}
+        <div class="mt-4 p-3" style="background: #f9fafb; border-radius: 6px;">
+            <h4 style="margin-bottom: 1rem; color: #374151;">Résumé de la période</h4>
+            <div class="info-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                <div>
+                    <strong>Période :</strong> 
+                    {% if date_debut and date_fin %}
+                        {{ date_debut|date:"d/m/Y" }} - {{ date_fin|date:"d/m/Y" }}
+                    {% else %}
+                        Toutes les demandes
+                    {% endif %}
+                </div>
+                <div>
+                    <strong>Total demandes :</strong> {{ stats.total_demandes }}
+                </div>
+                <div>
+                    <strong>Taux de livraison :</strong> 
+                    {% if stats.total_demandes > 0 %}
+                        {% widthratio stats.par_statut.Livrée|default:0 stats.total_demandes 100 %}%
+                    {% else %}
+                        0%
+                    {% endif %}
+                </div>
+                <div>
+                    <strong>Services actifs :</strong> {{ stats.par_service|length }}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}

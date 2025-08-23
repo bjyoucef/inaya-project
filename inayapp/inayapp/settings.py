@@ -77,6 +77,7 @@ INSTALLED_APPS += [
     "pharmacies",
     "export_data",
     "inventaire",
+    "hospitalisations",
 ]
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 5000
 THUMBNAIL_HIGH_RESOLUTION = True
@@ -157,7 +158,7 @@ X_FRAME_OPTIONS = 'ALLOWALL'
 DATABASES = {
     "default": {
         'ENGINE': 'django.db.backends.mysql',  # Django utilise mysqlclient pour MariaDB
-        'NAME': 'inayadb',
+        'NAME': 'inaya',
         'USER': 'root',
         'PASSWORD': '@Dmin1548@',
         'HOST': '127.0.0.1',
@@ -226,8 +227,7 @@ JAZZMIN_SETTINGS = {
     # Marque affichée dans la barre latérale et dans l'en-tête
     "site_brand": "INAYA APP",
     # Chemin vers le logo affiché dans la barre latérale (relatif au dossier static)
-    "site_logo": "\icon\logo_inaya.svg",
-
+    "site_logo": "\\icon\\logo_inaya.svg",
     # Chemin vers l'icône du site
     "site_icon": "icon/favicon.ico",
     # Message de bienvenue affiché sur la page d'accueil de l'administration
@@ -322,3 +322,60 @@ AUDIT_SETTINGS = {
     "MAX_LOG_AGE_DAYS": 365,
     "ENABLE_API_AUDIT": True,
 }
+
+# ============================================
+# CONFIGURATION MULTI-CACHE DANS SETTINGS.PY
+# ============================================
+
+# settings.py
+
+CACHES = {
+    # Cache par défaut - Mémoire (rapide pour données fréquentes)
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "unique-snowflake",
+        "TIMEOUT": 300,  # 5 minutes
+        "OPTIONS": {
+            "MAX_ENTRIES": 500,
+            "CULL_FREQUENCY": 3,
+        },
+    },
+    # Cache base de données (persistant pour données importantes)
+    "database": {
+        "BACKEND": "django.core.cache.backends.db.DatabaseCache",
+        "LOCATION": "cache_table_persistent",
+        "TIMEOUT": 86400,  # 24 heures
+        "OPTIONS": {
+            "MAX_ENTRIES": 2000,
+            "CULL_FREQUENCY": 4,
+        },
+    },
+    # Cache session (pour données utilisateur)
+    "session": {
+        "BACKEND": "django.core.cache.backends.db.DatabaseCache",
+        "LOCATION": "cache_table_sessions",
+        "TIMEOUT": 1800,  # 30 minutes
+    },
+    # Cache court terme (pour calculs rapides)
+    "quick": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "quick-cache",
+        "TIMEOUT": 60,  # 1 minute
+        "OPTIONS": {
+            "MAX_ENTRIES": 100,
+        },
+    },
+    # Cache long terme (pour données rarement modifiées)
+    "longterm": {
+        "BACKEND": "django.core.cache.backends.db.DatabaseCache",
+        "LOCATION": "cache_table_longterm",
+        "TIMEOUT": 604800,  # 7 jours
+    },
+}
+
+
+# Configuration des sessions pour utiliser le cache
+SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+SESSION_CACHE_ALIAS = "session"
+# Configuration de la base de données pour le cache
+# Assurez-vous d'avoir créé la table de cache dans votre base de données

@@ -1,10 +1,7 @@
-{% extends 'layout.html' %}
-{% block content %}
-<h1>Confirmer la suppression</h1>
-<p>Voulez-vous vraiment supprimer le patient <strong>{{ object }}</strong> ?</p>
-<form method="post">
-  {% csrf_token %}
-  <button type="submit" class="btn btn-danger">Supprimer</button>
-  <a href="{% url 'patients:list' %}" class="btn btn-secondary">Annuler</a>
-</form>
+
+
+
+{% block scripts %}
+
+{% endblock %}
 {% endblock %}

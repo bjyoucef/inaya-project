@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nouvelle demande d'approvisionnement</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px 8px 0 0;
+            text-align: center;
+        }
+        
+        .content {
+            background: white;
+            padding: 30px;
+            border: 1px solid #e5e7eb;
+            border-top: none;
+        }
+        
+        .info-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        
+        .info-table th,
+        .info-table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .info-table th {
+            background: #f9fafb;
+            font-weight: 600;
+        }
+        
+        .priority-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .priority-normale { background: #f3f4f6; color: #374151; }
+        .priority-urgente { background: #fef3c7; color: #d97706; }
+        .priority-critique { background: #fee2e2; color: #dc2626; }
+        
+        .button {
+            display: inline-block;
+            padding: 12px 24px;
+            background: #2563eb;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 500;
+            margin: 20px 0;
+        }
+        
+        .footer {
+            background: #f9fafb;
+            padding: 20px;
+            border-radius: 0 0 8px 8px;
+            text-align: center;
+            font-size: 14px;
+            color: #6b7280;
+        }
+        
+        .products-list {
+            background: #f9fafb;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+        }
+        
+        .product-item {
+            padding: 8px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .product-item:last-child {
+            border-bottom: none;
+        }
+        
+        .product-name {
+            font-weight: 500;
+            color: #1f2937;
+        }
+        
+        .product-quantity {
+            color: #6b7280;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Nouvelle demande d'approvisionnement</h1>
+        <p>Une nouvelle demande nécessite votre attention</p>
+    </div>
+    
+    <div class="content">
+        <h2>Détails de la demande</h2>
+        
+        <table class="info-table">
+            <tr>
+                <th>Référence</th>
+                <td><strong>{{ demande.reference }}</strong></td>
+            </tr>
+            <tr>
+                <th>Service demandeur</th>
+                <td>{{ demande.service_demandeur.nom }}</td>
+            </tr>
+            <tr>
+                <th>Date de création</th>
+                <td>{{ demande.date_creation|date:"d/m/Y à H:i" }}</td>
+            </tr>
+            <tr>
+                <th>Priorité</th>
+                <td>
+                    <span class="priority-badge priority-{{ demande.priorite|lower }}">
+                        {{ demande.get_priorite_display }}
+                    </span>
+                </td>
+            </tr>
+            <tr>
+                <th>Créée par</th>
+                <td>{{ demande.creee_par.get_full_name }}</td>
+            </tr>
+            <tr>
+                <th>Nombre de produits</th>
+                <td>{{ demande.total_produits }}</td>
+            </tr>
+            <tr>
+                <th>Quantité totale</th>
+                <td>{{ demande.total_quantite }}</td>
+            </tr>
+        </table>
+        
+        {% if demande.motif_demande %}
+        <h3>Motif de la demande</h3>
+        <p>{{ demande.motif_demande }}</p>
+        {% endif %}
+        
+        <h3>Produits demandés</h3>
+        <div class="products-list">
+            {% for ligne in demande.lignes.all %}
+            <div class="product-item">
+                <div class="product-name">{{ ligne.produit.nom }}</div>
+                <div class="product-quantity">
+                    Quantité demandée : {{ ligne.quantite_demandee }} {{ ligne.produit.unite }}
+                    {% if ligne.observations %}
+                    <br><em>{{ ligne.observations }}</em>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <div style="text-align: center;">
+            <a href="{{ url_detail }}" class="button">
+                Voir la demande complète
+            </a>
+        </div>
+        
+        <p><strong>Actions disponibles :</strong></p>
+        <ul>
+            <li>Valider la demande avec ajustement des quantités si nécessaire</li>
+            <li>Rejeter la demande en indiquant le motif</li>
+            <li>Consulter les détails complets et l'historique</li>
+        </ul>
+    </div>
+    
+    <div class="footer">
+        <p>Cet email a été envoyé automatiquement par le système de gestion pharmaceutique.</p>
+        <p>Merci de ne pas répondre directement à cet email.</p>
+    </div>
+</body>
+</html>

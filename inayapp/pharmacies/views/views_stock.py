@@ -23,7 +23,7 @@ from django.shortcuts import get_object_or_404, redirect
 from django.http import JsonResponse
 from django.db.models import Q, Sum
 from ..models import Stock, Produit, AjustementStock, MouvementStock
-from ..forms import StockForm, AjustementStockForm
+from ..forms.ph_forms import StockForm, AjustementStockForm
 
 
 class StockListView(LoginRequiredMixin, ListView):

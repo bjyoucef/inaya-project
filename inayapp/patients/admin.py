@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Antecedent, DossierMedical, Patient
+from .models import  DossierMedical, Patient
 
 
 @admin.register(Patient)
@@ -28,8 +28,3 @@ class DossierMedicalAdmin(admin.ModelAdmin):
     search_fields = ("patient__nom", "patient__prenom")
 
 
-@admin.register(Antecedent)
-class AntecedentAdmin(admin.ModelAdmin):
-    list_display = ("type_antecedent", "dossier", "date_decouverte", "gravite")
-    list_filter = ("type_antecedent", "gravite")
-    raw_id_fields = ("dossier",)

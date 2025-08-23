@@ -31,6 +31,7 @@ from ..models import (DemandeHeuresSupplementaires, Employee,
 logger = logging.getLogger(__name__)
 
 
+@login_required
 @require_POST
 def sync_attendances(request):
 
@@ -42,6 +43,7 @@ def sync_attendances(request):
         return JsonResponse({"error": str(e)}, status=500)
 
 
+@login_required
 @require_POST
 def sync_users(request):
 
@@ -58,7 +60,7 @@ def save_reference_hours(request):
         personnel_id = request.POST.get("employee_id")
         reference_start = request.POST.get("reference_start")
         reference_end = request.POST.get("reference_end")
-
+        print(reference_start, reference_end, personnel_id)
         if not all([personnel_id, reference_start, reference_end]):
             return HttpResponse("Données manquantes", status=400)
 
@@ -104,6 +106,7 @@ def salary_config_view(request):
     return render(request, "pointage/salary_config.html", context)
 
 
+@login_required
 def handle_config_save(request):
     try:
         with transaction.atomic():
@@ -160,6 +163,7 @@ def format_minutes(seconds):
     return f"{minutes} min" if minutes > 0 else "-"
 
 
+@login_required
 def rapport_pointage(request):
     # Récupération ou création de la configuration liée à l'utilisateur
     config, _ = ConfigDate.objects.get_or_create(

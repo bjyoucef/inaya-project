@@ -1,0 +1,250 @@
+{% extends "layout.html" %}
+{% load static permissions_tags %}
+
+{% block content %}
+<style>
+    .form-section {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    .required-field::after {
+        content: " *";
+        color: #dc3545;
+    }
+    .service-checkbox {
+        margin-bottom: 10px;
+    }
+    .service-checkbox .form-check-input {
+        margin-right: 8px;
+    }
+</style>
+
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3">
+                    <i class="fas fa-user-md me-2"></i>
+                    {% if is_update %}
+                        Modifier {{ medecin.nom_complet }}
+                    {% else %}
+                        Nouveau Médecin
+                    {% endif %}
+                </h1>
+                <a href="{% if is_update %}{% url 'medecin_detail' medecin.pk %}{% else %}{% url 'medecin_list' %}{% endif %}" 
+                   class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>
+                    Retour
+                </a>
+            </div>
+
+            <form method="post" novalidate>
+                {% csrf_token %}
+                
+                <!-- Informations personnelles -->
+                <div class="form-section">
+                    <h4 class="mb-3">
+                        <i class="fas fa-user me-2"></i>
+                        Informations personnelles
+                    </h4>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="first_name" class="form-label required-field">Prénom</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="first_name" 
+                                   name="first_name" 
+                                   value="{{ form_data.first_name }}"
+                                   required>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="last_name" class="form-label required-field">Nom</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="last_name" 
+                                   name="last_name" 
+                                   value="{{ form_data.last_name }}"
+                                   required>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="email" class="form-label">Email</label>
+                            <input type="email" 
+                                   class="form-control" 
+                                   id="email" 
+                                   name="email" 
+                                   value="{{ form_data.email }}">
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="telephone" class="form-label">Téléphone</label>
+                            <input type="tel" 
+                                   class="form-control" 
+                                   id="telephone" 
+                                   name="telephone" 
+                                   value="{{ form_data.telephone }}"
+                                   placeholder="+213123456789">
+                            <div class="form-text">Format: +213123456789 (9 à 15 chiffres)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Informations professionnelles -->
+                <div class="form-section">
+                    <h4 class="mb-3">
+                        <i class="fas fa-stethoscope me-2"></i>
+                        Informations professionnelles
+                    </h4>
+                    
+                    <div class="mb-3">
+                        <label for="specialite" class="form-label">Spécialité médicale</label>
+                        <input type="text" 
+                               class="form-control" 
+                               id="specialite" 
+                               name="specialite" 
+                               value="{{ form_data.specialite }}"
+                               list="specialites"
+                               placeholder="Ex: Cardiologie, Pneumologie, etc.">
+                        
+                        <!-- Datalist pour l'autocomplétion -->
+                        <datalist id="specialites">
+                            <option value="Cardiologie">
+                            <option value="Pneumologie">
+                            <option value="Neurologie">
+                            <option value="Pédiatrie">
+                            <option value="Chirurgie générale">
+                            <option value="Médecine interne">
+                            <option value="Radiologie">
+                            <option value="Anesthésie-Réanimation">
+                            <option value="Gynécologie-Obstétrique">
+                            <option value="Orthopédie">
+                        </datalist>
+                    </div>
+                </div>
+
+                <!-- Services -->
+                <div class="form-section">
+                    <h4 class="mb-3">
+                        <i class="fas fa-hospital me-2"></i>
+                        Services
+                    </h4>
+                    
+                    {% if services %}
+                        <div class="row">
+                            {% for service in services %}
+                                <div class="col-md-6 col-lg-4 mb-2">
+                                    <div class="form-check service-checkbox">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="service_{{ service.id }}" 
+                                               name="services" 
+                                               value="{{ service.id }}"
+                                               {% if is_update and service in medecin_services %}checked{% endif %}
+                                               {% if not is_update and service.id|stringformat:"s" in form_data.services %}checked{% endif %}>
+                                        <label class="form-check-label" for="service_{{ service.id }}">
+                                            {{ service.name }}
+                                        </label>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted">Aucun service disponible.</p>
+                    {% endif %}
+                </div>
+
+                <!-- Actions -->
+                <div class="d-flex justify-content-between">
+                    <a href="{% if is_update %}{% url 'medecin_detail' medecin.pk %}{% else %}{% url 'medecin_list' %}{% endif %}" 
+                       class="btn btn-secondary">
+                        <i class="fas fa-times me-1"></i>
+                        Annuler
+                    </a>
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-1"></i>
+                        {% if is_update %}Modifier{% else %}Créer{% endif %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Validation en temps réel
+    const form = document.querySelector('form');
+    const firstNameInput = document.getElementById('first_name');
+    const lastNameInput = document.getElementById('last_name');
+    const emailInput = document.getElementById('email');
+    const telephoneInput = document.getElementById('telephone');
+    
+    // Validation du prénom
+    firstNameInput.addEventListener('blur', function() {
+        if (!this.value.trim()) {
+            this.classList.add('is-invalid');
+        } else {
+            this.classList.remove('is-invalid');
+            this.classList.add('is-valid');
+        }
+    });
+    
+    // Validation du nom
+    lastNameInput.addEventListener('blur', function() {
+        if (!this.value.trim()) {
+            this.classList.add('is-invalid');
+        } else {
+            this.classList.remove('is-invalid');
+            this.classList.add('is-valid');
+        }
+    });
+    
+    // Validation de l'email
+    emailInput.addEventListener('blur', function() {
+        if (this.value && !this.value.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+            this.classList.add('is-invalid');
+        } else {
+            this.classList.remove('is-invalid');
+            if (this.value) this.classList.add('is-valid');
+        }
+    });
+    
+    // Validation du téléphone
+    telephoneInput.addEventListener('blur', function() {
+        if (this.value && !this.value.match(/^\+?\d{9,15}$/)) {
+            this.classList.add('is-invalid');
+        } else {
+            this.classList.remove('is-invalid');
+            if (this.value) this.classList.add('is-valid');
+        }
+    });
+    
+    // Validation avant soumission
+    form.addEventListener('submit', function(e) {
+        let isValid = true;
+        
+        if (!firstNameInput.value.trim()) {
+            firstNameInput.classList.add('is-invalid');
+            isValid = false;
+        }
+        
+        if (!lastNameInput.value.trim()) {
+            lastNameInput.classList.add('is-invalid');
+            isValid = false;
+        }
+        
+        if (!isValid) {
+            e.preventDefault();
+            alert('Veuillez corriger les erreurs dans le formulaire.');
+        }
+    });
+});
+</script>
+{% endblock %}

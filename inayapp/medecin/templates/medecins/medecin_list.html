@@ -1,0 +1,253 @@
+
+<!-- templates/medecin_detail.html -->
+{% extends "layout.html" %}
+{% load static permissions_tags %}
+
+{% block content %}
+<style>
+    .search-filters {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    .medecin-card {
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+    .medecin-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+    }
+    .badge-service {
+        font-size: 0.75rem;
+        margin: 2px;
+    }
+    .solde-positive {
+        color: #28a745;
+    }
+    .solde-negative {
+        color: #dc3545;
+    }
+</style>
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3">
+            <i class="fas fa-user-md me-2"></i>
+            Liste des Médecins
+        </h1>
+        <a href="{% url 'medecin_create' %}" class="btn btn-primary">
+            <i class="fas fa-plus me-1"></i>
+            Nouveau Médecin
+        </a>
+    </div>
+
+    <!-- Filtres de recherche -->
+    <div class="search-filters">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <label for="search" class="form-label">Recherche</label>
+                <input type="text" 
+                       class="form-control" 
+                       id="search" 
+                       name="search" 
+                       value="{{ search_query }}" 
+                       placeholder="Nom, prénom, email, spécialité...">
+            </div>
+            <div class="col-md-3">
+                <label for="service" class="form-label">Service</label>
+                <select class="form-select" id="service" name="service">
+                    <option value="">Tous les services</option>
+                    {% for service in services %}
+                        <option value="{{ service.id }}" {% if service_filter == service.id|stringformat:"s" %}selected{% endif %}>
+                            {{ service.nom }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="specialite" class="form-label">Spécialité</label>
+                <select class="form-select" id="specialite" name="specialite">
+                    <option value="">Toutes les spécialités</option>
+                    {% for specialite in specialites %}
+                        <option value="{{ specialite }}" {% if specialite_filter == specialite %}selected{% endif %}>
+                            {{ specialite }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-outline-primary me-2">
+                    <i class="fas fa-search"></i>
+                </button>
+                <a href="{% url 'medecin_list' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-times"></i>
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Résultats -->
+    {% if page_obj %}
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <small class="text-muted">
+                {{ page_obj.paginator.count }} médecin{{ page_obj.paginator.count|pluralize }} trouvé{{ page_obj.paginator.count|pluralize }}
+            </small>
+        </div>
+
+        <div class="row">
+            {% for medecin in page_obj %}
+                <div class="col-lg-6 col-xl-4 mb-4">
+                    <div class="card medecin-card h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h5 class="card-title mb-1">
+                                    <a href="{% url 'medecin_detail' medecin.pk %}" class="text-decoration-none">
+                                        {{ medecin.nom_complet }}
+                                    </a>
+                                </h5>
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" 
+                                            type="button" 
+                                            data-bs-toggle="dropdown">
+                                        <i class="fas fa-ellipsis-v"></i>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end">
+                                        <li>
+                                            <a class="dropdown-item" href="{% url 'medecin_detail' medecin.pk %}">
+                                                <i class="fas fa-eye me-2"></i>Voir
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item" href="{% url 'medecin_update' medecin.pk %}">
+                                                <i class="fas fa-edit me-2"></i>Modifier
+                                            </a>
+                                        </li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li>
+                                            <a class="dropdown-item text-danger" href="{% url 'medecin_delete' medecin.pk %}">
+                                                <i class="fas fa-trash me-2"></i>Supprimer
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            {% if medecin.specialite %}
+                                <p class="card-text">
+                                    <small class="text-muted">
+                                        <i class="fas fa-stethoscope me-1"></i>
+                                        {{ medecin.specialite }}
+                                    </small>
+                                </p>
+                            {% endif %}
+
+                            {% if medecin.email %}
+                                <p class="card-text">
+                                    <small>
+                                        <i class="fas fa-envelope me-1"></i>
+                                        <a href="mailto:{{ medecin.email }}" class="text-decoration-none">
+                                            {{ medecin.email }}
+                                        </a>
+                                    </small>
+                                </p>
+                            {% endif %}
+
+                            {% if medecin.telephone %}
+                                <p class="card-text">
+                                    <small>
+                                        <i class="fas fa-phone me-1"></i>
+                                        <a href="tel:{{ medecin.telephone }}" class="text-decoration-none">
+                                            {{ medecin.telephone }}
+                                        </a>
+                                    </small>
+                                </p>
+                            {% endif %}
+
+                            <!-- Services -->
+                            {% if medecin.services.all %}
+                                <div class="mb-2">
+                                    {% for service in medecin.services.all %}
+                                        <span class="badge bg-info badge-service">{{ service.nom }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+
+                            <!-- Solde des consommations -->
+                            <div class="mt-3 pt-3 border-top">
+                                <small class="text-muted">Solde consommations:</small>
+                                <strong class="{% if medecin.solde_consommations > 0 %}solde-positive{% else %}solde-negative{% endif %}">
+                                    {{ medecin.solde_consommations|floatformat:2 }} DA
+                                </strong>
+                            </div>
+
+                            <div class="mt-2">
+                                <small class="text-muted">
+                                    Créé le {{ medecin.created_at|date:"d/m/Y à H:i" }}
+                                    par {{ medecin.created_by.get_full_name|default:medecin.created_by.username }}
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <!-- Pagination -->
+        {% if page_obj.has_other_pages %}
+            <nav aria-label="Navigation des médecins">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?{% if search_query %}search={{ search_query }}&{% endif %}{% if service_filter %}service={{ service_filter }}&{% endif %}{% if specialite_filter %}specialite={{ specialite_filter }}&{% endif %}page={{ page_obj.previous_page_number }}">
+                                Précédent
+                            </a>
+                        </li>
+                    {% endif %}
+
+                    {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ num }}</span>
+                            </li>
+                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                            <li class="page-item">
+                                <a class="page-link" href="?{% if search_query %}search={{ search_query }}&{% endif %}{% if service_filter %}service={{ service_filter }}&{% endif %}{% if specialite_filter %}specialite={{ specialite_filter }}&{% endif %}page={{ num }}">
+                                    {{ num }}
+                                </a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?{% if search_query %}search={{ search_query }}&{% endif %}{% if service_filter %}service={{ service_filter }}&{% endif %}{% if specialite_filter %}specialite={{ specialite_filter }}&{% endif %}page={{ page_obj.next_page_number }}">
+                                Suivant
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        {% endif %}
+
+    {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-user-md fa-3x text-muted mb-3"></i>
+            <h4>Aucun médecin trouvé</h4>
+            <p class="text-muted">
+                {% if search_query %}
+                    Aucun résultat pour "{{ search_query }}"
+                {% else %}
+                    Commencez par ajouter votre premier médecin
+                {% endif %}
+            </p>
+            <a href="{% url 'medecin_create' %}" class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i>
+                Ajouter un médecin
+            </a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

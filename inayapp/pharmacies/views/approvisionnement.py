@@ -21,9 +21,9 @@ from django.views.generic import (CreateView, DetailView, ListView, UpdateView,
 from medical.models.services import Service
 
 from ..models.approvisionnement import (BonReception, CommandeFournisseur,
-                                        DemandeInterne, ExpressionBesoin,
+                                         ExpressionBesoin,
                                         LigneBesoin, LigneCommande,
-                                        LigneDemandeInterne, LigneLivraison,
+                                         LigneLivraison,
                                         Livraison)
 from ..models.fournisseur import Fournisseur
 from ..models.produit import Produit
@@ -106,19 +106,6 @@ class ExpressionBesoinCreateView(LoginRequiredMixin, View):
                         quantite_demandee=ligne_data["quantite_demandee"],
                     )
 
-                # Si c'est un approvisionnement interne, créer la demande interne
-                if besoin.est_approvisionnement_interne:
-                    demande_interne = DemandeInterne.objects.create(
-                        besoin=besoin, service_destinataire=besoin.service_demandeur
-                    )
-
-                    # Créer les lignes de demande interne
-                    for ligne_besoin in besoin.lignes.all():
-                        LigneDemandeInterne.objects.create(
-                            demande=demande_interne,
-                            produit=ligne_besoin.produit,
-                            quantite_demandee=ligne_besoin.quantite_demandee,
-                        )
 
                 return JsonResponse(
                     {
@@ -167,310 +154,6 @@ class ExpressionBesoinValidationView(LoginRequiredMixin, View):
         except ValidationError as e:
             return JsonResponse({"success": False, "message": str(e)}, status=400)
 
-
-class DemandeInterneListView(LoginRequiredMixin, ListView):
-    model = DemandeInterne
-    template_name = "approvisionnement/demande_interne_list.html"
-    context_object_name = "demandes"
-    paginate_by = 20
-
-    def get_queryset(self):
-        queryset = DemandeInterne.objects.select_related(
-            "besoin__service_demandeur",
-            "service_destinataire",
-            "validee_par",
-            "preparee_par",
-            "livree_par",
-        ).prefetch_related("lignes__produit")
-
-        # Filtrage par statut
-        statut = self.request.GET.get("statut")
-        if statut:
-            queryset = queryset.filter(statut=statut)
-
-        # Filtrage par service
-        service_id = self.request.GET.get("service")
-        if service_id:
-            queryset = queryset.filter(service_destinataire_id=service_id)
-
-        # Filtrage par priorité
-        priorite = self.request.GET.get("priorite")
-        if priorite:
-            queryset = queryset.filter(besoin__priorite=priorite)
-
-        return queryset
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["services"] = Service.objects.filter(est_actif=True)
-        context["statuts"] = DemandeInterne.STATUT_CHOICES
-        context["priorites"] = ExpressionBesoin.PRIORITE_CHOICES
-
-        # Statistiques
-        stats = DemandeInterne.objects.aggregate(
-            en_attente=Count("id", filter=Q(statut="EN_ATTENTE")),
-            validees=Count("id", filter=Q(statut="VALIDEE")),
-            preparees=Count("id", filter=Q(statut="PREPAREE")),
-            livrees=Count("id", filter=Q(statut="LIVREE")),
-        )
-        context["stats"] = stats
-        return context
-
-
-class DemandeInterneDetailView(LoginRequiredMixin, DetailView):
-    model = DemandeInterne
-    template_name = "approvisionnement/demande_interne_detail.html"
-    context_object_name = "demande"
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["lignes"] = self.object.lignes.select_related("produit")
-
-        # Vérifier la disponibilité des stocks pour chaque produit
-        service_pharmacie = self.object.besoin.service_approvisionneur
-        stocks_info = []
-
-        for ligne in context["lignes"]:
-            # Calculer le stock disponible en utilisant la méthode get_available
-            # et en faisant la somme des quantités
-            stocks_disponibles = Stock.objects.get_available(
-                produit=ligne.produit, service=service_pharmacie
-            )
-
-            # Calculer la quantité totale disponible
-            from django.db.models import Sum
-
-            stock_disponible = (
-                stocks_disponibles.aggregate(total=Sum("quantite"))["total"] or 0
-            )
-
-            stocks_info.append(
-                {
-                    "ligne": ligne,
-                    "stock_disponible": stock_disponible,
-                    "stock_suffisant": stock_disponible
-                    >= (ligne.quantite_accordee or ligne.quantite_demandee),
-                }
-            )
-
-        context["stocks_info"] = stocks_info
-        return context
-
-
-class DemandeInterneValidationView(LoginRequiredMixin, View):
-    def post(self, request, pk):
-        demande = get_object_or_404(DemandeInterne, pk=pk)
-
-        try:
-            data = json.loads(request.body)
-            action = data.get("action")
-
-            if action == "valider":
-                demande.valider(request.user)
-
-                # Mise à jour des quantités accordées
-                for ligne_data in data.get("lignes", []):
-                    ligne = demande.lignes.get(id=ligne_data["id"])
-                    ligne.quantite_accordee = ligne_data["quantite_accordee"]
-                    ligne.observations = ligne_data.get("observations", "")
-                    ligne.save()
-
-                messages.success(request, "Demande interne validée avec succès")
-
-            elif action == "rejeter":
-                demande.statut = "REJETEE"
-                demande.observations = data.get("observations", "")
-                demande.save()
-                messages.success(request, "Demande interne rejetée")
-
-            elif action == "preparer":
-                demande.preparer(request.user)
-                messages.success(request, "Demande interne préparée avec succès")
-
-            elif action == "livrer":
-                demande.livrer(request.user)
-                messages.success(request, "Demande interne livrée avec succès")
-
-            return JsonResponse({"success": True})
-
-        except ValidationError as e:
-            return JsonResponse({"success": False, "message": str(e)}, status=400)
-
-
-class DemandeInterneValiderView(LoginRequiredMixin, View):
-    """Vue pour valider une demande interne"""
-
-    def post(self, request, pk):
-        demande = get_object_or_404(DemandeInterne, pk=pk)
-
-        if demande.statut != "EN_ATTENTE":
-            messages.error(request, "Cette demande ne peut plus être validée.")
-            return redirect("pharmacies:demande_interne_detail", pk=pk)
-
-        try:
-            with transaction.atomic():
-                # Récupérer les quantités accordées depuis le formulaire
-                for ligne in demande.lignes.all():
-                    quantite_accordee = request.POST.get(f"quantite_{ligne.pk}")
-                    observation = request.POST.get(f"observation_{ligne.pk}", "")
-
-                    if quantite_accordee:
-                        ligne.quantite_accordee = int(quantite_accordee)
-                        if observation:
-                            ligne.observations = observation
-                        ligne.save()
-
-                # Observations générales
-                observations_validation = request.POST.get(
-                    "observations_validation", ""
-                )
-                if observations_validation:
-                    demande.observations = f"{demande.observations}\n\nValidation: {observations_validation}".strip()
-
-                # Valider la demande
-                demande.valider(request.user)
-
-                messages.success(request, "La demande a été validée avec succès.")
-
-        except Exception as e:
-            messages.error(request, f"Erreur lors de la validation : {str(e)}")
-
-        return redirect("pharmacies:demande_interne_detail", pk=pk)
-
-
-class DemandeInterneRejeterView(LoginRequiredMixin, View):
-    """Vue pour rejeter une demande interne"""
-
-    def post(self, request, pk):
-        demande = get_object_or_404(DemandeInterne, pk=pk)
-
-        if demande.statut != "EN_ATTENTE":
-            messages.error(request, "Cette demande ne peut plus être rejetée.")
-            return redirect("pharmacies:demande_interne_detail", pk=pk)
-
-        motif_rejet = request.POST.get("motif_rejet", "")
-
-        if not motif_rejet:
-            messages.error(request, "Le motif de rejet est obligatoire.")
-            return redirect("pharmacies:demande_interne_detail", pk=pk)
-
-        try:
-            demande.statut = "REJETEE"
-            demande.date_rejet = timezone.now()
-            demande.observations = (
-                f"{demande.observations}\n\nMotif de rejet: {motif_rejet}".strip()
-            )
-            demande.save()
-
-            messages.success(request, "La demande a été rejetée.")
-
-        except Exception as e:
-            messages.error(request, f"Erreur lors du rejet : {str(e)}")
-
-        return redirect("pharmacies:demande_interne_detail", pk=pk)
-
-
-class DemandeInternePreparerView(LoginRequiredMixin, View):
-    """Vue pour marquer une demande comme préparée"""
-
-    def post(self, request, pk):
-        demande = get_object_or_404(DemandeInterne, pk=pk)
-
-        if demande.statut != "VALIDEE":
-            messages.error(
-                request, "Seules les demandes validées peuvent être préparées."
-            )
-            return redirect("pharmacies:demande_interne_detail", pk=pk)
-
-        observations_preparation = request.POST.get("observations_preparation", "")
-
-        try:
-            if observations_preparation:
-                demande.observations = f"{demande.observations}\n\nPréparation: {observations_preparation}".strip()
-
-            demande.preparer(request.user)
-            messages.success(request, "La demande a été marquée comme préparée.")
-
-        except ValidationError as e:
-            messages.error(request, str(e))
-        except Exception as e:
-            messages.error(request, f"Erreur lors de la préparation : {str(e)}")
-
-        return redirect("pharmacies:demande_interne_detail", pk=pk)
-
-
-class DemandeInterneLivrerView(LoginRequiredMixin, View):
-    """Vue pour livrer une demande interne"""
-
-    def post(self, request, pk):
-        demande = get_object_or_404(DemandeInterne, pk=pk)
-
-        if demande.statut != "PREPAREE":
-            messages.error(
-                request, "Seules les demandes préparées peuvent être livrées."
-            )
-            return redirect("pharmacies:demande_interne_detail", pk=pk)
-
-        nom_receptionnaire = request.POST.get("nom_receptionnaire", "")
-        observations_livraison = request.POST.get("observations_livraison", "")
-
-        if not nom_receptionnaire:
-            messages.error(request, "Le nom du réceptionnaire est obligatoire.")
-            return redirect("pharmacies:demande_interne_detail", pk=pk)
-
-        try:
-            if observations_livraison or nom_receptionnaire:
-                demande.observations = f"{demande.observations}\n\nLivraison: Réceptionné par {nom_receptionnaire}. {observations_livraison}".strip()
-
-            demande.livrer(request.user)
-            messages.success(request, "La demande a été livrée avec succès.")
-
-        except ValidationError as e:
-            messages.error(request, str(e))
-        except Exception as e:
-            messages.error(request, f"Erreur lors de la livraison : {str(e)}")
-
-        return redirect("pharmacies:demande_interne_detail", pk=pk)
-
-
-class DemandeInternePDFView(LoginRequiredMixin, View):
-    """Vue pour générer le PDF d'une demande interne"""
-
-    def get(self, request, pk):
-        demande = get_object_or_404(DemandeInterne, pk=pk)
-
-        # TODO: Implémenter la génération du PDF
-        # Pour l'instant, retourner un placeholder
-        response = HttpResponse(content_type="application/pdf")
-        response["Content-Disposition"] = (
-            f'attachment; filename="demande_interne_{demande.reference}.pdf"'
-        )
-
-        # Ici, utiliser une librairie comme ReportLab ou WeasyPrint pour générer le PDF
-        response.write(b"PDF content would be here")
-
-        return response
-
-
-class DemandeInterneExcelView(LoginRequiredMixin, View):
-    """Vue pour exporter une demande interne en Excel"""
-
-    def get(self, request, pk):
-        demande = get_object_or_404(DemandeInterne, pk=pk)
-
-        # TODO: Implémenter l'export Excel
-        # Pour l'instant, retourner un placeholder
-        response = HttpResponse(
-            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
-        response["Content-Disposition"] = (
-            f'attachment; filename="demande_interne_{demande.reference}.xlsx"'
-        )
-
-        # Ici, utiliser une librairie comme openpyxl pour générer l'Excel
-        response.write(b"Excel content would be here")
-
-        return response
 
 
 class CommandeFournisseurListView(LoginRequiredMixin, ListView):
@@ -900,9 +583,6 @@ class DashboardView(LoginRequiredMixin, View):
             "besoins_externes_en_attente": ExpressionBesoin.objects.filter(
                 statut="EN_ATTENTE", type_approvisionnement="EXTERNE"
             ).count(),
-            "demandes_internes_en_attente": DemandeInterne.objects.filter(
-                statut="EN_ATTENTE"
-            ).count(),
             "commandes_en_cours": CommandeFournisseur.objects.filter(
                 statut="EN_ATTENTE"
             ).count(),
@@ -912,9 +592,6 @@ class DashboardView(LoginRequiredMixin, View):
             "retards": Livraison.objects.filter(
                 statut="EN_TRANSIT", date_livraison_prevue__lt=today
             ).count(),
-            "demandes_urgentes": DemandeInterne.objects.filter(
-                besoin__priorite="URGENTE", statut__in=["EN_ATTENTE", "VALIDEE"]
-            ).count(),
         }
 
         # Données récentes
@@ -922,9 +599,6 @@ class DashboardView(LoginRequiredMixin, View):
             "service_demandeur"
         ).order_by("-date_creation")[:5]
 
-        demandes_internes_recentes = DemandeInterne.objects.select_related(
-            "besoin__service_demandeur", "service_destinataire"
-        ).order_by("-date_creation")[:5]
 
         livraisons_recentes = Livraison.objects.select_related(
             "commande__fournisseur"
@@ -933,14 +607,6 @@ class DashboardView(LoginRequiredMixin, View):
         # Alertes
         alertes = []
 
-        # Demandes urgentes
-        demandes_urgentes = DemandeInterne.objects.filter(
-            besoin__priorite="URGENTE", statut__in=["EN_ATTENTE", "VALIDEE"]
-        ).count()
-        if demandes_urgentes > 0:
-            alertes.append(
-                f"{demandes_urgentes} demande(s) interne(s) urgente(s) en attente"
-            )
 
         # Stocks faibles - Alternative sans stock_minimum
         # Option 1: Définir un seuil fixe pour tous les produits
@@ -1006,9 +672,6 @@ class DashboardView(LoginRequiredMixin, View):
                     "besoins_externes": ExpressionBesoin.objects.filter(
                         date_creation__date=date, type_approvisionnement="EXTERNE"
                     ).count(),
-                    "demandes_internes": DemandeInterne.objects.filter(
-                        date_creation__date=date
-                    ).count(),
                     "livraisons": Livraison.objects.filter(
                         date_reception__date=date
                     ).count(),
@@ -1040,7 +703,6 @@ class DashboardView(LoginRequiredMixin, View):
         context = {
             "stats": stats,
             "besoins_recents": besoins_recents,
-            "demandes_internes_recentes": demandes_internes_recentes,
             "livraisons_recentes": livraisons_recentes,
             "top_fournisseurs": top_fournisseurs,
             "alertes": alertes,
@@ -1122,7 +784,6 @@ def menu_stats_api(request):
     return JsonResponse(
         {
             "besoins": ExpressionBesoin.objects.filter(statut="EN_ATTENTE").count(),
-            "demandes": DemandeInterne.objects.filter(statut="EN_ATTENTE").count(),
             "commandes": CommandeFournisseur.objects.filter(
                 statut="EN_ATTENTE"
             ).count(),

@@ -1,0 +1,613 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Demande {{ demande.reference }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .info-card {
+        background: white;
+        border-radius: 8px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 1.5rem;
+    }
+    
+    .card-header {
+        border-bottom: 1px solid #e5e7eb;
+        padding-bottom: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .card-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #1f2937;
+        margin: 0;
+    }
+    
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+    }
+    
+    .info-item {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .info-label {
+        font-size: 0.875rem;
+        color: #6b7280;
+        margin-bottom: 0.25rem;
+    }
+    
+    .info-value {
+        font-weight: 500;
+        color: #1f2937;
+    }
+    
+    .status-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        display: inline-block;
+        width: fit-content;
+    }
+    
+    .status-en-attente { background: #fef3c7; color: #d97706; }
+    .status-validee { background: #dbeafe; color: #2563eb; }
+    .status-preparee { background: #f3e8ff; color: #7c3aed; }
+    .status-livree { background: #d1fae5; color: #059669; }
+    .status-rejetee { background: #fee2e2; color: #dc2626; }
+    .status-annulee { background: #f3f4f6; color: #6b7280; }
+    
+    .priority-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        display: inline-block;
+        width: fit-content;
+    }
+    
+    .priority-normale { background: #f3f4f6; color: #374151; }
+    .priority-urgente { background: #fef3c7; color: #d97706; }
+    .priority-critique { background: #fee2e2; color: #dc2626; }
+    
+    .actions-bar {
+        background: white;
+        padding: 1rem 1.5rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 1.5rem;
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+    
+    .btn {
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        text-decoration: none;
+        border: none;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .btn-primary { background: #2563eb; color: white; }
+    .btn-success { background: #059669; color: white; }
+    .btn-warning { background: #d97706; color: white; }
+    .btn-danger { background: #dc2626; color: white; }
+    .btn-secondary { background: #6b7280; color: white; }
+    .btn-outline { background: transparent; border: 1px solid #d1d5db; color: #374151; }
+    
+    .btn:hover { opacity: 0.9; }
+    
+    .table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    .table th, .table td {
+        padding: 0.75rem;
+        text-align: left;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .table th {
+        background: #f9fafb;
+        font-weight: 600;
+        color: #374151;
+    }
+    
+    .table tbody tr:hover {
+        background: #f9fafb;
+    }
+    
+    .timeline {
+        position: relative;
+        padding-left: 2rem;
+    }
+    
+    .timeline::before {
+        content: '';
+        position: absolute;
+        left: 0.5rem;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #e5e7eb;
+    }
+    
+    .timeline-item {
+        position: relative;
+        margin-bottom: 1.5rem;
+    }
+    
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        left: -0.75rem;
+        top: 0.25rem;
+        width: 0.75rem;
+        height: 0.75rem;
+        border-radius: 50%;
+        background: #2563eb;
+        border: 2px solid white;
+        box-shadow: 0 0 0 2px #e5e7eb;
+    }
+    
+    .timeline-content {
+        background: #f9fafb;
+        padding: 1rem;
+        border-radius: 6px;
+    }
+    
+    .timeline-title {
+        font-weight: 600;
+        color: #1f2937;
+        margin-bottom: 0.25rem;
+    }
+    
+    .timeline-date {
+        font-size: 0.875rem;
+        color: #6b7280;
+        margin-bottom: 0.5rem;
+    }
+    
+    .timeline-user {
+        font-size: 0.875rem;
+        color: #4b5563;
+    }
+    
+    .stock-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        font-size: 0.875rem;
+    }
+    
+    .stock-sufficient { color: #059669; }
+    .stock-insufficient { color: #dc2626; }
+    
+    .quantity-input {
+        width: 80px;
+        padding: 0.25rem;
+        border: 1px solid #d1d5db;
+        border-radius: 4px;
+        text-align: center;
+    }
+    
+    .modal-body .form-group {
+        margin-bottom: 1rem;
+    }
+    
+    .modal-body .form-label {
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+    
+    .modal-body .form-control {
+        width: 100%;
+        padding: 0.5rem;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h2">Demande {{ demande.reference }}</h1>
+            <p class="text-muted mb-0">{{ demande.service_demandeur.name }} → {{ demande.pharmacie.name }}</p>
+        </div>
+        <a href="{% url 'pharmacies:liste_demandes_internes' %}" class="btn btn-outline">
+            <i class="fas fa-arrow-left"></i>
+            Retour à la liste
+        </a>
+    </div>
+    
+    <!-- Barre d'actions -->
+    <div class="actions-bar">
+        {% if can_validate and demande.peut_etre_validee %}
+            <button onclick="showValidationModal()" class="btn btn-success">
+                <i class="fas fa-check"></i>
+                Valider
+            </button>
+            <button onclick="showRejectionModal()" class="btn btn-danger">
+                <i class="fas fa-times"></i>
+                Rejeter
+            </button>
+        {% endif %}
+        
+        {% if can_prepare and demande.peut_etre_preparee %}
+            <form method="post" action="{% url 'pharmacies:preparer_demande_interne' demande.id %}" style="display: inline;">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-warning" onclick="return confirm('Confirmer la préparation ?')">
+                    <i class="fas fa-box"></i>
+                    Préparer
+                </button>
+            </form>
+        {% endif %}
+        
+        {% if can_deliver and demande.peut_etre_livree %}
+            <form method="post" action="{% url 'pharmacies:livrer_demande_interne' demande.id %}" style="display: inline;">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-primary" onclick="return confirm('Confirmer la livraison ?')">
+                    <i class="fas fa-truck"></i>
+                    Livrer
+                </button>
+            </form>
+        {% endif %}
+        
+        {% if demande.statut not in 'LIVREE,ANNULEE' %}
+            <button onclick="showCancellationModal()" class="btn btn-secondary">
+                <i class="fas fa-ban"></i>
+                Annuler
+            </button>
+        {% endif %}
+        
+        <button onclick="window.print()" class="btn btn-outline">
+            <i class="fas fa-print"></i>
+            Imprimer
+        </button>
+    </div>
+    
+    <!-- Informations générales -->
+    <div class="info-card">
+        <div class="card-header">
+            <h3 class="card-title">Informations générales</h3>
+        </div>
+        
+        <div class="info-grid">
+            <div class="info-item">
+                <span class="info-label">Référence</span>
+                <span class="info-value">{{ demande.reference }}</span>
+            </div>
+            
+            <div class="info-item">
+                <span class="info-label">Service demandeur</span>
+                <span class="info-value">{{ demande.service_demandeur.name }}</span>
+            </div>
+            
+            <div class="info-item">
+                <span class="info-label">Pharmacie</span>
+                <span class="info-value">{{ demande.pharmacie.name }}</span>
+            </div>
+            
+            <div class="info-item">
+                <span class="info-label">Statut</span>
+                <span class="status-badge status-{{ demande.statut|lower|slugify }}">
+                    {{ demande.get_statut_display }}
+                </span>
+            </div>
+            
+            <div class="info-item">
+                <span class="info-label">Priorité</span>
+                <span class="priority-badge priority-{{ demande.priorite|lower }}">
+                    {{ demande.get_priorite_display }}
+                </span>
+            </div>
+            
+            <div class="info-item">
+                <span class="info-label">Date de création</span>
+                <span class="info-value">{{ demande.date_creation|date:"d/m/Y à H:i" }}</span>
+            </div>
+            
+            <div class="info-item">
+                <span class="info-label">Créée par</span>
+                <span class="info-value">{{ demande.creee_par.get_full_name }}</span>
+            </div>
+            
+            <div class="info-item">
+                <span class="info-label">Total produits</span>
+                <span class="info-value">{{ demande.total_produits }}</span>
+            </div>
+        </div>
+        
+        {% if demande.motif_demande %}
+        <div class="mt-3">
+            <span class="info-label">Motif de la demande</span>
+            <p class="info-value">{{ demande.motif_demande }}</p>
+        </div>
+        {% endif %}
+        
+        {% if demande.observations %}
+        <div class="mt-3">
+            <span class="info-label">Observations</span>
+            <p class="info-value">{{ demande.observations }}</p>
+        </div>
+        {% endif %}
+        
+        {% if demande.motif_rejet %}
+        <div class="mt-3">
+            <span class="info-label">Motif du rejet</span>
+            <p class="info-value text-danger">{{ demande.motif_rejet }}</p>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Lignes de produits -->
+    <div class="info-card">
+        <div class="card-header">
+            <h3 class="card-title">Produits demandés</h3>
+        </div>
+        
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Produit</th>
+                        <th>Code</th>
+                        <th>Qté demandée</th>
+                        <th>Qté accordée</th>
+                        <th>Qté livrée</th>
+                        <th>Stock disponible</th>
+                        <th>Observations</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ligne in demande.lignes.all %}
+                    <tr>
+                        <td>
+                            <strong>{{ ligne.produit.nom }}</strong>
+                        </td>
+                        <td>{{ ligne.produit.code_produit }}</td>
+                        <td>{{ ligne.quantite_demandee }}</td>
+                        <td>
+                            {% if ligne.quantite_accordee is not None %}
+                                {{ ligne.quantite_accordee }}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ ligne.quantite_livree|default:"-" }}</td>
+                        <td>
+                            <span class="stock-indicator {% if ligne.est_stock_suffisant %}stock-sufficient{% else %}stock-insufficient{% endif %}">
+                                <i class="fas fa-circle" style="font-size: 0.5rem;"></i>
+                                {{ ligne.stock_disponible_pharmacie }}
+                            </span>
+                        </td>
+                        <td>{{ ligne.observations|default:"-" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted py-4">
+                            Aucun produit dans cette demande
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- Historique -->
+    <div class="info-card">
+        <div class="card-header">
+            <h3 class="card-title">Historique</h3>
+        </div>
+        
+        <div class="timeline">
+            <div class="timeline-item">
+                <div class="timeline-content">
+                    <div class="timeline-title">Demande créée</div>
+                    <div class="timeline-date">{{ demande.date_creation|date:"d/m/Y à H:i" }}</div>
+                    <div class="timeline-user">par {{ demande.creee_par.get_full_name }}</div>
+                </div>
+            </div>
+            
+            {% if demande.date_validation %}
+            <div class="timeline-item">
+                <div class="timeline-content">
+                    <div class="timeline-title">
+                        {% if demande.statut == 'VALIDEE' %}Demande validée{% else %}Demande rejetée{% endif %}
+                    </div>
+                    <div class="timeline-date">{{ demande.date_validation|date:"d/m/Y à H:i" }}</div>
+                    <div class="timeline-user">par {{ demande.validee_par.get_full_name }}</div>
+                </div>
+            </div>
+            {% endif %}
+            
+            {% if demande.date_preparation %}
+            <div class="timeline-item">
+                <div class="timeline-content">
+                    <div class="timeline-title">Demande préparée</div>
+                    <div class="timeline-date">{{ demande.date_preparation|date:"d/m/Y à H:i" }}</div>
+                    <div class="timeline-user">par {{ demande.preparee_par.get_full_name }}</div>
+                </div>
+            </div>
+            {% endif %}
+            
+            {% if demande.date_livraison %}
+            <div class="timeline-item">
+                <div class="timeline-content">
+                    <div class="timeline-title">Demande livrée</div>
+                    <div class="timeline-date">{{ demande.date_livraison|date:"d/m/Y à H:i" }}</div>
+                    <div class="timeline-user">par {{ demande.livree_par.get_full_name }}</div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Modal de validation -->
+<div class="modal fade" id="validationModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Valider la demande</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'pharmacies:valider_demande_interne' demande.id %}">
+                <div class="modal-body">
+                    {% csrf_token %}
+                    <p>Ajustez les quantités accordées si nécessaire :</p>
+                    
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Produit</th>
+                                    <th>Demandée</th>
+                                    <th>Stock disponible</th>
+                                    <th>Accordée</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for ligne in demande.lignes.all %}
+                                <tr>
+                                    <td>{{ ligne.produit.nom }}</td>
+                                    <td>{{ ligne.quantite_demandee }}</td>
+                                    <td>
+                                        <span class="{% if ligne.est_stock_suffisant %}text-success{% else %}text-danger{% endif %}">
+                                            {{ ligne.stock_disponible_pharmacie }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <input type="hidden" name="ligne_{{ ligne.id }}_id" value="{{ ligne.id }}">
+                                        <input type="number" 
+                                               name="ligne_{{ ligne.id }}_quantite" 
+                                               value="{{ ligne.quantite_demandee }}"
+                                               min="0" 
+                                               max="{{ ligne.stock_disponible_pharmacie }}"
+                                               class="quantity-input">
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-success">Valider la demande</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de rejet -->
+<div class="modal fade" id="rejectionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Rejeter la demande</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'pharmacies:rejeter_demande_interne' demande.id %}">
+                <div class="modal-body">
+                    {% csrf_token %}
+                    <div class="form-group">
+                        <label class="form-label">Motif du rejet *</label>
+                        <textarea name="motif_rejet" class="form-control" rows="4" required 
+                                  placeholder="Expliquez la raison du rejet..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-danger">Rejeter la demande</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal d'annulation -->
+<div class="modal fade" id="cancellationModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Annuler la demande</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'pharmacies:annuler_demande_interne' demande.id %}">
+                <div class="modal-body">
+                    {% csrf_token %}
+                    <div class="form-group">
+                        <label class="form-label">Motif de l'annulation</label>
+                        <textarea name="motif_annulation" class="form-control" rows="3" 
+                                  placeholder="Expliquez la raison de l'annulation..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Retour</button>
+                    <button type="submit" class="btn btn-warning">Annuler la demande</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function showValidationModal() {
+    const modal = new bootstrap.Modal(document.getElementById('validationModal'));
+    modal.show();
+}
+
+function showRejectionModal() {
+    const modal = new bootstrap.Modal(document.getElementById('rejectionModal'));
+    modal.show();
+}
+
+function showCancellationModal() {
+    const modal = new bootstrap.Modal(document.getElementById('cancellationModal'));
+    modal.show();
+}
+
+// Validation côté client pour les quantités
+document.addEventListener('DOMContentLoaded', function() {
+    const quantityInputs = document.querySelectorAll('.quantity-input');
+    
+    quantityInputs.forEach(input => {
+        input.addEventListener('input', function() {
+            const max = parseInt(this.getAttribute('max'));
+            const value = parseInt(this.value);
+            
+            if (value > max) {
+                this.style.borderColor = '#dc2626';
+                this.title = `Stock insuffisant (max: ${max})`;
+            } else {
+                this.style.borderColor = '#d1d5db';
+                this.title = '';
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

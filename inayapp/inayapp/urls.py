@@ -41,6 +41,13 @@ urlpatterns = [
         include(("inventaire.urls", "inventaire"), namespace="inventaire"),
     ),
     path("audit/", include(("audit.urls", "audit"), namespace="audit")),
+    path(
+        "hospitalisations/",
+        include(
+            ("hospitalisations.urls", "hospitalisations"), namespace="hospitalisations"
+        ),
+    ),
+    
 ]
 
 

@@ -1,17 +1,19 @@
 # accueil/context_processors.py
 
 
-from django.db.models import F, Q, Sum, Value
+from django.db import models
+from django.db.models import ExpressionWrapper, F, Q, Sum, Value
 from django.db.models.functions import Coalesce
 from django.urls import Resolver404, resolve, reverse
 from finance.models import Decharges
 from helpdesk.models import Helpdesk
 from rh.models import LeaveRequest, SalaryAdvanceRequest
-from django.db.models import F, Sum, Value, ExpressionWrapper
-from django.db.models.functions import Coalesce
-from django.db import models
-from .models import MenuItem, MenuGroup, NavbarItem
-from django.urls import resolve
+from django.urls import resolve, reverse
+
+from .models import MenuItem, NavbarItem
+
+from .models import MenuGroup, MenuItem, NavbarItem
+
 
 def get_menu_groups(request):
     groups = MenuGroup.objects.prefetch_related("items").all()
@@ -30,22 +32,6 @@ def get_menu_items(request):
             filtered_items.append(item)
 
     return {"menu_items": filtered_items}
-
-
-from django.urls import resolve, reverse
-from .models import MenuItem, NavbarItem
-
-
-# votre_app/context_processors.py
-
-from django.urls import resolve
-from .models import MenuItem, NavbarItem
-
-
-# votre_app/context_processors.py
-
-from django.urls import resolve
-from .models import MenuItem, NavbarItem
 
 
 def navbar_context(request):

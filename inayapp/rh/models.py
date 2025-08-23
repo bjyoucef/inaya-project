@@ -6,6 +6,7 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.db.models import Q, Sum, ExpressionWrapper, DurationField, F, Value
 from django.db.models import Q, Sum
 from django.forms import ValidationError
 from django.utils import timezone
@@ -16,233 +17,12 @@ from decimal import Decimal
 from django.db import models
 from django.db.models import F, Sum, Value, ExpressionWrapper, DurationField
 from django.utils import timezone
-
-class Personnel(models.Model):
-    id_personnel = models.AutoField(primary_key=True)
-    nom_prenom = models.CharField(max_length=100, blank=True, null=True)
-    service = models.ForeignKey(
-        "medical.Service",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="personnels",
-    )
-    poste = models.ForeignKey(
-        "Poste",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        verbose_name="Poste occupé",
-    )
-    telephone = models.CharField(max_length=15, blank=True, null=True)
-
-    # Champs salaire et employé
-    salaire = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        null=True,
-        blank=True,
-        verbose_name="Salaire mensuel",
-    )
-    employee = models.OneToOneField(
-        "Employee",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        verbose_name="Fiche Pointeuse",
-        related_name="personnel",
-    )
-    # ==================================
-
-    created_at = models.DateTimeField(auto_now_add=True, blank=True, null=True)
-    updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
-    statut_activite = models.BooleanField(default=True)
-    use_in_planning = models.BooleanField(default=False)
-    salary_advance_request = models.BooleanField(default=False)
-    user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True)
-
-    def get_associated_services(self):
-        if hasattr(self, "medecin_profile"):
-            return self.medecin_profile.service.all()
-        return Service.objects.none()
-
-    @property
-    def taux_horaire(self):
-        if self.salaire:
-            return (self.salaire / Decimal("160")).quantize(
-                Decimal("0.01"), rounding=models.ROUND_HALF_UP
-            )
-        return Decimal("0.00")
-
-    @property
-    def identite_complete(self):
-        return f"{self.nom_prenom} ({self.poste.label if self.poste else 'Sans poste'})"
-
-    def get_monthly_advances(self, month, year):
-        return self.salary_advances.filter(
-            status=SalaryAdvanceRequest.RequestStatus.APPROVED,
-            payment_date__month=month,
-            payment_date__year=year,
-        ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
-
-    def get_available_advance_amount(self):
-        """Calcule le montant maximum d'avance disponible (ex: 30% du salaire)"""
-        if not self.salaire:
-            return Decimal("0.00")
-
-        # Montant maximum autorisé (30% du salaire)
-        max_advance = self.salaire * Decimal("0.3")
-
-        # Montant déjà avancé ce mois
-        current_month_advances = self.salary_advances.filter(
-            status=SalaryAdvanceRequest.RequestStatus.APPROVED,
-            payment_date__month=timezone.now().month,
-            payment_date__year=timezone.now().year,
-        ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
-
-        return max(Decimal("0.00"), max_advance - current_month_advances)
-
-    def get_remaining_leave_days(self, leave_type):
-        """Calcule les jours de congé restants par type"""
-        # Configuration des jours par type de congé
-        LEAVE_ALLOWANCES = {
-            LeaveRequest.LeaveType.VACATION: 30,  # 30 jours de congé annuel
-            LeaveRequest.LeaveType.SICK: 21,  # 21 jours de congé maladie
-            LeaveRequest.LeaveType.MATERNITY: 98,  # 14 semaines
-            LeaveRequest.LeaveType.PATERNITY: 3,  # 3 jours
-        }
-
-        max_days = LEAVE_ALLOWANCES.get(leave_type, 0)
-        current_year = timezone.now().year
-
-        # 1) Construire l'expression de durée : (end_date - start_date) + 1 jour
-        duration_expr = ExpressionWrapper(
-            F("end_date") - F("start_date") + Value(timedelta(days=1)),
-            output_field=DurationField(),
-        )
-
-        # 2) Faire sum sur cette durée pour les demandes approuvées de cette année
-        agg_result = self.leave_requests.filter(
-            leave_type=leave_type,
-            status=LeaveRequest.RequestStatus.APPROVED,
-            start_date__year=current_year,
-        ).aggregate(total_duration=Sum(duration_expr))
-
-        total_duration = agg_result["total_duration"] or timedelta(0)
-
-        # 3) Extraire le nombre de jours entiers à partir du timedelta
-        used_days = total_duration.days
-
-        # 4) Retourner le nombre de jours restants, jamais négatif
-        return max(0, max_days - used_days)
-
-    def __str__(self):
-        return f"{self.nom_prenom}"
-
-    class Meta:
-        ordering = ["nom_prenom"]
-        managed = True
-        permissions = [
-            ("create_for_others", "Peut créer des demandes pour d'autres employés"),
-        ]
-    def save(self, *args, **kwargs):
-        if not self.salaire:
-            self.salaire = 0.00
-        super().save(*args, **kwargs)
-
-
-class Planning(models.Model):
-    service = models.ForeignKey("medical.Service", on_delete=models.DO_NOTHING)
-    id_poste = models.ForeignKey("Poste", on_delete=models.DO_NOTHING)
-    shift_date = models.DateField()
-    employee = models.ForeignKey("Personnel", on_delete=models.DO_NOTHING)
-    shift = models.ForeignKey(
-        "Shift",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        verbose_name="Shift associé",
-    )
-    id_created_par = models.ForeignKey(
-        Personnel,
-        on_delete=models.DO_NOTHING,
-        db_column="id_created_par",
-        related_name="id_created_par",
-        blank=True,
-        null=True,
-    )
-    created_at = models.DateTimeField(auto_now_add=True, blank=True, null=True)
-    prix = models.DecimalField(
-        max_digits=10, decimal_places=2, blank=True, null=True, default=0
-    )
-    prix_acte = models.DecimalField(
-        max_digits=10, decimal_places=2, blank=True, null=True, default=0
-    )
-    paiement = models.DecimalField(
-        max_digits=10, decimal_places=2, blank=True, null=True, default=0
-    )
-
-    # Ce champ enregistre qui a fait le pointage
-    pointage_id_created_par = models.ForeignKey(
-        "Personnel",
-        on_delete=models.DO_NOTHING,
-        db_column="pointage_id_created_par",
-        related_name="pointage_id_created_par",
-        blank=True,
-        null=True,
-    )
-    pointage_created_at = models.DateTimeField(blank=True, null=True)
-    id_decharge = models.ForeignKey(
-        "finance.Decharges",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="plannings",
-    )
-
-    class Meta:
-        managed = True
-        permissions = (
-            ("acces_aux_plannings", "Accès aux plannings"),
-            ("creer_planning", "Créer un planning"),
-            ("modifier_planning", "Modifier un planning"),
-            ("supprimer_planning", "Supprimer un planning"),
-            ("exporter_planning", "Exporter un planning"),
-        )
-
-
-class HonorairesActe(models.Model):
-    id_acte = models.AutoField(primary_key=True)
-    name_acte = models.CharField(max_length=50, blank=True, null=True)
-    prix_acte = models.DecimalField(
-        max_digits=10, decimal_places=0, blank=True, null=True
-    )
-    id_poste = models.ForeignKey(
-        "Poste", models.DO_NOTHING, db_column="id_poste", default=1
-    )
-
-    def __str__(self):
-        return f"{self.name_acte}"
-
-    class Meta:
-        managed = True
-
-
-class PointagesActes(models.Model):
-    id_acte = models.ForeignKey(
-        "HonorairesActe", models.DO_NOTHING, db_column="id_acte", blank=True, null=True
-    )
-    id_planning = models.ForeignKey(
-        "Planning", models.CASCADE, db_column="id_planning", blank=True, null=True
-    )
-    nbr_actes = models.IntegerField()
-
-    class Meta:
-        managed = True
+from decimal import Decimal, ROUND_HALF_UP
+from medical.models import Service
 
 
 class Poste(models.Model):
-    label = models.CharField(max_length=100)
+    label = models.CharField(max_length=100, unique=True)
 
     def __str__(self):
         return self.label
@@ -264,6 +44,244 @@ class Shift(models.Model):
     class Meta:
         verbose_name = "Shift"
         verbose_name_plural = "Shifts"
+
+
+class Tarif_Gardes(models.Model):
+    poste = models.ForeignKey(
+        "rh.Poste", on_delete=models.CASCADE, related_name="tarifs"
+    )
+    service = models.ForeignKey(
+        "medical.Service", on_delete=models.CASCADE, related_name="tarifs"
+    )
+    shift = models.ForeignKey(
+        "rh.Shift",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="tarifs",
+    )
+    prix = models.DecimalField(
+        "Prix (€)", max_digits=10, decimal_places=2, null=True, blank=True
+    )
+    salaire = models.DecimalField(
+        "Salaire (€)", max_digits=12, decimal_places=2, null=True, blank=True
+    )
+
+    class Meta:
+        unique_together = ("poste", "service", "shift")
+        verbose_name = "Tarif_Gardes"
+        verbose_name_plural = "Tarif_Gardes"
+
+    def __str__(self):
+        desc = f"{self.poste} / {self.service}"
+        if self.shift:
+            desc += f" ({self.shift})"
+        return desc
+
+
+class Personnel(models.Model):
+    nom_prenom = models.CharField(max_length=100, default="Unknown")
+    service = models.ForeignKey(
+        Service,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="personnels",
+    )
+    poste = models.ForeignKey(
+        Poste,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name="Poste occupé",
+    )
+    telephone = models.CharField(max_length=15, blank=True, null=True)
+    salaire = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0.00, verbose_name="Salaire mensuel"
+    )
+    employee = models.OneToOneField(
+        "Employee",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name="Fiche Pointeuse",
+        related_name="personnel",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, null=True)
+    updated_at = models.DateTimeField(auto_now=True, null=True)
+    statut_activite = models.BooleanField(default=True)
+    use_in_planning = models.BooleanField(default=False)
+    salary_advance_request = models.BooleanField(default=False)
+    user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True)
+
+    def get_associated_services(self):
+        return (
+            self.medecin_profile.service.all()
+            if hasattr(self, "medecin_profile")
+            else Service.objects.none()
+        )
+
+    @property
+    def taux_horaire(self):
+        return (
+            (self.salaire / Decimal("160")).quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            )
+            if self.salaire
+            else Decimal("0.00")
+        )
+
+    @property
+    def identite_complete(self):
+        return f"{self.nom_prenom} ({self.poste.label if self.poste else 'Sans poste'})"
+
+    def get_monthly_advances(self, month, year):
+        total = self.salary_advances.filter(
+            status="APPROVED", payment_date__month=month, payment_date__year=year
+        ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+        return total
+
+    def get_available_advance_amount(self):
+        if not self.salaire:
+            return Decimal("0.00")
+        max_advance = self.salaire * Decimal("0.3")
+        current_month_advances = self.get_monthly_advances(
+            timezone.now().month, timezone.now().year
+        )
+        return max(Decimal("0.00"), max_advance - current_month_advances)
+
+    def get_remaining_leave_days(self, leave_type):
+        LEAVE_ALLOWANCES = {"VACATION": 30, "SICK": 21, "MATERNITY": 98, "PATERNITY": 3}
+        max_days = LEAVE_ALLOWANCES.get(leave_type, 0)
+        current_year = timezone.now().year
+
+        duration_expr = ExpressionWrapper(
+            F("end_date") - F("start_date") + Value(timedelta(days=1)),
+            output_field=DurationField(),
+        )
+        total_duration = self.leave_requests.filter(
+            leave_type=leave_type, status="APPROVED", start_date__year=current_year
+        ).aggregate(total_duration=Sum(duration_expr))["total_duration"] or timedelta(0)
+
+        return max(0, max_days - total_duration.days)
+
+    def __str__(self):
+        return self.nom_prenom
+
+    class Meta:
+        ordering = ["nom_prenom"]
+        permissions = [
+            ("create_for_others", "Peut créer des demandes pour d'autres employés")
+        ]
+
+
+class Planning(models.Model):
+    service = models.ForeignKey(Service, on_delete=models.RESTRICT)
+    poste = models.ForeignKey(Poste, on_delete=models.RESTRICT, null=True, blank=True)
+    shift_date = models.DateField()
+    employee = models.ForeignKey(
+        Personnel, on_delete=models.RESTRICT, related_name="plannings"
+    )
+    shift = models.ForeignKey(Shift, on_delete=models.SET_NULL, null=True, blank=True)
+    created_by = models.ForeignKey(
+        Personnel,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_plannings",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, null=True)
+    prix = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    prix_acte = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    paiement = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    pointage_created_by = models.ForeignKey(
+        Personnel,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="pointed_plannings",
+    )
+    pointage_created_at = models.DateTimeField(null=True, blank=True)
+    decharge = models.ForeignKey(
+        "finance.Decharges",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="plannings",
+        db_column="decharge_id",
+    )  # Explicit db_column
+
+
+    class Meta:
+        permissions = (
+            ("acces_aux_plannings", "Accès aux plannings"),
+            ("creer_planning", "Créer un planning"),
+            ("modifier_planning", "Modifier un planning"),
+            ("supprimer_planning", "Supprimer un planning"),
+            ("exporter_planning", "Exporter un planning"),
+        )
+        # Contrainte d'unicité : un employé ne peut être planifié qu'une seule fois par date
+        constraints = [
+            models.UniqueConstraint(
+                fields=["employee", "shift_date"],
+                name="unique_employee_per_date",
+                violation_error_message="Cet employé est déjà planifié pour cette date.",
+            )
+        ]
+
+    def clean(self):
+        """Validation personnalisée avant sauvegarde"""
+        super().clean()
+
+        # Vérifier si l'employé est déjà planifié pour cette date
+        existing_planning = Planning.objects.filter(
+            employee=self.employee, shift_date=self.shift_date
+        ).exclude(
+            pk=self.pk
+        )  # Exclure l'instance actuelle pour les mises à jour
+
+        if existing_planning.exists():
+            raise ValidationError(
+                {
+                    "employee": f"L'employé {self.employee.nom_prenom} est déjà planifié le {self.shift_date.strftime('%d/%m/%Y')}."
+                }
+            )
+
+    def save(self, *args, **kwargs):
+        """Appeler clean() avant chaque sauvegarde"""
+        self.clean()
+        super().save(*args, **kwargs)
+
+
+class HonorairesActe(models.Model):
+    name_acte = models.CharField(max_length=50, default="Unknown")
+    prix_acte = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    poste = models.ForeignKey(Poste, on_delete=models.RESTRICT, null=True, blank=True)
+
+    def __str__(self):
+        return self.name_acte
+
+    class Meta:
+        verbose_name = "Honoraires Acte"
+        verbose_name_plural = "Honoraires Actes"
+
+
+class PointagesActes(models.Model):
+    acte = models.ForeignKey(
+        HonorairesActe, on_delete=models.RESTRICT, null=True, blank=True
+    )
+    planning = models.ForeignKey(
+        Planning,
+        on_delete=models.CASCADE,
+        related_name="pointages_actes",
+        null=True,
+        blank=True,
+    )
+    nbr_actes = models.PositiveIntegerField()
+
+    class Meta:
+        verbose_name = "Pointage Acte"
+        verbose_name_plural = "Pointages Actes"
 
 
 ###################################################################################

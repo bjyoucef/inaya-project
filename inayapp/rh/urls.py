@@ -5,10 +5,15 @@ from . import views
 
 
 urlpatterns = [
+    # Dans urls.py
+    path("refresh-csrf/", views.refresh_csrf, name="refresh_csrf"),
     path("planning", views.planning, name="planning"),
     path("save-planning/", views.save_planning, name="save_planning"),
     path("update-event/", views.update_event, name="update_event"),
     path("delete-event/<int:event_id>/", views.delete_event, name="delete_event"),
+    path(
+        "delete-event/", views.delete_event, name="delete_event_noid"
+    ),  # accepte POST { event_id: ... }
     path("planning/print/", views.print_planning, name="print_planning"),
     path("print-planning/", views.print_planning, name="print_planning"),
     path(
@@ -16,6 +21,7 @@ urlpatterns = [
         views.validate_presence,
         name="validate_presence",
     ),
+    path("validate-presence/", views.validate_presence, name="validate_presence_noid"),
     path(
         "validate-presence-range/",
         views.validate_presence_range,

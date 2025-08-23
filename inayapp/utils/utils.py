@@ -21,6 +21,9 @@ def services_autorises(user):
     en utilisant user.get_all_permissions() et en
     comparant uniquement des strings (pas de listes).
     """
+    if user.is_superuser:
+        return Service.objects.all()
+    
     # 1) Toutes les permissions de l'utilisateur, au format "app_label.codename"
     user_perms = user.get_all_permissions()
     # 2) Construire un mapping codename -> Service

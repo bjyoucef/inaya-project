@@ -1,0 +1,571 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Nouvelle demande d'approvisionnement{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-card {
+        background: white;
+        border-radius: 8px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 1.5rem;
+    }
+    
+    .card-header {
+        border-bottom: 1px solid #e5e7eb;
+        padding-bottom: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .card-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #1f2937;
+        margin: 0;
+    }
+    
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1rem;
+    }
+    
+    .form-group {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .form-label {
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+        color: #374151;
+    }
+    
+    .form-control {
+        padding: 0.5rem;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 0.875rem;
+    }
+    
+    .form-control:focus {
+        outline: none;
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+    
+    .btn {
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        text-decoration: none;
+        border: none;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .btn-primary { background: #2563eb; color: white; }
+    .btn-success { background: #059669; color: white; }
+    .btn-danger { background: #dc2626; color: white; }
+    .btn-secondary { background: #6b7280; color: white; }
+    .btn-outline { background: transparent; border: 1px solid #d1d5db; color: #374151; }
+    
+    .btn:hover { opacity: 0.9; }
+    
+    .products-section {
+        margin-top: 2rem;
+    }
+    
+    .product-search {
+        position: relative;
+        margin-bottom: 1rem;
+    }
+    
+    .search-results {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        max-height: 300px;
+        overflow-y: auto;
+        z-index: 1000;
+        display: none;
+    }
+    
+    .search-result-item {
+        padding: 0.75rem;
+        border-bottom: 1px solid #e5e7eb;
+        cursor: pointer;
+    }
+    
+    .search-result-item:hover {
+        background: #f9fafb;
+    }
+    
+    .search-result-item:last-child {
+        border-bottom: none;
+    }
+    
+    .product-name {
+        font-weight: 500;
+        color: #1f2937;
+    }
+    
+    .product-code {
+        font-size: 0.875rem;
+        color: #6b7280;
+    }
+    
+    .product-unit {
+        font-size: 0.875rem;
+        color: #4b5563;
+    }
+    
+    .selected-products {
+        margin-top: 1rem;
+    }
+    
+    .product-item {
+        background: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        padding: 1rem;
+        margin-bottom: 0.75rem;
+        display: grid;
+        grid-template-columns: 2fr 1fr 1fr auto;
+        gap: 1rem;
+        align-items: center;
+    }
+    
+    .product-info {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .product-item-name {
+        font-weight: 500;
+        color: #1f2937;
+    }
+    
+    .product-item-code {
+        font-size: 0.875rem;
+        color: #6b7280;
+    }
+    
+    .quantity-input {
+        width: 80px;
+        padding: 0.375rem;
+        border: 1px solid #d1d5db;
+        border-radius: 4px;
+        text-align: center;
+    }
+    
+    .observations-input {
+        padding: 0.375rem;
+        border: 1px solid #d1d5db;
+        border-radius: 4px;
+        font-size: 0.875rem;
+    }
+    
+    .remove-btn {
+        background: #dc2626;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        padding: 0.375rem;
+        cursor: pointer;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .remove-btn:hover {
+        background: #b91c1c;
+    }
+    
+    .actions-bar {
+        background: white;
+        padding: 1rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        display: flex;
+        gap: 1rem;
+        justify-content: flex-end;
+        position: sticky;
+        bottom: 1rem;
+        margin-top: 2rem;
+    }
+    
+    .required {
+        color: #dc2626;
+    }
+    
+    .alert {
+        padding: 0.75rem 1rem;
+        border-radius: 6px;
+        margin-bottom: 1rem;
+    }
+    
+    .alert-warning {
+        background: #fef3c7;
+        color: #92400e;
+        border: 1px solid #fde68a;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 2rem;
+        color: #6b7280;
+    }
+    
+    .loading {
+        display: inline-block;
+        width: 1rem;
+        height: 1rem;
+        border: 2px solid #e5e7eb;
+        border-top: 2px solid #2563eb;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h2">Nouvelle demande d'approvisionnement</h1>
+        <a href="{% url 'pharmacies:liste_demandes_internes' %}" class="btn btn-outline">
+            <i class="fas fa-arrow-left"></i>
+            Retour à la liste
+        </a>
+    </div>
+    
+    <form id="demandeForm" method="post">
+        {% csrf_token %}
+        
+        <!-- Informations générales -->
+        <div class="form-card">
+            <div class="card-header">
+                <h3 class="card-title">Informations générales</h3>
+            </div>
+            
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">Service demandeur <span class="required">*</span></label>
+                    <select name="service_demandeur" class="form-control" required>
+                        <option value="">Sélectionner un service</option>
+                        {% for service in services %}
+                            <option value="{{ service.id }}">{{ service.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Pharmacie <span class="required">*</span></label>
+                    <select name="pharmacie" class="form-control" required>
+                        <option value="">Sélectionner une pharmacie</option>
+                        {% for pharmacie in pharmacies %}
+                            <option value="{{ pharmacie.id }}">{{ pharmacie.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Priorité</label>
+                    <select name="priorite" class="form-control">
+                        {% for priorite_code, priorite_label in priorites %}
+                            <option value="{{ priorite_code }}" {% if priorite_code == 'NORMALE' %}selected{% endif %}>
+                                {{ priorite_label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-group mt-3">
+                <label class="form-label">Motif de la demande</label>
+                <textarea name="motif_demande" class="form-control" rows="3" 
+                          placeholder="Expliquez la raison de cette demande..."></textarea>
+            </div>
+        </div>
+        
+        <!-- Section produits -->
+        <div class="form-card products-section">
+            <div class="card-header">
+                <h3 class="card-title">Produits demandés</h3>
+            </div>
+            
+            <!-- Recherche de produits -->
+            <div class="product-search">
+                <input type="text" 
+                       id="productSearch" 
+                       class="form-control" 
+                       placeholder="Rechercher un produit par nom ou code...">
+                <div id="searchResults" class="search-results"></div>
+            </div>
+            
+            <!-- Produits sélectionnés -->
+            <div class="selected-products">
+                <div id="selectedProducts">
+                    <div class="empty-state">
+                        <i class="fas fa-box" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.3;"></i>
+                        <p>Aucun produit sélectionné</p>
+                        <p class="text-sm">Utilisez la barre de recherche ci-dessus pour ajouter des produits</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+    
+    <!-- Barre d'actions -->
+    <div class="actions-bar">
+        <button type="button" onclick="validateAndSubmit()" class="btn btn-primary">
+            <i class="fas fa-save"></i>
+            Enregistrer la demande
+        </button>
+        <a href="{% url 'pharmacies:liste_demandes_internes' %}" class="btn btn-secondary">
+            <i class="fas fa-times"></i>
+            Annuler
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let selectedProducts = [];
+    let searchTimeout;
+    
+    const productSearch = document.getElementById('productSearch');
+    const searchResults = document.getElementById('searchResults');
+    const selectedProductsContainer = document.getElementById('selectedProducts');
+    
+    // Recherche de produits
+    productSearch.addEventListener('input', function() {
+        const query = this.value.trim();
+        
+        clearTimeout(searchTimeout);
+        
+        if (query.length < 2) {
+            hideSearchResults();
+            return;
+        }
+        
+        searchTimeout = setTimeout(() => {
+            searchProducts(query);
+        }, 300);
+    });
+    
+    // Cacher les résultats quand on clique ailleurs
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.product-search')) {
+            hideSearchResults();
+        }
+    });
+    
+    function searchProducts(query) {
+        searchResults.innerHTML = '<div class="search-result-item">Recherche en cours...</div>';
+        searchResults.style.display = 'block';
+        
+        fetch(`/pharmacies/approvisionnement/api/recherche-produits/?q=${encodeURIComponent(query)}`)
+            .then(response => response.json())
+            .then(data => {
+                displaySearchResults(data.produits);
+            })
+            .catch(error => {
+                console.error('Erreur:', error);
+                searchResults.innerHTML = '<div class="search-result-item">Erreur de recherche</div>';
+            });
+    }
+    
+    function displaySearchResults(produits) {
+        if (produits.length === 0) {
+            searchResults.innerHTML = '<div class="search-result-item">Aucun produit trouvé</div>';
+            return;
+        }
+        
+        searchResults.innerHTML = '';
+        
+        produits.forEach(produit => {
+            // Vérifier si le produit est déjà sélectionné
+            if (selectedProducts.find(p => p.id === produit.id)) {
+                return;
+            }
+            
+            const item = document.createElement('div');
+            item.className = 'search-result-item';
+            item.innerHTML = `
+                <div class="product-name">${produit.nom}</div>
+                <div class="product-code">Code: ${produit.code}</div>
+                <div class="product-unit">Unité: ${produit.unite}</div>
+            `;
+            
+            item.addEventListener('click', () => {
+                addProduct(produit);
+                hideSearchResults();
+                productSearch.value = '';
+            });
+            
+            searchResults.appendChild(item);
+        });
+    }
+    
+    function hideSearchResults() {
+        searchResults.style.display = 'none';
+    }
+    
+    function addProduct(produit) {
+        // Vérifier si le produit n'est pas déjà ajouté
+        if (selectedProducts.find(p => p.id === produit.id)) {
+            return;
+        }
+        
+        selectedProducts.push({
+            ...produit,
+            quantite: 1,
+            observations: ''
+        });
+        
+        renderSelectedProducts();
+    }
+    
+    function removeProduct(productId) {
+        selectedProducts = selectedProducts.filter(p => p.id !== productId);
+        renderSelectedProducts();
+    }
+    
+    function updateProductQuantity(productId, quantite) {
+        const product = selectedProducts.find(p => p.id === productId);
+        if (product) {
+            product.quantite = parseInt(quantite) || 1;
+        }
+    }
+    
+    function updateProductObservations(productId, observations) {
+        const product = selectedProducts.find(p => p.id === productId);
+        if (product) {
+            product.observations = observations;
+        }
+    }
+    
+    function renderSelectedProducts() {
+        if (selectedProducts.length === 0) {
+            selectedProductsContainer.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-box" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.3;"></i>
+                    <p>Aucun produit sélectionné</p>
+                    <p class="text-sm">Utilisez la barre de recherche ci-dessus pour ajouter des produits</p>
+                </div>
+            `;
+            return;
+        }
+        
+        selectedProductsContainer.innerHTML = '';
+        
+        selectedProducts.forEach(produit => {
+            const item = document.createElement('div');
+            item.className = 'product-item';
+            item.innerHTML = `
+                <div class="product-info">
+                    <div class="product-item-name">${produit.nom}</div>
+                    <div class="product-item-code">Code: ${produit.code} | Unité: ${produit.unite}</div>
+                </div>
+                <input type="number" 
+                       class="quantity-input" 
+                       value="${produit.quantite}" 
+                       min="1" 
+                       placeholder="Qté"
+                       onchange="updateProductQuantity(${produit.id}, this.value)">
+                <input type="text" 
+                       class="observations-input" 
+                       value="${produit.observations}" 
+                       placeholder="Observations..."
+                       onchange="updateProductObservations(${produit.id}, this.value)">
+                <button type="button" 
+                        class="remove-btn" 
+                        onclick="removeProduct(${produit.id})"
+                        title="Supprimer">
+                    <i class="fas fa-trash"></i>
+                </button>
+            `;
+            
+            selectedProductsContainer.appendChild(item);
+        });
+    }
+    
+    function validateAndSubmit() {
+        const form = document.getElementById('demandeForm');
+        const formData = new FormData(form);
+        
+        // Validation de base
+        if (!formData.get('service_demandeur') || !formData.get('pharmacie')) {
+            alert('Veuillez sélectionner un service demandeur et une pharmacie');
+            return;
+        }
+        
+        if (selectedProducts.length === 0) {
+            alert('Veuillez ajouter au moins un produit à la demande');
+            return;
+        }
+        
+        // Ajouter les produits au formulaire
+        formData.append('produits', JSON.stringify(selectedProducts.map(p => ({
+            produit_id: p.id,
+            quantite: p.quantite,
+            observations: p.observations
+        }))));
+        
+        // Soumettre le formulaire
+        fetch(form.action || window.location.href, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                return response.text();
+            }
+            throw new Error('Erreur de soumission');
+        })
+        .then(html => {
+            // Redirection ou affichage du résultat
+            if (html.includes('Demande') && html.includes('créée avec succès')) {
+                window.location.href = '{% url "pharmacies:liste_demandes_internes" %}';
+            } else {
+                // Réafficher la page avec les erreurs
+                document.body.innerHTML = html;
+            }
+        })
+        .catch(error => {
+            console.error('Erreur:', error);
+            alert('Une erreur est survenue lors de l\'enregistrement');
+        });
+    }
+    
+    // Exposer les fonctions globalement
+    window.removeProduct = removeProduct;
+    window.updateProductQuantity = updateProductQuantity;
+    window.updateProductObservations = updateProductObservations;
+    window.validateAndSubmit = validateAndSubmit;
+});
+</script>
+{% endblock %}

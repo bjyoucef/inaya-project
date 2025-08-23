@@ -1,67 +1,50 @@
-# medecin.models
 from django.db import models
-from django.db.models import (Sum)
+from django.core.validators import RegexValidator
+from django.db.models import Sum
 from pharmacies.models import ConsommationProduit
-from django.db import models
 from pharmacies.models import Produit
 
 
 class Medecin(models.Model):
-    personnel = models.OneToOneField(
-        "rh.Personnel",
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name="profil_medecin",
-        verbose_name="Profil du personnel",
-    )
-
-    services = models.ManyToManyField(
-        "medical.Service",
-        related_name='medecins'
-    )
+    first_name = models.CharField(max_length=50, null=True, blank=True, verbose_name="Prénom")
+    last_name = models.CharField(max_length=50, null=True, blank=True, verbose_name="Nom")
+    email = models.EmailField(max_length=254, null=True, blank=True, verbose_name="Email")
+    services = models.ManyToManyField("medical.Service", related_name="medecins")
     specialite = models.CharField(
         max_length=100, null=True, blank=True, verbose_name="Spécialité médicale"
     )
 
-    numero_ordre = models.CharField(
-        max_length=50, unique=True, null=True, blank=True, verbose_name="Numéro d'ordre"
-    )
-
-    photo_profil = models.ImageField(
-        upload_to="medecins/profiles/",
+    telephone = models.CharField(
+        max_length=15,
         null=True,
         blank=True,
-        verbose_name="Photo de profil",
+        validators=[
+            RegexValidator(
+                regex=r"^\+?\d{9,15}$",
+                message="Le numéro de téléphone doit être au format +213123456789 (9 à 15 chiffres).",
+            )
+        ],
+        verbose_name="Numéro de téléphone",
     )
-    disponible = models.BooleanField(
-        default=True, verbose_name="Disponible pour consultations"
+    created_by = models.ForeignKey(
+        "auth.User",
+        on_delete=models.PROTECT,
+        verbose_name="Créé par"
     )
     created_at = models.DateTimeField(
         auto_now_add=True, verbose_name="Date de création"
     )
-
     @property
     def nom_complet(self):
-        """
-        Retourne le nom complet à partir de l'utilisateur lié au Personnel.
-        Si aucun Personnel n'est encore associé, on renvoie une chaîne vide.
-        """
-        if not self.personnel or not getattr(self.personnel, "user", None):
-            return ""
-        p=self.personnel
-        nom_prenom = p.nom_prenom
-        if nom_prenom:
-            return nom_prenom
-        u = p.user
-        first_name = u.first_name
-        last_name = u.last_name
+        first_name = self.first_name or ""
+        last_name = self.last_name or ""
         return f"{first_name} {last_name}"
 
     def __str__(self):
         # Si nom_complet est vide, on affiche 'inconnu'
         nom = self.nom_complet or "inconnu"
-        return f"Dr. {nom} ({self.specialite})"
+        telephone = f" ({self.telephone})" if self.telephone else ""
+        return f"Dr. {nom} ({self.specialite or 'N/A'}){telephone}"
 
     class Meta:
         verbose_name = "Médecin"
@@ -75,4 +58,3 @@ class Medecin(models.Model):
             ).aggregate(total=Sum("montant_solde"))["total"]
             or 0.00
         )
-

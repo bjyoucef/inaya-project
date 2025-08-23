@@ -1,0 +1,411 @@
+{% extends "layout.html" %}
+{% load static custom_filters_medical %}
+
+{% block content %}
+<style>
+  .modern-card {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+    background: #ffffff;
+  }
+
+  .modern-header {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    padding: 1.5rem;
+    border-radius: 12px 12px 0 0;
+  }
+
+  .filter-form {
+    background: #f8fafc;
+    padding: 1.25rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  }
+
+  .filter-form .form-control,
+  .filter-form .form-select {
+    border-radius: 6px;
+    border: 1px solid #d1d5db;
+    padding: 0.5rem;
+    font-size: 0.875rem;
+  }
+
+  .filter-form .btn {
+    border-radius: 6px;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+  }
+
+  .modern-table {
+    border-collapse: separate;
+    border-spacing: 0;
+    width: 100%;
+  }
+
+  .modern-table th {
+    background: #f1f5f9;
+    color: #374151;
+    font-weight: 600;
+    padding: 1rem;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .modern-table td {
+    padding: 1rem;
+    font-size: 0.875rem;
+    color: #374151;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  .modern-table tr:hover {
+    background: #f9fafb;
+  }
+
+  .modern-table .badge {
+    padding: 0.5em 0.75em;
+    font-size: 0.75rem;
+    border-radius: 9999px;
+  }
+
+  .modern-table .btn-group .btn {
+    padding: 0.5rem;
+    border-radius: 6px;
+  }
+
+  .pagination {
+    gap: 0.5rem;
+  }
+
+  .pagination .page-link {
+    border-radius: 6px;
+    color: #3b82f6;
+    font-size: 0.875rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #e5e7eb;
+  }
+
+  .pagination .page-item.active .page-link {
+    background: #3b82f6;
+    border-color: #3b82f6;
+    color: white;
+  }
+
+  .pagination .page-item.disabled .page-link {
+    color: #9ca3af;
+    border-color: #e5e7eb;
+  }
+
+  .modal-content {
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  }
+
+  .modal-header {
+    background: #f8fafc;
+    border-bottom: none;
+    padding: 1.5rem;
+  }
+
+  .modal-body {
+    padding: 1.5rem;
+  }
+
+  .modal-footer {
+    border-top: none;
+    padding: 1rem 1.5rem;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 3rem;
+    color: #6b7280;
+  }
+
+  .empty-state i {
+    font-size: 3rem;
+    color: #9ca3af;
+  }
+
+  .badge-forfait { background: #3b82f6; }
+  .badge-duree { background: #10b981; }
+  .badge-bloc { background: #ef4444; }
+</style>
+
+<div class="container-fluid py-4">
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h1 class="h3 mb-0 text-gray-900">
+        <i class="bi bi-building me-2 text-primary"></i>Locations de Bloc Opératoire
+      </h1>
+      <p class="text-gray-600 mb-0 fs-6">Gérez et suivez les locations de blocs opératoires</p>
+    </div>
+    <a class="btn btn-primary d-flex align-items-center" href="{% url 'medical:location_bloc_create' %}">
+      <i class="bi bi-plus-circle me-2"></i>Nouvelle Location
+    </a>
+  </div>
+
+  <!-- Filtres -->
+  <div class="filter-form mb-4">
+    <form method="get" class="row g-3">
+      <div class="col-md-2 col-sm-6">
+        <label class="form-label fw-medium">Date début</label>
+        <input type="date" name="date_debut" class="form-control" value="{{ date_debut }}">
+      </div>
+      <div class="col-md-2 col-sm-6">
+        <label class="form-label fw-medium">Date fin</label>
+        <input type="date" name="date_fin" class="form-control" value="{{ date_fin }}">
+      </div>
+      <div class="col-md-2 col-sm-6">
+        <label class="form-label fw-medium">Bloc</label>
+        <select name="bloc" class="form-select">
+          <option value="">Tous les blocs</option>
+          {% for bloc in blocs %}
+            <option value="{{ bloc.id }}" {% if bloc_selected == bloc.id|stringformat:"s" %}selected{% endif %}>
+              {{ bloc.nom_bloc }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2 col-sm-6">
+        <label class="form-label fw-medium">Médecin</label>
+        <select name="medecin" class="form-select">
+          <option value="">Tous les médecins</option>
+          {% for medecin in medecins %}
+            <option value="{{ medecin.id }}" {% if medecin_selected == medecin.id|stringformat:"s" %}selected{% endif %}>
+              Dr. {{ medecin.nom_complet }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2 col-sm-6">
+        <label class="form-label fw-medium">Patient</label>
+        <select name="patient" class="form-select">
+          <option value="">Tous les patients</option>
+          {% for patient in patients %}
+            <option value="{{ patient.id }}" {% if patient_selected == patient.id|stringformat:"s" %}selected{% endif %}>
+              {{ patient.nom_complet }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2 col-sm-12 d-flex align-items-end">
+        <button type="submit" class="btn btn-primary me-2">
+          <i class="bi bi-search me-1"></i>Filtrer
+        </button>
+        <a href="{% url 'medical:location_bloc_list' %}" class="btn btn-outline-secondary">
+          <i class="bi bi-x-circle me-1"></i>Réinitialiser
+        </a>
+      </div>
+    </form>
+  </div>
+
+  <!-- Tableau des locations -->
+  <div class="modern-card">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="modern-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Patient</th>
+              <th>Médecin</th>
+              <th>Bloc</th>
+              <th>Type tarif</th>
+              <th class="text-end">Prix bloc</th>
+              <th class="text-end">Actes supp.</th>
+              <th class="text-end">Produits supp.</th>
+              <th class="text-end">Total</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for location in page_obj %}
+            <tr>
+              <td>
+                {{ location.date_operation|date:"d/m/Y" }}
+                {% if location.heure_operation %}
+                  <br><small class="text-gray-500">{{ location.heure_operation|time:"H:i" }}</small>
+                {% else %}
+                  <br><small class="text-gray-500">-</small>
+                {% endif %}
+              </td>
+              <td>{{ location.patient.nom_complet }}</td>
+              <td>Dr. {{ location.medecin.nom_complet }}</td>
+              <td>
+                <span class="badge badge-bloc">{{ location.bloc.nom_bloc }}</span>
+                <br>
+                <small class="text-gray-500">
+                  {% if location.duree_reelle %}
+                    {{ location.duree_reelle }} min
+                  {% else %}
+                    -
+                  {% endif %}
+                </small>
+              </td>
+              <td>
+                {% if location.type_tarification == "FORFAIT" %}
+                  <span class="badge badge-forfait">Forfait</span>
+                  {% if location.forfait %}
+                    <br><small class="text-gray-500">{{ location.forfait.nom|truncatechars:30 }}</small>
+                  {% endif %}
+                {% else %}
+                  <span class="badge badge-duree">Durée</span>
+                  <br><small class="text-gray-500">{{ location.nom_acte|truncatechars:30 }}</small>
+                {% endif %}
+              </td>
+              <td class="text-end">
+                {% if location.prix_final %}
+                  {{ location.prix_final|floatformat:2 }} DA
+                {% else %}
+                  -
+                {% endif %}
+              </td>
+              <td class="text-end text-primary">
+                {% if location.montant_total_actes > 0 %}
+                  {{ location.montant_total_actes|floatformat:2 }} DA
+                {% else %}
+                  -
+                {% endif %}
+              </td>
+              <td class="text-end text-warning">
+                {% if location.montant_total_produits_supplementaires > 0 %}
+                  {{ location.montant_total_produits_supplementaires|floatformat:2 }} DA
+                {% else %}
+                  -
+                {% endif %}
+              </td>
+              <td class="text-end text-success fw-bold">
+                {{ location.montant_total_facture|floatformat:2 }} DA
+              </td>
+              <td>
+                <div class="btn-group btn-group-sm">
+                  <a href="{% url 'medical:location_bloc_detail' location.id %}" class="btn btn-outline-primary" title="Détails">
+                    <i class="bi bi-eye"></i>
+                  </a>
+                  <a href="{% url 'medical:location_bloc_edit' location.id %}" class="btn btn-outline-secondary" title="Modifier">
+                    <i class="bi bi-pencil"></i>
+                  </a>
+                  <button type="button" class="btn btn-outline-danger" 
+                          onclick="confirmDelete('{{ location.id }}', '{{ location.nom_acte|escapejs }}')"
+                          title="Supprimer">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="10" class="empty-state">
+                <i class="bi bi-inbox"></i>
+                <p class="mt-2">Aucune location trouvée</p>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          {% if page_obj %}
+          <tfoot>
+            <tr class="bg-gray-50 fw-bold">
+              <td colspan="5" class="text-end">Total page :</td>
+              <td class="text-end">{{ total_prix_bloc|floatformat:2 }} DA</td>
+              <td class="text-end text-primary">{{ total_actes|floatformat:2 }} DA</td>
+              <td class="text-end text-warning">{{ total_produits_supp|floatformat:2 }} DA</td>
+              <td class="text-end text-success">{{ total_page|floatformat:2 }} DA</td>
+              <td></td>
+            </tr>
+          </tfoot>
+          {% endif %}
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      {% if page_obj.has_other_pages %}
+      <nav aria-label="Navigation" class="mt-4">
+        <ul class="pagination justify-content-center">
+          {% if page_obj.has_previous %}
+            <li class="page-item">
+              <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if date_debut %}&date_debut={{ date_debut }}{% endif %}{% if date_fin %}&date_fin={{ date_fin }}{% endif %}{% if bloc_selected %}&bloc={{ bloc_selected }}{% endif %}{% if medecin_selected %}&medecin={{ medecin_selected }}{% endif %}{% if patient_selected %}&patient={{ patient_selected }}{% endif %}">
+                Précédent
+              </a>
+            </li>
+          {% else %}
+            <li class="page-item disabled">
+              <span class="page-link">Précédent</span>
+            </li>
+          {% endif %}
+
+          {% for num in page_obj.paginator.page_range %}
+            {% if page_obj.number == num %}
+              <li class="page-item active">
+                <span class="page-link">{{ num }}</span>
+              </li>
+            {% elif num > page_obj.number|subtract:2 and num < page_obj.number|add:2 %}
+              <li class="page-item">
+                <a class="page-link" href="?page={{ num }}{% if date_debut %}&date_debut={{ date_debut }}{% endif %}{% if date_fin %}&date_fin={{ date_fin }}{% endif %}{% if bloc_selected %}&bloc={{ bloc_selected }}{% endif %}{% if medecin_selected %}&medecin={{ medecin_selected }}{% endif %}{% if patient_selected %}&patient={{ patient_selected }}{% endif %}">
+                  {{ num }}
+                </a>
+              </li>
+            {% endif %}
+          {% endfor %}
+
+          {% if page_obj.has_next %}
+            <li class="page-item">
+              <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if date_debut %}&date_debut={{ date_debut }}{% endif %}{% if date_fin %}&date_fin={{ date_fin }}{% endif %}{% if bloc_selected %}&bloc={{ bloc_selected }}{% endif %}{% if medecin_selected %}&medecin={{ medecin_selected }}{% endif %}{% if patient_selected %}&patient={{ patient_selected }}{% endif %}">
+                Suivant
+              </a>
+            </li>
+          {% else %}
+            <li class="page-item disabled">
+              <span class="page-link">Suivant</span>
+            </li>
+          {% endif %}
+        </ul>
+      </nav>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Modal de confirmation de suppression -->
+  <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="deleteModalLabel">
+            <i class="bi bi-exclamation-triangle me-2 text-danger"></i>Confirmer la suppression
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          Êtes-vous sûr de vouloir supprimer la location "<span id="locationName"></span>" ?
+          <div class="alert alert-warning mt-3">
+            <i class="bi bi-exclamation-circle me-2"></i>
+            Cette action est irréversible.
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+          <form id="deleteForm" method="post" style="display: inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger">
+              <i class="bi bi-trash me-2"></i>Supprimer
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function confirmDelete(locationId, locationName) {
+  document.getElementById('locationName').textContent = locationName;
+  document.getElementById('deleteForm').action = `/medical/locations-bloc/${locationId}/delete/`;
+  new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+</script>
+{% endblock %}

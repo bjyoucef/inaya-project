@@ -1,0 +1,1293 @@
+<!-- templates/hospitalisation/floor_plan_centralized.html -->
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plan d'Hospitalisation - {{ service.name }}</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary: #3498db;
+            --secondary: #2c3e50;
+            --success: #27ae60;
+            --danger: #e74c3c;
+            --warning: #f39c12;
+            --info: #1abc9c;
+            --light: #ecf0f1;
+            --dark: #34495e;
+        }
+
+        .main-header {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-card:nth-child(2) {
+            background: linear-gradient(135deg, var(--danger), #c0392b);
+        }
+
+        .stat-card:nth-child(3) {
+            background: linear-gradient(135deg, var(--success), #1e8449);
+        }
+
+        .stat-card:nth-child(4) {
+            background: linear-gradient(135deg, #9b59b6, #8e44ad);
+        }
+
+        .stat-card:nth-child(5) {
+            background: linear-gradient(135deg, var(--warning), #e67e22);
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 20px;
+        }
+
+        .floor-plan {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .floor-grid {
+            display: grid;
+            grid-template-columns: repeat(8, 120px);
+            grid-template-rows: repeat(6, 120px);
+            gap: 12px;
+            position: relative;
+            margin: 10px auto 0;
+            width: fit-content;
+        }
+
+        .room {
+            background: #f8f9fa;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 10px;
+            position: relative;
+            min-height: 100px;
+            transition: all 0.3s ease;
+        }
+
+        .room:hover {
+            transform: scale(1.02);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+            border-color: var(--primary);
+            z-index: 10;
+        }
+
+        /* Positionnement des chambres selon le plan 2 */
+        .room-201 {
+            grid-column: 5 / 7;
+            grid-row: 1 / 3;
+        }
+
+        .room-202 {
+            grid-column: 3 / 5;
+            grid-row: 1 / 3;
+        }
+
+        .room-203 {
+            grid-column: 1 / 3;
+            grid-row: 1 / 4;
+        }
+
+        .room-204 {
+            grid-column: 1 / 3;
+            grid-row: 4 / 5;
+        }
+
+        .room-205 {
+            grid-column: 1 / 3;
+            grid-row: 5 / 6;
+        }
+
+        .room-206 {
+            grid-column: 3 / 5;
+            grid-row: 5 / 7;
+        }
+
+        .room-207 {
+            grid-column: 5 / 7;
+            grid-row: 5 / 7;
+        }
+
+        .room-208 {
+            grid-column: 7 / 9;
+            grid-row: 5 / 7;
+        }
+
+        .room-209 {
+            grid-column: 7 / 9;
+            grid-row: 3 / 5;
+        }
+
+        /* Positionnement des chambres selon le plan 3 */
+        .room-301 {
+            grid-column: 5 / 7;
+            grid-row: 1 / 3;
+        }
+
+        .room-302 {
+            grid-column: 3 / 5;
+            grid-row: 1 / 3;
+        }
+
+        .room-303 {
+            grid-column: 1 / 3;
+            grid-row: 1 / 4;
+        }
+
+        .room-304 {
+            grid-column: 1 / 3;
+            grid-row: 4 / 5;
+        }
+
+        .room-305 {
+            grid-column: 1 / 3;
+            grid-row: 5 / 6;
+        }
+
+        .room-306 {
+            grid-column: 3 / 5;
+            grid-row: 5 / 7;
+        }
+
+        .room-307 {
+            grid-column: 5 / 7;
+            grid-row: 5 / 7;
+        }
+
+        .room-308 {
+            grid-column: 7 / 9;
+            grid-row: 5 / 7;
+        }
+
+        .room-309 {
+            grid-column: 7 / 9;
+            grid-row: 3 / 5;
+        }
+
+        .corridor {
+            grid-column: 3 / 7;
+            grid-row: 3 / 5;
+            background: linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%);
+            border-radius: var(--border-radius);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2em;
+            color: var(--secondary);
+            font-weight: bold;
+            box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.1);
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .corridor i {
+            font-size: 1.8rem;
+        }
+
+        .room-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .room-number {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--secondary);
+            background: rgba(255, 255, 255, 0.9);
+            padding: 2px 12px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .room-type {
+            font-size: 0.8rem;
+            background: var(--info);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+        }
+
+        .room-price {
+            position: absolute;
+            bottom: 8px;
+            right: 10px;
+            font-size: 0.75em;
+            background: var(--warning);
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .beds-container {
+            display: grid;
+            grid-template-columns: repeat(1, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .room.single-bed .beds-container {
+            grid-template-columns: 1fr;
+        }
+
+        .room.quad-bed .beds-container {
+            grid-template-columns: repeat(1, 1fr);
+            grid-template-rows: repeat(4, 1fr);
+        }
+
+        .room.triple-bed .beds-container {
+            grid-template-columns: 1fr;
+            grid-template-rows: repeat(3, 1fr);
+        }
+
+        .bed {
+            background: #ecf0f1;
+            border: 2px solid #bdc3c7;
+            border-radius: 8px;
+            padding: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.8rem;
+            min-height: 60px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .bed.occupied {
+            background: linear-gradient(135deg, var(--danger), #c0392b);
+            border-color: var(--danger);
+            color: white;
+            font-weight: bold;
+        }
+
+        .bed.available {
+            background: linear-gradient(135deg, var(--success), #1e8449);
+            border-color: var(--success);
+            color: white;
+            font-weight: bold;
+        }
+
+        .bed.maintenance {
+            background: var(--warning);
+            border-color: #e67e22;
+            color: white;
+            font-weight: bold;
+        }
+
+        .bed:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .patient-name {
+            font-size: 0.7rem;
+            margin-top: 4px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .waiting-panel {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .waiting-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .patient-card {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            cursor: move;
+            transition: all 0.3s ease;
+            border-left: 4px solid var(--primary);
+        }
+
+        .patient-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .patient-card.dragging {
+            opacity: 0.7;
+            transform: rotate(2deg);
+        }
+
+        .patient-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .patient-name-card {
+            font-weight: bold;
+            color: var(--secondary);
+        }
+
+        .patient-age {
+            background: var(--light);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+        }
+
+        .patient-info {
+            font-size: 0.9rem;
+            color: var(--dark);
+            margin-bottom: 5px;
+        }
+
+        .priority {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .priority-high {
+            background: rgba(231, 76, 60, 0.15);
+            color: #e74c3c;
+        }
+
+        .priority-medium {
+            background: rgba(243, 156, 18, 0.15);
+            color: #f39c12;
+        }
+
+        .priority-low {
+            background: rgba(39, 174, 96, 0.15);
+            color: #27ae60;
+        }
+
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+        }
+
+        .drag-over {
+            background: linear-gradient(135deg, #00c9ff, #92fe9d) !important;
+            transform: scale(1.1);
+            box-shadow: 0 0 15px rgba(0, 201, 255, 0.5);
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            border-color: var(--primary);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--secondary);
+            border-color: var(--secondary);
+        }
+
+        .modal-header {
+            background: var(--primary);
+            color: white;
+        }
+
+        .modal-header .btn-close {
+            filter: invert(1);
+        }
+
+        @media (max-width: 1200px) {
+            .content-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .floor-grid {
+                transform: scale(0.9);
+                transform-origin: center;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .floor-grid {
+                transform: scale(0.7);
+                transform-origin: top left;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container-fluid p-3">
+        <!-- En-tête principal -->
+        <div class="main-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1><i class="fas fa-hospital text-primary"></i> Plan d'Hospitalisation - {{ service.name }}</h1>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addAdmissionModal">
+                        <i class="fas fa-plus"></i> Nouvelle demande
+                    </button>
+                    <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#admissionRequestsModal">
+                        <i class="fas fa-list"></i> Liste des demandes
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Messages Django -->
+        <div id="messages-container">
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+
+        <!-- Statistiques -->
+        <div class="stats-grid">
+            <div class="stat-card" data-bs-toggle="modal" data-bs-target="#bedsStatsModal">
+                <div class="stat-number">{{ stats.total_beds }}</div>
+                <div>Lits Totaux</div>
+            </div>
+            <div class="stat-card" data-bs-toggle="modal" data-bs-target="#occupiedBedsModal">
+                <div class="stat-number">{{ stats.occupied_beds }}</div>
+                <div>Lits Occupés</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ stats.available_beds }}</div>
+                <div>Lits Disponibles</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ stats.occupancy_rate }}%</div>
+                <div>Taux d'Occupation</div>
+            </div>
+            <div class="stat-card" data-bs-toggle="modal" data-bs-target="#admissionRequestsModal">
+                <div class="stat-number">{{ waiting_requests.count }}</div>
+                <div>En Attente</div>
+            </div>
+        </div>
+
+        <!-- Contenu principal -->
+        <div class="content-grid">
+            <!-- Plan d'étage -->
+            <div class="floor-plan">
+                <h3><i class="fas fa-map-marked-alt text-primary"></i> Plan de l'Étage</h3>
+                
+                <div class="floor-grid">
+                    {% for room in rooms %}
+                    <div class="room room-{{ room.room_number }} {% if room.bed_capacity == 1 %}single-bed{% elif room.bed_capacity == 3 %}triple-bed{% elif room.bed_capacity == 4 %}quad-bed{% endif %}"
+                             data-room-id="{{ room.id }}">
+                            
+                            <div class="room-header">
+                                <div class="room-number">{{ room.room_number }}</div>
+                                <div class="room-type">{{ room.get_room_type_display }}</div>
+                            </div>
+
+                        {% if room.night_price %}
+                        <div class="room-price">{{ room.night_price|floatformat:0 }} DA/nuit</div>
+                        {% endif %}
+                            
+                            <div class="beds-container">
+                                {% for bed in room.beds.all %}
+                                    <div class="bed {% if bed.is_occupied %}occupied{% elif bed.maintenance_required %}maintenance{% else %}available{% endif %}"
+                                data-bed-id="{{ bed.id }}" data-bed-number="{{ bed.bed_number }}"
+                                data-room-number="{{ room.room_number }}" {% if bed.current_admission %}data-admission-id="{{ bed.current_admission.id }}" {% endif %}
+                                         onclick="handleBedClick(this)">
+                                        
+                                        <div>🛏️ {{ bed.bed_number }}</div>
+                                        
+                                        {% if bed.is_occupied and bed.current_patient %}
+                                            <div class="patient-name">{{ bed.current_patient.last_name }} {{ bed.current_patient.first_name }}</div>
+                                        {% elif bed.maintenance_required %}
+                                            <div class="patient-name">En maintenance</div>
+                                        {% endif %}
+                                    </div>
+                                {% endfor %}
+                            </div>
+                    </div>
+                    {% endfor %}
+
+                    <!-- Couloir principal -->
+                    <div class="corridor">
+                        <i class="fas fa-people-arrows"></i>
+                        <span>Couloir Principal</span>
+                                </div>
+                </div>
+
+                <!-- Légende -->
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: linear-gradient(135deg, var(--success), #1e8449);">
+                        </div>
+                        <span>Disponible</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: linear-gradient(135deg, var(--danger), #c0392b);">
+                        </div>
+                        <span>Occupé</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: var(--warning);"></div>
+                        <span>Maintenance</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panneau latéral -->
+            <div class="sidebar">
+                <!-- Patients en attente -->
+                <div class="waiting-panel">
+                    <h4><i class="fas fa-user-clock text-primary"></i> Patients en Attente 
+                        <span class="badge bg-primary">{{ waiting_requests.count }}</span>
+                    </h4>
+                    
+                    <div class="mb-3">
+                        <input type="text" class="form-control" id="search-patients"
+                            placeholder="Rechercher un patient...">
+                    </div>
+                    
+                    <div class="waiting-list">
+                        {% for request in waiting_requests %}
+                            <div class="patient-card" draggable="true" data-request-id="{{ request.id }}">
+                                <div class="patient-header">
+                                <div class="patient-name-card">{{ request.patient.last_name }} {{
+                                    request.patient.first_name }}</div>
+                                    <div class="patient-age">
+                                        {% if request.patient.date_of_birth %}
+                                            {{ request.patient.date_of_birth|timesince|cut:"," }}
+                                        {% else %}
+                                            N/A
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="patient-info">{{ request.reason|truncatechars:40 }}</div>
+                                {% if request.diagnosis %}
+                            <div class="patient-info"><strong>Diagnostic:</strong> {{ request.diagnosis|truncatechars:30
+                                }}</div>
+                                {% endif %}
+                                <div class="d-flex justify-content-between align-items-center mt-2">
+                                    <span class="priority priority-medium">{{ request.get_status_display }}</span>
+                                </div>
+                            </div>
+                        {% empty %}
+                            <div class="text-center py-4">
+                                <p class="text-muted mb-3">Aucune demande en attente</p>
+                            <button class="btn btn-primary btn-sm" data-bs-toggle="modal"
+                                data-bs-target="#addAdmissionModal">
+                                    Nouvelle demande
+                                </button>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Instructions -->
+                <div class="waiting-panel">
+                    <h5><i class="fas fa-info-circle text-primary"></i> Instructions</h5>
+                    <ul class="list-unstyled">
+                        <li><i class="fas fa-mouse text-primary"></i> Glissez un patient vers un lit vert</li>
+                        <li><i class="fas fa-eye text-primary"></i> Cliquez sur un lit occupé pour les détails</li>
+                        <li><i class="fas fa-exchange-alt text-primary"></i> Utilisez les boutons pour transférer</li>
+                        <li><i class="fas fa-sign-out-alt text-primary"></i> Gérez les sorties via les détails</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Nouvelle Demande d'Admission -->
+    <div class="modal fade" id="addAdmissionModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-plus"></i> Nouvelle Demande d'Admission</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addAdmissionForm">
+                        {% csrf_token %}
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="patient_id" class="form-label">Patient <span class="text-danger">*</span></label>
+                                    <select class="form-select" name="patient_id" id="patient_id" required>
+                                        <option value="">-- Sélectionner un patient --</option>
+                                        {% for patient in patients %}
+                                            <option value="{{ patient.id }}">
+                                                {{ patient.last_name }} {{ patient.first_name }}
+                                                {% if patient.social_security_number %}- {{ patient.social_security_number }}{% endif %}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="service_id" class="form-label">Service <span class="text-danger">*</span></label>
+                                    <select class="form-select" name="service_id" id="service_id" required>
+                                        {% for srv in services %}
+                                            <option value="{{ srv.id }}" {% if srv.id == service.id %}selected{% endif %}>{{ srv.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="referring_doctor_id" class="form-label">Médecin référent</label>
+                                    <select class="form-select" name="referring_doctor_id" id="referring_doctor_id">
+                                        <option value="">-- Sélectionner un médecin --</option>
+                                        {% for doctor in doctors %}
+                                            <option value="{{ doctor.id }}">Dr. {{ doctor.nom_complet }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="estimated_duration" class="form-label">Durée estimée (jours)</label>
+                                    <input type="number" class="form-control" name="estimated_duration" id="estimated_duration" min="1" max="365">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="diagnosis" class="form-label">Diagnostic préliminaire</label>
+                            <input type="text" class="form-control" name="diagnosis" id="diagnosis">
+                        </div>
+                        <div class="mb-3">
+                            <label for="reason" class="form-label">Motif d'admission <span class="text-danger">*</span></label>
+                            <textarea class="form-control" name="reason" id="reason" rows="3" required></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="notes" class="form-label">Notes complémentaires</label>
+                            <textarea class="form-control" name="notes" id="notes" rows="2"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="button" class="btn btn-primary" onclick="submitAdmissionRequest()">Créer la demande</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Détails du Patient -->
+    <div class="modal fade" id="patientDetailModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-user-injured"></i> Détails du Patient</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="patientDetailContent">
+                    <!-- Contenu généré par JavaScript -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                    <button type="button" class="btn btn-warning" id="transferPatientBtn" onclick="enableTransferMode()">
+                        <i class="fas fa-exchange-alt"></i> Transférer
+                    </button>
+                    <button type="button" class="btn btn-danger" id="dischargePatientBtn" onclick="showDischargeForm()">
+                        <i class="fas fa-sign-out-alt"></i> Sortie
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Transfert de Patient -->
+    <div class="modal fade" id="transferModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-exchange-alt"></i> Transférer le Patient</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="transferPatientInfo" class="mb-3 p-3 bg-light rounded">
+                        <!-- Informations du patient à transférer -->
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Lit de destination:</label>
+                        <select class="form-select" id="transferBedSelect">
+                            <option value="">-- Choisir un lit disponible --</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="transferReason" class="form-label">Motif du transfert</label>
+                        <textarea class="form-control" id="transferReason" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="button" class="btn btn-primary" onclick="confirmTransfer()">
+                        <i class="fas fa-check"></i> Confirmer
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Sortie de Patient -->
+    <div class="modal fade" id="dischargeModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-sign-out-alt"></i> Sortie de Patient</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="dischargePatientInfo" class="mb-3 p-3 bg-light rounded">
+                        <!-- Informations du patient -->
+                    </div>
+                    <form id="dischargeForm">
+                        {% csrf_token %}
+                        <input type="hidden" id="dischargeAdmissionId" name="admission_id">
+                        <div class="mb-3">
+                            <label for="discharge_destination" class="form-label">Destination <span class="text-danger">*</span></label>
+                            <select class="form-select" name="discharge_destination" id="discharge_destination" required>
+                                <option value="">-- Sélectionner une destination --</option>
+                                <option value="domicile">Domicile</option>
+                                <option value="autre_hopital">Transfert vers autre hôpital</option>
+                                <option value="clinique">Clinique spécialisée</option>
+                                <option value="ehpad">EHPAD / Maison de retraite</option>
+                                <option value="centre_readaptation">Centre de rééducation</option>
+                                <option value="autre">Autre</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="discharge_notes" class="form-label">Notes de sortie <span class="text-danger">*</span></label>
+                            <textarea class="form-control" name="discharge_notes" id="discharge_notes" rows="4" required></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="button" class="btn btn-success" onclick="submitDischarge()">
+                        <i class="fas fa-check"></i> Confirmer la sortie
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals additionnels (versions simplifiées) -->
+    <div class="modal fade" id="admissionRequestsModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Liste des Demandes d'Admission</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Patient</th>
+                                    <th>Date demande</th>
+                                    <th>Motif</th>
+                                    <th>Statut</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for request in admission_requests %}
+                                    <tr>
+                                        <td><strong>{{ request.patient.last_name }} {{ request.patient.first_name }}</strong></td>
+                                        <td>{{ request.request_date|date:"d/m/Y H:i" }}</td>
+
+                                        <td>{{ request.reason|truncatechars:50 }}</td>
+                                        <td>
+                                        <span
+                                            class="badge bg-{% if request.status == 'waiting' %}warning{% elif request.status == 'admitted' %}success{% else %}secondary{% endif %}">
+                                                {{ request.get_status_display }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // Configuration CSRF
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        const csrftoken = getCookie('csrftoken');
+
+        // Variables globales
+        let draggedPatient = null;
+        let currentAdmissionId = null;
+
+        // Gestion du drag and drop
+        function handleDragStart(e) {
+            draggedPatient = e.target;
+            e.target.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        }
+
+        function handleDragOver(e) {
+            if (e.target.classList.contains('bed') && e.target.classList.contains('available')) {
+                e.preventDefault();
+                e.target.classList.add('drag-over');
+                e.dataTransfer.dropEffect = 'move';
+            }
+        }
+
+        function handleDragLeave(e) {
+            if (e.target.classList.contains('bed')) {
+                e.target.classList.remove('drag-over');
+            }
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            const bed = e.target.closest('.bed');
+            
+            if (bed && draggedPatient && bed.classList.contains('available')) {
+                const requestId = draggedPatient.dataset.requestId;
+                const bedId = bed.dataset.bedId;
+                admitPatient(requestId, bedId, bed);
+            }
+
+            // Nettoyer
+            document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+            document.querySelectorAll('.dragging').forEach(el => el.classList.remove('dragging'));
+            draggedPatient = null;
+        }
+
+        // Fonction pour admettre un patient
+        async function admitPatient(requestId, bedId, bedElement) {
+            try {
+                const response = await fetch('{% url "hospitalisation:admit_patient" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrftoken,
+                    },
+                    body: JSON.stringify({
+                        'request_id': requestId,
+                        'bed_id': bedId
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    updateBedStatus(bedElement, data.patient_name, data.admission_id);
+                    removePatientFromWaitingList(requestId);
+                    showMessage('Patient admis avec succès!', 'success');
+                    setTimeout(() => window.location.reload(), 1000);
+                } else {
+                    showMessage(data.error || 'Erreur lors de l\'admission', 'danger');
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                showMessage('Erreur de communication avec le serveur', 'danger');
+            }
+        }
+
+        // Mettre à jour le statut du lit
+        function updateBedStatus(bedElement, patientName, admissionId) {
+            bedElement.classList.remove('available');
+            bedElement.classList.add('occupied');
+            bedElement.setAttribute('data-admission-id', admissionId);
+
+            let patientInfo = bedElement.querySelector('.patient-name');
+            if (!patientInfo) {
+                patientInfo = document.createElement('div');
+                patientInfo.className = 'patient-name';
+                bedElement.appendChild(patientInfo);
+            }
+            patientInfo.textContent = patientName;
+        }
+
+        // Retirer le patient de la liste d'attente
+        function removePatientFromWaitingList(requestId) {
+            const patientCard = document.querySelector(`[data-request-id="${requestId}"]`);
+            if (patientCard) {
+                patientCard.style.opacity = '0';
+                patientCard.style.transform = 'translateX(-100%)';
+                setTimeout(() => patientCard.remove(), 300);
+            }
+        }
+
+        // Gestion des clics sur les lits
+        function handleBedClick(bedElement) {
+            if (bedElement.classList.contains('occupied')) {
+                const admissionId = bedElement.dataset.admissionId;
+                if (admissionId) {
+                    loadPatientDetails(admissionId);
+                }
+            }
+        }
+
+        // Charger les détails d'un patient
+        async function loadPatientDetails(admissionId) {
+            try {
+                const response = await fetch(`{% url "hospitalisation:admission_detail_api" admission_id=0 %}`.replace('0', admissionId));
+                const data = await response.json();
+
+                if (data.success) {
+                    displayPatientDetails(data.admission);
+                } else {
+                    showMessage('Erreur lors du chargement des détails', 'danger');
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                showMessage('Erreur de communication avec le serveur', 'danger');
+            }
+        }
+
+        // Afficher les détails du patient
+        function displayPatientDetails(admission) {
+            const content = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5>${admission.patient.last_name} ${admission.patient.first_name}</h5>
+                        <p><strong>N° Sécurité Sociale:</strong> ${admission.patient.social_security_number || 'N/A'}</p>
+                        <p><strong>Date d'admission:</strong> ${new Date(admission.admission_date).toLocaleDateString('fr-FR')}</p>
+                        <p><strong>Durée du séjour:</strong> ${admission.length_of_stay} jour(s)</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Lit:</strong> ${admission.bed.bed_number} (Chambre ${admission.bed.room.room_number})</p>
+                        <p><strong>Médecin traitant:</strong> ${admission.attending_doctor ? 'Dr. ' + admission.attending_doctor.nom_complet : 'Non spécifié'}</p>
+                        <p><strong>Coût estimé:</strong> ${admission.estimated_cost || '0'} DA</p>
+                    </div>
+                </div>
+                ${admission.diagnosis ? `<p><strong>Diagnostic:</strong> ${admission.diagnosis}</p>` : ''}
+                ${admission.treatment_plan ? `<p><strong>Plan de traitement:</strong> ${admission.treatment_plan}</p>` : ''}
+            `;
+
+            document.getElementById('patientDetailContent').innerHTML = content;
+            document.getElementById('dischargePatientBtn').setAttribute('data-admission-id', admission.id);
+            document.getElementById('transferPatientBtn').setAttribute('data-admission-id', admission.id);
+
+            // Ajouter les infos pour le transfert
+            const transferInfo = `
+                <strong>Patient:</strong> ${admission.patient.last_name} ${admission.patient.first_name}<br>
+                <strong>Lit actuel:</strong> Chambre ${admission.bed.room.room_number} - Lit ${admission.bed.bed_number}
+            `;
+            document.getElementById('transferPatientInfo').innerHTML = transferInfo;
+
+            const modal = new bootstrap.Modal(document.getElementById('patientDetailModal'));
+            modal.show();
+        }
+
+        // Fonction pour le transfert
+        function enableTransferMode() {
+            const admissionId = document.getElementById('transferPatientBtn').getAttribute('data-admission-id');
+            currentAdmissionId = admissionId;
+
+            // Fermer le modal des détails
+            const detailModal = bootstrap.Modal.getInstance(document.getElementById('patientDetailModal'));
+            if (detailModal) detailModal.hide();
+
+            // Charger les lits disponibles
+            loadAvailableBeds();
+
+            // Ouvrir le modal de transfert
+            const transferModal = new bootstrap.Modal(document.getElementById('transferModal'));
+            transferModal.show();
+        }
+
+        // Charger les lits disponibles
+        function loadAvailableBeds() {
+            const beds = document.querySelectorAll('.bed.available');
+            const select = document.getElementById('transferBedSelect');
+
+            select.innerHTML = '<option value="">-- Choisir un lit disponible --</option>';
+
+            beds.forEach(bed => {
+                const bedNumber = bed.dataset.bedNumber;
+                const roomNumber = bed.dataset.roomNumber;
+                const bedId = bed.dataset.bedId;
+
+                const option = document.createElement('option');
+                option.value = bedId;
+                option.textContent = `Chambre ${roomNumber} - Lit ${bedNumber}`;
+                select.appendChild(option);
+            });
+        }
+
+        // Confirmer le transfert
+        async function confirmTransfer() {
+            const newBedId = document.getElementById('transferBedSelect').value;
+            const reason = document.getElementById('transferReason').value || 'Transfert administratif';
+
+            if (!newBedId) {
+                showMessage('Veuillez sélectionner un lit de destination', 'warning');
+                return;
+            }
+
+            try {
+                const response = await fetch('{% url "hospitalisation:transfer_patient" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrftoken,
+                    },
+                    body: JSON.stringify({
+                        'admission_id': currentAdmissionId,
+                        'new_bed_id': newBedId,
+                        'reason': reason
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('transferModal'));
+                    if (modal) modal.hide();
+
+                    showMessage('Patient transféré avec succès!', 'success');
+                    setTimeout(() => window.location.reload(), 1000);
+                } else {
+                    showMessage(data.error || 'Erreur lors du transfert', 'danger');
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                showMessage('Erreur de communication avec le serveur', 'danger');
+            }
+        }
+
+        // Afficher le formulaire de sortie
+        function showDischargeForm() {
+            const admissionId = document.getElementById('dischargePatientBtn').getAttribute('data-admission-id');
+
+            // Copier les informations du patient
+            const patientInfo = document.getElementById('patientDetailContent').innerHTML;
+            document.getElementById('dischargePatientInfo').innerHTML = patientInfo;
+            document.getElementById('dischargeAdmissionId').value = admissionId;
+
+            // Fermer le modal des détails et ouvrir celui de sortie
+            const detailModal = bootstrap.Modal.getInstance(document.getElementById('patientDetailModal'));
+            if (detailModal) detailModal.hide();
+
+            const dischargeModal = new bootstrap.Modal(document.getElementById('dischargeModal'));
+            dischargeModal.show();
+        }
+
+        // Soumettre la sortie
+        async function submitDischarge() {
+            const form = document.getElementById('dischargeForm');
+            const formData = new FormData(form);
+            const admissionId = formData.get('admission_id');
+
+            try {
+                const response = await fetch(`{% url "hospitalisation:discharge_patient" admission_id=0 %}`.replace('0', admissionId), {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrftoken,
+                    },
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('dischargeModal'));
+                    if (modal) modal.hide();
+
+                    showMessage('Sortie enregistrée avec succès!', 'success');
+                    setTimeout(() => window.location.reload(), 1000);
+                } else {
+                    showMessage(data.error || 'Erreur lors de l\'enregistrement de la sortie', 'danger');
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                showMessage('Erreur de communication avec le serveur', 'danger');
+            }
+        }
+
+        // Soumettre une nouvelle demande d'admission
+        async function submitAdmissionRequest() {
+            const form = document.getElementById('addAdmissionForm');
+            const formData = new FormData(form);
+
+            try {
+                const response = await fetch('{% url "hospitalisation:add_admission_request" %}', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrftoken,
+                    },
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('addAdmissionModal'));
+                    if (modal) modal.hide();
+
+                    showMessage('Demande d\'admission créée avec succès!', 'success');
+                    setTimeout(() => window.location.reload(), 1000);
+                } else {
+                    showMessage(data.error || 'Erreur lors de la création', 'danger');
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                showMessage('Erreur de communication avec le serveur', 'danger');
+            }
+        }
+
+        // Afficher des messages
+        function showMessage(message, type) {
+            const messagesContainer = document.getElementById('messages-container');
+
+            // Supprimer les anciens messages
+            const existingMessages = messagesContainer.querySelectorAll('.alert');
+            existingMessages.forEach(msg => msg.remove());
+
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `alert alert-${type} alert-dismissible fade show`;
+            messageDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+
+            messagesContainer.appendChild(messageDiv);
+
+            // Retirer le message après 5 secondes
+            setTimeout(() => {
+                if (messageDiv.parentNode) {
+                    messageDiv.remove();
+                }
+            }, 5000);
+        }
+
+        // Gestion de la recherche
+        function setupSearch() {
+            const searchInput = document.getElementById('search-patients');
+            searchInput.addEventListener('input', function(e) {
+                const term = e.target.value.toLowerCase();
+                const patientCards = document.querySelectorAll('.patient-card');
+
+                patientCards.forEach(card => {
+                    const name = card.querySelector('.patient-name-card').textContent.toLowerCase();
+                    const info = card.querySelector('.patient-info').textContent.toLowerCase();
+                    const matches = name.includes(term) || info.includes(term);
+                    card.style.display = matches ? 'block' : 'none';
+                });
+            });
+        }
+
+        // Initialisation
+        document.addEventListener('DOMContentLoaded', function() {
+            // Configuration des événements de drag and drop
+            document.querySelectorAll('.patient-card').forEach(card => {
+                card.addEventListener('dragstart', handleDragStart);
+            });
+
+            document.querySelectorAll('.bed').forEach(bed => {
+                bed.addEventListener('dragover', handleDragOver);
+                bed.addEventListener('dragleave', handleDragLeave);
+                bed.addEventListener('drop', handleDrop);
+            });
+
+            // Configuration de la recherche
+            setupSearch();
+
+            console.log('Plan d\'hospitalisation simplifié initialisé');
+        });
+    </script>
+</body>
+</html>

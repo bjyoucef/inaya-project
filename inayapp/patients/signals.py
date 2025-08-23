@@ -4,7 +4,7 @@ import logging
 from django.db import IntegrityError, transaction
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from .models import Patient, DossierMedical, Antecedent
+from .models import Patient, DossierMedical
 
 logger = logging.getLogger(__name__)
 
@@ -25,8 +25,7 @@ def handle_patient_dossier(sender, instance, created, **kwargs):
             )
             logger.info(f"Dossier médical créé pour le patient {instance.id}")
 
-            # Création d'un antécédent par défaut
-            create_default_antecedent(dossier)
+
 
         else:
             # Mise à jour synchronisée optionnelle
@@ -42,21 +41,6 @@ def handle_patient_dossier(sender, instance, created, **kwargs):
     except Exception as e:
         logger.error(f"Erreur critique : {str(e)}", exc_info=True)
         raise
-
-
-def create_default_antecedent(dossier):
-    """Crée un antécédent par défaut avec des valeurs safe"""
-    try:
-        Antecedent.objects.create(
-            dossier=dossier,
-            type_antecedent="MEDICAL",
-            description="Aucun antécédent connu à ce jour",
-            gravite="LEGERE",
-            date_decouverte=timezone.now().date(),
-        )
-        logger.debug(f"Antécédent par défaut créé pour le dossier {dossier.id}")
-    except Exception as e:
-        logger.warning(f"Échec création antécédent par défaut : {str(e)}")
 
 
 @receiver(post_save, sender=DossierMedical)

@@ -7,13 +7,12 @@ from pharmacies.models import ConsommationProduit
 from .models import (
     Decharges,
     Payments,
-    Tarif_Gardes,
     TarifActe,
     TarifActeConvention,
     Convention,
     HonorairesMedecin,
 )
-from medical.models.actes import Acte, ActeProduit, Prestation, PrestationActe
+from medical.models.prestation_Kt import ActeKt, ActeProduit, PrestationKt, PrestationActe
 
 
 class PaymentsInline(admin.TabularInline):
@@ -53,13 +52,6 @@ class DechargesAdmin(admin.ModelAdmin):
         self.message_user(request, "PDF export initiated for selected records.")
 
 
-@admin.register(Tarif_Gardes)
-class TarifGardesAdmin(admin.ModelAdmin):
-    list_display = ("poste", "service", "shift", "prix", "salaire")
-    list_filter = ("service", "shift")
-    search_fields = ("poste__name", "service__name")
-
-
 class TarifActeConventionInline(admin.TabularInline):
     model = TarifActeConvention
     extra = 0
@@ -70,7 +62,7 @@ class TarifActeConventionInline(admin.TabularInline):
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == "acte":
-            kwargs["queryset"] = Acte.objects.annotate(
+            kwargs["queryset"] = ActeKt.objects.annotate(
                 num_tarifs=Count("tarifs")
             ).filter(num_tarifs__gt=0)
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
@@ -139,8 +131,8 @@ class ActeProduitInline(admin.TabularInline):
     get_unite_mesure.short_description = "Unité"
 
 
-@admin.register(Acte)
-class ActeAdmin(admin.ModelAdmin):
+@admin.register(ActeKt)
+class ActeKtAdmin(admin.ModelAdmin):
     list_display = (
         "code",
         "libelle",
@@ -191,73 +183,6 @@ class HonorairesMedecinAdmin(admin.ModelAdmin):
     autocomplete_fields = ("medecin", "acte", "convention")
     date_hierarchy = "date_effective"
     ordering = ("-date_effective",)
-
-
-class ConsommationProduitInline(admin.TabularInline):
-    model = ConsommationProduit
-    extra = 0
-    fields = ("produit", "quantite_defaut", "quantite_reelle", "ecart_consommation")
-    readonly_fields = ("ecart_consommation",)
-
-    def ecart_consommation(self, obj):
-        return obj.quantite_reelle - obj.quantite_defaut
-
-    ecart_consommation.short_description = "Écart"
-
-
-class PrestationActeInline(admin.TabularInline):
-    model = PrestationActe
-    extra = 0
-    fieldsets = (
-        (
-            None,
-            {
-                "fields": (
-                    ("acte", "convention"),
-                    ("tarif_conventionne", "honoraire_medecin"),
-                )
-            },
-        ),
-        (
-            "Validation",
-            {
-                "fields": ("convention_accordee", "commentaire"),
-                "classes": ("collapse",),
-            },
-        ),
-    )
-    inlines = (ConsommationProduitInline,)
-    autocomplete_fields = ("acte", "convention")
-
-
-@admin.register(Prestation)
-class PrestationAdmin(admin.ModelAdmin):
-    list_display = ("id", "patient", "medecin", "date_prestation", "statut", "total")
-    list_filter = ("statut", "date_prestation")
-    search_fields = ("patient__nom", "medecin__nom")
-    inlines = (PrestationActeInline,)
-    date_hierarchy = "date_prestation"
-    ordering = ("-date_prestation",)
-    list_per_page = 25
-    list_select_related = ("patient", "medecin")
-
-    def total(self, obj):
-        return obj.prix_total
-
-    total.admin_order_field = "prix_total"
-
-
-@admin.register(ActeProduit)
-class ActeProduitAdmin(admin.ModelAdmin):
-    list_display = ("acte", "produit", "quantite_defaut", "service_associe")
-    list_filter = ("acte__service",)
-    search_fields = ("acte__code", "produit__nom")
-
-    def service_associe(self, obj):
-        return obj.acte.service.name
-
-    service_associe.admin_order_field = "acte__service"
-    service_associe.short_description = "Service"
 
 
 # medical/admin.py

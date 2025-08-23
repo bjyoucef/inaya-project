@@ -1,197 +1,268 @@
+
+<!-- templates/patients/patient_form.html -->
 {% extends 'layout.html' %}
 {% load static %}
-{% load widget_tweaks %}
-
 {% block content %}
-<style>
-    .form-control, .form-select {
-        border-radius: 0.5rem;
-        padding: 0.75rem 1rem;
-        transition: all 0.3s ease;
-    }
 
-    .form-control:focus, .form-select:focus {
-        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
-        border-color: #86b7fe;
-    }
-
-    .input-group-text {
-        background-color: #f8f9fa;
-        border-color: #dee2e6;
-    }
-
-    .invalid-feedback {
-        font-size: 0.875em;
-        margin-top: 0.25rem;
-    }
-</style>
-<div class="container py-2">
-    <div class="card shadow-lg border-0">
-        <div class="card-header bg-primary text-white py-3">
-            <h2 class="h4 mb-0 d-flex align-items-center">
-                <i class="fas fa-user-edit me-2"></i>
-                {% if object %}Modifier{% else %}Ajouter{% endif %} un patient
-            </h2>
-        </div>
-        
-        <div class="card-body p-2">
-            <form method="post" class="needs-validation" novalidate>
-                {% csrf_token %}
-                
-                {% if form.non_field_errors %}
-                <div class="alert alert-danger mb-2">
-                    {% for error in form.non_field_errors %}
-                        <div class="small">{{ error }}</div>
-                    {% endfor %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-{% if action == 'create' %}plus{% else %}edit{% endif %} me-2"></i>
+                        {{ title }}
+                    </h5>
+                    <a href="{% if action == 'update' %}{% url 'patients:patient_detail' patient.id %}{% else %}{% url 'patients:patient_list' %}{% endif %}" 
+                       class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-1"></i>Retour
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Affichage des erreurs -->
+                {% if errors %}
+                <div class="alert alert-danger">
+                    <h6><i class="fas fa-exclamation-triangle me-2"></i>Erreurs de validation:</h6>
+                    <ul class="mb-0">
+                        {% for error in errors %}
+                        <li>{{ error }}</li>
+                        {% endfor %}
+                    </ul>
                 </div>
                 {% endif %}
 
-                <div class="row g-2">
-                    <!-- Section Identité -->
-                    <div class="col-md-6">
-                        <!-- Nom -->
-                        <div class="mb-2">
-                            <label for="{{ form.last_name.id_for_label }}" class="form-label fw-bold">
-                                Nom <span class="text-danger">*</span>
-                            </label>
-                            {% render_field form.last_name class+="form-control" %}
-                            {% for error in form.last_name.errors %}
-                                <div class="invalid-feedback d-block">{{ error }}</div>
-                            {% endfor %}
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    
+                    <!-- Informations personnelles -->
+                    <div class="row mb-4">
+                        <div class="col-12 mb-3">
+                            <h6 class="text-primary border-bottom pb-2">
+                                <i class="fas fa-user me-2"></i>Informations personnelles
+                            </h6>
                         </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="first_name" class="form-label">Prénom <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="first_name" name="first_name" 
+                                   value="{% if data %}{{ data.first_name }}{% elif patient %}{{ patient.first_name }}{% endif %}" 
+                                   required maxlength="100">
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="last_name" class="form-label">Nom <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="last_name" name="last_name" 
+                                   value="{% if data %}{{ data.last_name }}{% elif patient %}{{ patient.last_name }}{% endif %}" 
+                                   required maxlength="100">
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="gender" class="form-label">Genre <span class="text-danger">*</span></label>
+                            <select class="form-select" id="gender" name="gender" required>
+                                <option value="">Sélectionner...</option>
+                                {% for value, label in gender_choices %}
+                                <option value="{{ value }}" 
+                                        {% if data %}
+                                            {% if data.gender == value %}selected{% endif %}
+                                        {% elif patient and patient.gender == value %}
+                                            selected
+                                        {% endif %}>
+                                    {{ label }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="date_of_birth" class="form-label">Date de naissance</label>
+                            <input type="date" class="form-control" id="date_of_birth" name="date_of_birth" 
+                                   value="{% if data %}{{ data.date_of_birth }}{% elif patient and patient.date_of_birth %}{{ patient.date_of_birth|date:'Y-m-d' }}{% endif %}">
+                        </div>
+                        
+                        <div class="col-12 mb-3">
+                            <label for="place_of_birth" class="form-label">Lieu de naissance</label>
+                            <input type="text" class="form-control" id="place_of_birth" name="place_of_birth" 
+                                   value="{% if data %}{{ data.place_of_birth }}{% elif patient %}{{ patient.place_of_birth|default:'' }}{% endif %}" 
+                                   maxlength="100">
+                        </div>
+                    </div>
 
-                        <!-- Prénom -->
-                        <div class="mb-2">
-                            <label for="{{ form.first_name.id_for_label }}" class="form-label fw-bold">
-                                Prénom <span class="text-danger">*</span>
-                            </label>
-                            {% render_field form.first_name class+="form-control" %}
-                            {% for error in form.first_name.errors %}
-                                <div class="invalid-feedback d-block">{{ error }}</div>
-                            {% endfor %}
+                    <!-- Sécurité sociale -->
+                    <div class="row mb-4">
+                        <div class="col-12 mb-3">
+                            <h6 class="text-primary border-bottom pb-2">
+                                <i class="fas fa-shield-alt me-2"></i>Sécurité sociale
+                            </h6>
                         </div>
-
-                        <!-- Genre -->
-                        <div class="mb-2">
-                            <label for="{{ form.gender.id_for_label }}" class="form-label fw-bold">
-                                Genre <span class="text-danger">*</span>
-                            </label>
-                            {% render_field form.gender class+="form-select" %}
-                            {% for error in form.gender.errors %}
-                                <div class="invalid-feedback d-block">{{ error }}</div>
-                            {% endfor %}
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="social_security_number" class="form-label">Numéro de sécurité sociale</label>
+                            <input type="text" class="form-control" id="social_security_number" name="social_security_number" 
+                                   value="{% if data %}{{ data.social_security_number }}{% elif patient %}{{ patient.social_security_number|default:'' }}{% endif %}" 
+                                   maxlength="15">
                         </div>
-                        <!-- Téléphone -->
-                        <div class="mb-2">
-                            <label for="{{ form.phone_number.id_for_label }}" class="form-label fw-bold">
-                                Téléphone
-                            </label>
-                            {% render_field form.phone_number class+="form-control" %}
-                            {% for error in form.phone_number.errors %}
-                                <div class="invalid-feedback d-block">{{ error }}</div>
-                            {% endfor %}
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="securite_sociale" class="form-label">Type de sécurité sociale</label>
+                            <select class="form-select" id="securite_sociale" name="securite_sociale">
+                                <option value="">Sélectionner...</option>
+                                {% for value, label in securite_sociale_choices %}
+                                <option value="{{ value }}" 
+                                        {% if data %}
+                                            {% if data.securite_sociale == value %}selected{% endif %}
+                                        {% elif patient and patient.securite_sociale == value %}
+                                            selected
+                                        {% endif %}>
+                                    {{ label }}
+                                </option>
+                                {% endfor %}
+                            </select>
                         </div>
-                        <!-- e-mail -->
-                        <div class="mb-2">
-                            <label for="{{ form.email.id_for_label }}" class="form-label fw-bold">
-                                Email
-                            </label>
-                            {% render_field form.email class+="form-control" %}
-                            {% for error in form.email.errors %}
-                                <div class="invalid-feedback d-block">{{ error }}</div>
-                            {% endfor %}
+                        
+                        <div class="col-12 mb-3">
+                            <label for="nom_de_assure" class="form-label">Nom de l'assuré</label>
+                            <input type="text" class="form-control" id="nom_de_assure" name="nom_de_assure" 
+                                   value="{% if data %}{{ data.nom_de_assure }}{% elif patient %}{{ patient.nom_de_assure|default:'' }}{% endif %}" 
+                                   maxlength="100">
                         </div>
                     </div>
 
-                    <!-- Section Informations -->
-                    <div class="col-md-6">
-                        <!-- Date de naissance -->
-                        <div class="mb-2">
-                            <label for="{{ form.date_of_birth.id_for_label }}" class="form-label fw-bold">
-                                Date de naissance
-                            </label>
-                            <div class="input-group">
-                                {% render_field form.date_of_birth class+="form-control" type="date" %}
-                                <span class="input-group-text">
-                                    <i class="fas fa-calendar-alt"></i>
-                                </span>
-                            </div>
-                            {% for error in form.date_of_birth.errors %}
-                                <div class="invalid-feedback d-block">{{ error }}</div>
-                            {% endfor %}
+                    <!-- Contact -->
+                    <div class="row mb-4">
+                        <div class="col-12 mb-3">
+                            <h6 class="text-primary border-bottom pb-2">
+                                <i class="fas fa-address-book me-2"></i>Contact
+                            </h6>
                         </div>
-
-                        <!-- Sécurité sociale -->
-                        <div class="mb-2">
-                            <label for="{{ form.securite_sociale.id_for_label }}" class="form-label fw-bold">
-                                Sécurité sociale
-                            </label>
-                            {% render_field form.securite_sociale class+="form-select" %}
-                            {% for error in form.securite_sociale.errors %}
-                                <div class="invalid-feedback d-block">{{ error }}</div>
-                            {% endfor %}
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="phone_number" class="form-label">Téléphone</label>
+                            <input type="tel" class="form-control" id="phone_number" name="phone_number" 
+                                   value="{% if data %}{{ data.phone_number }}{% elif patient %}{{ patient.phone_number|default:'' }}{% endif %}" 
+                                   maxlength="20">
                         </div>
-                        <div class="mb-2">
-                            <label for="{{ form.social_security_number.id_for_label }}" class="form-label fw-bold">
-                                Numéro de sécurité sociale
-                            </label>
-                            {% render_field form.social_security_number class+="form-control" %}
-                            {% for error in form.social_security_number.errors %}
-                                <div class="invalid-feedback d-block">{{ error }}</div>
-                            {% endfor %}
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="email" name="email" 
+                                   value="{% if data %}{{ data.email }}{% elif patient %}{{ patient.email|default:'' }}{% endif %}">
                         </div>
-                        <div class="mb-2">
-                            <label for="{{ form.nom_de_assure.id_for_label }}" class="form-label fw-bold">
-                                Nom de l'assuré
-                            </label>
-                            {% render_field form.nom_de_assure class+="form-control" %}
-                            {% for error in form.nom_de_assure.errors %}
-                                <div class="invalid-feedback d-block">{{ error }}</div>
-                            {% endfor %}
-                        </div>
-
-                        <!-- Section Adresse -->
-                        <div class="mb-2">
-                            <label for="{{ form.address.id_for_label }}" class="form-label fw-bold">
-                                Adresse
-                            </label>
-                            {% render_field form.address class+="form-control" rows="1" %}
-                            {% for error in form.address.errors %}
-                                <div class="invalid-feedback d-block">{{ error }}</div>
-                            {% endfor %}
+                        
+                        <div class="col-12 mb-3">
+                            <label for="address" class="form-label">Adresse</label>
+                            <textarea class="form-control" id="address" name="address" rows="3">{% if data %}{{ data.address }}{% elif patient %}{{ patient.address|default:'' }}{% endif %}</textarea>
                         </div>
                     </div>
-                </div>
 
-
-
-                <!-- Boutons -->
-                <div class="d-flex justify-content-end gap-2 mt-2 border-top pt-2">
-                    <a href="{% url 'patients:list' %}" class="btn btn-outline-secondary btn-lg px-2">
-                        <i class="fas fa-times me-2"></i>Annuler
-                    </a>
-                    <button type="submit" class="btn btn-primary btn-lg px-2">
-                        <i class="fas fa-save me-2"></i>Enregistrer
-                    </button>
-                </div>
-            </form>
+                    <!-- Boutons -->
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="{% if action == 'update' %}{% url 'patients:patient_detail' patient.id %}{% else %}{% url 'patients:patient_list' %}{% endif %}" 
+                           class="btn btn-secondary">
+                            <i class="fas fa-times me-1"></i>Annuler
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i>
+                            {% if action == 'create' %}Créer{% else %}Modifier{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 </div>
 <script>
-// Validation Bootstrap
-(function () {
-  'use strict'
-  const forms = document.querySelectorAll('.needs-validation')
-  Array.from(forms).forEach(form => {
-    form.addEventListener('submit', event => {
-      if (!form.checkValidity()) {
-        event.preventDefault()
-        event.stopPropagation()
-      }
-      form.classList.add('was-validated')
-    }, false)
-  })
-})()
+// Validation côté client
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    const firstNameInput = document.getElementById('first_name');
+    const lastNameInput = document.getElementById('last_name');
+    const genderSelect = document.getElementById('gender');
+    const emailInput = document.getElementById('email');
+    
+    // Validation en temps réel
+    function validateField(field, isValid, message) {
+        field.classList.toggle('is-invalid', !isValid);
+        field.classList.toggle('is-valid', isValid);
+        
+        let feedback = field.parentNode.querySelector('.invalid-feedback');
+        if (!isValid && !feedback) {
+            feedback = document.createElement('div');
+            feedback.className = 'invalid-feedback';
+            field.parentNode.appendChild(feedback);
+        }
+        if (feedback) {
+            feedback.textContent = message;
+            feedback.style.display = isValid ? 'none' : 'block';
+        }
+    }
+    
+    firstNameInput.addEventListener('blur', function() {
+        validateField(this, this.value.trim().length > 0, 'Le prénom est obligatoire');
+    });
+    
+    lastNameInput.addEventListener('blur', function() {
+        validateField(this, this.value.trim().length > 0, 'Le nom est obligatoire');
+    });
+    
+    genderSelect.addEventListener('change', function() {
+        validateField(this, this.value !== '', 'Le genre est obligatoire');
+    });
+    
+    emailInput.addEventListener('blur', function() {
+        if (this.value.trim()) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            validateField(this, emailRegex.test(this.value), 'Format d\'email invalide');
+        } else {
+            this.classList.remove('is-invalid', 'is-valid');
+        }
+    });
+    
+    // Validation avant soumission
+    form.addEventListener('submit', function(e) {
+        let isValid = true;
+        
+        if (!firstNameInput.value.trim()) {
+            validateField(firstNameInput, false, 'Le prénom est obligatoire');
+            isValid = false;
+        }
+        
+        if (!lastNameInput.value.trim()) {
+            validateField(lastNameInput, false, 'Le nom est obligatoire');
+            isValid = false;
+        }
+        
+        if (!genderSelect.value) {
+            validateField(genderSelect, false, 'Le genre est obligatoire');
+            isValid = false;
+        }
+        
+        if (!isValid) {
+            e.preventDefault();
+            // Scroll vers le premier champ en erreur
+            const firstError = document.querySelector('.is-invalid');
+            if (firstError) {
+                firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                firstError.focus();
+            }
+        }
+    });
+    
+    // Auto-format du numéro de téléphone
+    const phoneInput = document.getElementById('phone_number');
+    phoneInput.addEventListener('input', function() {
+        let value = this.value.replace(/\D/g, '');
+        if (value.length > 0) {
+            if (value.startsWith('0')) {
+                // Format français: 01 23 45 67 89
+                value = value.replace(/(\d{2})(?=\d)/g, '$1 ');
+            } else if (value.startsWith('213')) {
+                // Format algérien: +213 XXX XXX XXX
+                value = '+' + value.replace(/(\d{3})(\d{3})(\d{3})(\d{3})/, '$1 $2 $3 $4');
+            }
+        }
+        this.value = value.substring(0, 20);
+    });
+});
 </script>
 {% endblock %}

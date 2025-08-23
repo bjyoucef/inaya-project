@@ -180,7 +180,7 @@ def dashboard(request):
         'user': user,
         'has_dept_perm': has_dept_perm,
     }
-    return render(request, 'dashboard.html', context)
+    return render(request, 'dashboard_hd.html', context)
 
 
 

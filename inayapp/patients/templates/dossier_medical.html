@@ -1,0 +1,580 @@
+{% extends 'layout.html' %}
+{% load static %}
+
+{% block content %}
+<style>
+    :root {
+        --primary-color: #2563eb;
+        --secondary-color: #64748b;
+        --success-color: #10b981;
+        --warning-color: #f59e0b;
+        --danger-color: #ef4444;
+        --light-bg: #f8fafc;
+        --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    .form-container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+
+    .form-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: var(--card-shadow);
+        overflow: hidden;
+        margin-bottom: 2rem;
+    }
+
+    .form-header {
+        background: linear-gradient(135deg, var(--primary-color), #1e40af);
+        color: white;
+        padding: 2rem;
+        text-align: center;
+    }
+
+    .form-section {
+        padding: 2rem;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .form-section:last-child {
+        border-bottom: none;
+    }
+
+    .section-title {
+        color: var(--primary-color);
+        font-size: 1.2rem;
+        font-weight: 600;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+        color: var(--secondary-color);
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 0.75rem;
+        border: 2px solid #e2e8f0;
+        border-radius: 8px;
+        font-size: 1rem;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+
+    .form-control.is-invalid {
+        border-color: var(--danger-color);
+    }
+
+    .form-control.is-valid {
+        border-color: var(--success-color);
+    }
+
+    .input-group {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .input-unit {
+        background: var(--light-bg);
+        padding: 0.75rem;
+        border: 2px solid #e2e8f0;
+        border-left: none;
+        border-radius: 0 8px 8px 0;
+        color: var(--secondary-color);
+        font-weight: 500;
+    }
+
+    .input-group .form-control {
+        border-radius: 8px 0 0 8px;
+        flex: 1;
+    }
+
+    .btn-modern {
+        padding: 0.75rem 2rem;
+        border-radius: 8px;
+        border: none;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        transition: all 0.2s ease;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .btn-primary-modern {
+        background: var(--primary-color);
+        color: white;
+    }
+
+    .btn-primary-modern:hover {
+        background: #1d4ed8;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+    }
+
+    .btn-secondary-modern {
+        background: var(--secondary-color);
+        color: white;
+    }
+
+    .btn-secondary-modern:hover {
+        background: #475569;
+    }
+
+    .form-actions {
+        padding: 2rem;
+        background: var(--light-bg);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .progress-indicator {
+        background: var(--light-bg);
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 2rem;
+    }
+
+    .progress-bar {
+        background: #e2e8f0;
+        height: 8px;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-bottom: 0.5rem;
+    }
+
+    .progress-fill {
+        background: linear-gradient(90deg, var(--primary-color), var(--success-color));
+        height: 100%;
+        transition: width 0.3s ease;
+    }
+
+    .completion-text {
+        font-size: 0.9rem;
+        color: var(--secondary-color);
+        text-align: center;
+    }
+
+    .alert {
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+        border-left: 4px solid;
+    }
+
+    .alert-info {
+        background: rgba(6, 182, 212, 0.1);
+        border-color: #06b6d4;
+        color: #0e7490;
+    }
+
+    .alert-warning {
+        background: rgba(245, 158, 11, 0.1);
+        border-color: var(--warning-color);
+        color: #d97706;
+    }
+
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+    }
+
+    @media (max-width: 768px) {
+        .form-container {
+            padding: 1rem;
+        }
+        
+        .form-row {
+            grid-template-columns: 1fr;
+        }
+        
+        .form-actions {
+            flex-direction: column;
+            gap: 1rem;
+        }
+    }
+
+    .validation-message {
+        font-size: 0.8rem;
+        margin-top: 0.25rem;
+    }
+
+    .validation-message.error {
+        color: var(--danger-color);
+    }
+
+    .validation-message.success {
+        color: var(--success-color);
+    }
+
+    .imc-calculator {
+        background: var(--light-bg);
+        padding: 1rem;
+        border-radius: 8px;
+        margin-top: 1rem;
+    }
+
+    .imc-result {
+        font-weight: 600;
+        font-size: 1.1rem;
+        text-align: center;
+        padding: 0.5rem;
+        border-radius: 4px;
+        margin-top: 0.5rem;
+    }
+
+    .imc-normal {
+        background: rgba(16, 185, 129, 0.1);
+        color: var(--success-color);
+    }
+
+    .imc-warning {
+        background: rgba(245, 158, 11, 0.1);
+        color: var(--warning-color);
+    }
+
+    .imc-danger {
+        background: rgba(239, 68, 68, 0.1);
+        color: var(--danger-color);
+    }
+</style>
+
+
+
+<div class="form-container">
+    <!-- En-tête -->
+    <div class="form-card">
+        <div class="form-header">
+            <h1><i class="fas fa-user-md me-3"></i>Modification du Dossier Médical</h1>
+            <p class="mb-0">{{ patient.first_name }} {{ patient.last_name }}</p>
+        </div>
+    </div>
+
+    <!-- Indicateur de progression -->
+    <div class="progress-indicator">
+        <div class="progress-bar">
+            <div class="progress-fill" style="width: {{ dossier.completion_percentage }}%"></div>
+        </div>
+        <div class="completion-text">
+            Dossier complété à {{ dossier.completion_percentage }}%
+        </div>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <form method="post" id="dossierForm">
+        {% csrf_token %}
+        
+        <div class="form-card">
+            <!-- Informations vitales -->
+            <div class="form-section">
+                <h3 class="section-title">
+                    <i class="fas fa-heartbeat"></i>
+                    Informations Vitales
+                </h3>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="groupe_sanguin" class="form-label">Groupe Sanguin</label>
+                        <select class="form-control" id="groupe_sanguin" name="groupe_sanguin">
+                            <option value="">-- Sélectionner --</option>
+                            {% for value, label in dossier.GROUPE_SANGUIN_CHOICES %}
+                                <option value="{{ value }}" {% if dossier.groupe_sanguin == value %}selected{% endif %}>
+                                    {{ label }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="poids" class="form-label">Poids</label>
+                        <div class="input-group">
+                            <input type="number" 
+                                   step="0.1" 
+                                   min="0.1" 
+                                   max="1000"
+                                   class="form-control" 
+                                   id="poids" 
+                                   name="poids" 
+                                   value="{{ dossier.poids|default:'' }}"
+                                   placeholder="Ex: 70.5">
+                            <span class="input-unit">kg</span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="taille" class="form-label">Taille</label>
+                        <div class="input-group">
+                            <input type="number" 
+                                   step="0.1" 
+                                   min="10" 
+                                   max="300"
+                                   class="form-control" 
+                                   id="taille" 
+                                   name="taille" 
+                                   value="{{ dossier.taille|default:'' }}"
+                                   placeholder="Ex: 175">
+                            <span class="input-unit">cm</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Calculateur IMC -->
+                <div class="imc-calculator" id="imcCalculator" style="display: none;">
+                    <div class="text-center">
+                        <strong>Indice de Masse Corporelle (IMC)</strong>
+                        <div class="imc-result" id="imcResult"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Informations médicales -->
+            <div class="form-section">
+                <h3 class="section-title">
+                    <i class="fas fa-notes-medical"></i>
+                    Informations Médicales
+                </h3>
+
+                <div class="form-group">
+                    <label for="allergies" class="form-label">Allergies Connues</label>
+                    <textarea class="form-control" 
+                              id="allergies" 
+                              name="allergies" 
+                              rows="3"
+                              placeholder="Décrivez les allergies du patient...">{{ dossier.allergies }}</textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="antecedents_medicaux" class="form-label">Antécédents Médicaux</label>
+                    <textarea class="form-control" 
+                              id="antecedents_medicaux" 
+                              name="antecedents_medicaux" 
+                              rows="4"
+                              placeholder="Historique médical, maladies chroniques...">{{ dossier.antecedents_medicaux }}</textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="antecedents_chirurgicaux" class="form-label">Antécédents Chirurgicaux</label>
+                    <textarea class="form-control" 
+                              id="antecedents_chirurgicaux" 
+                              name="antecedents_chirurgicaux" 
+                              rows="3"
+                              placeholder="Interventions chirurgicales précédentes...">{{ dossier.antecedents_chirurgicaux }}</textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="traitements_actuels" class="form-label">Traitements en Cours</label>
+                    <textarea class="form-control" 
+                              id="traitements_actuels" 
+                              name="traitements_actuels" 
+                              rows="3"
+                              placeholder="Médicaments et traitements actuels...">{{ dossier.traitements_actuels }}</textarea>
+                </div>
+            </div>
+
+            <!-- Contacts -->
+            <div class="form-section">
+                <h3 class="section-title">
+                    <i class="fas fa-address-book"></i>
+                    Contacts d'Urgence
+                </h3>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="personne_contact_urgence" class="form-label">Personne à Contacter</label>
+                        <input type="text" 
+                               class="form-control" 
+                               id="personne_contact_urgence" 
+                               name="personne_contact_urgence" 
+                               value="{{ dossier.personne_contact_urgence }}"
+                               placeholder="Nom du contact d'urgence">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="telephone_contact_urgence" class="form-label">Téléphone d'Urgence</label>
+                        <input type="tel" 
+                               class="form-control" 
+                               id="telephone_contact_urgence" 
+                               name="telephone_contact_urgence" 
+                               value="{{ dossier.telephone_contact_urgence }}"
+                               placeholder="Ex: 0555 12 34 56">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="form-actions">
+                <a href="{% url 'patients:dossier_medical' patient.id %}" class="btn-secondary-modern">
+                    <i class="fas fa-times"></i>
+                    Annuler
+                </a>
+                
+                <div>
+                    <button type="button" class="btn-secondary-modern me-3" onclick="resetForm()">
+                        <i class="fas fa-undo"></i>
+                        Réinitialiser
+                    </button>
+                    <button type="submit" class="btn-primary-modern">
+                        <i class="fas fa-save"></i>
+                        Enregistrer
+                    </button>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const poidsInput = document.getElementById('poids');
+    const tailleInput = document.getElementById('taille');
+    const imcCalculator = document.getElementById('imcCalculator');
+    const imcResult = document.getElementById('imcResult');
+
+    // Calculateur IMC en temps réel
+    function calculateIMC() {
+        const poids = parseFloat(poidsInput.value);
+        const taille = parseFloat(tailleInput.value);
+
+        if (poids && taille && poids > 0 && taille > 0) {
+            const tailleM = taille / 100;
+            const imc = (poids / (tailleM * tailleM)).toFixed(1);
+            
+            let category = '';
+            let className = '';
+            
+            if (imc < 18.5) {
+                category = 'Insuffisance pondérale';
+                className = 'imc-warning';
+            } else if (imc < 25) {
+                category = 'Poids normal';
+                className = 'imc-normal';
+            } else if (imc < 30) {
+                category = 'Surpoids';
+                className = 'imc-warning';
+            } else {
+                category = 'Obésité';
+                className = 'imc-danger';
+            }
+            
+            imcResult.textContent = `IMC: ${imc} - ${category}`;
+            imcResult.className = `imc-result ${className}`;
+            imcCalculator.style.display = 'block';
+        } else {
+            imcCalculator.style.display = 'none';
+        }
+    }
+
+    // Écouter les changements sur poids et taille
+    poidsInput.addEventListener('input', calculateIMC);
+    tailleInput.addEventListener('input', calculateIMC);
+
+    // Calculer à l'initialisation si les valeurs existent
+    calculateIMC();
+
+    // Validation du formulaire
+    const form = document.getElementById('dossierForm');
+    form.addEventListener('submit', function(e) {
+        let isValid = true;
+        
+        // Validation du téléphone d'urgence
+        const tel = document.getElementById('telephone_contact_urgence');
+        if (tel.value && !/^[0-9\s\-\+\(\)]+$/.test(tel.value)) {
+            showValidationError(tel, 'Format de téléphone invalide');
+            isValid = false;
+        } else {
+            clearValidationError(tel);
+        }
+
+        // Validation poids/taille
+        if (poidsInput.value && (parseFloat(poidsInput.value) < 0.1 || parseFloat(poidsInput.value) > 1000)) {
+            showValidationError(poidsInput, 'Le poids doit être entre 0.1 et 1000 kg');
+            isValid = false;
+        } else {
+            clearValidationError(poidsInput);
+        }
+
+        if (tailleInput.value && (parseFloat(tailleInput.value) < 10 || parseFloat(tailleInput.value) > 300)) {
+            showValidationError(tailleInput, 'La taille doit être entre 10 et 300 cm');
+            isValid = false;
+        } else {
+            clearValidationError(tailleInput);
+        }
+
+        if (!isValid) {
+            e.preventDefault();
+        }
+    });
+
+    // Fonctions utilitaires pour la validation
+    function showValidationError(element, message) {
+        element.classList.add('is-invalid');
+        
+        let errorDiv = element.parentNode.querySelector('.validation-message.error');
+        if (!errorDiv) {
+            errorDiv = document.createElement('div');
+            errorDiv.className = 'validation-message error';
+            element.parentNode.appendChild(errorDiv);
+        }
+        errorDiv.textContent = message;
+    }
+
+    function clearValidationError(element) {
+        element.classList.remove('is-invalid');
+        element.classList.add('is-valid');
+        
+        const errorDiv = element.parentNode.querySelector('.validation-message.error');
+        if (errorDiv) {
+            errorDiv.remove();
+        }
+    }
+});
+
+// Fonction pour réinitialiser le formulaire
+function resetForm() {
+    if (confirm('Êtes-vous sûr de vouloir réinitialiser le formulaire ?')) {
+        document.getElementById('dossierForm').reset();
+        document.getElementById('imcCalculator').style.display = 'none';
+        
+        // Nettoyer les classes de validation
+        document.querySelectorAll('.is-invalid, .is-valid').forEach(el => {
+            el.classList.remove('is-invalid', 'is-valid');
+        });
+        
+        // Supprimer les messages d'erreur
+        document.querySelectorAll('.validation-message').forEach(el => el.remove());
+    }
+}
+</script>
+{% endblock %}
