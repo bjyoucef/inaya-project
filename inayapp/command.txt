@@ -1,0 +1,11 @@
+crier les groupe de permission (app accueil)
+python manage.py setup_prestation_permissions
+
+# créer une table cache pour 'cache_table_persistent'
+python manage.py createcachetable cache_table_persistent
+
+# pour les sessions si vous utilisez 'cache_table_sessions'
+python manage.py createcachetable cache_table_sessions
+
+# pour la table longterm si nécessaire
+python manage.py createcachetable cache_table_longterm

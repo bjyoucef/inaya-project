@@ -1,0 +1,261 @@
+/* static/admin/css/custom_admin.css */
+
+/* Amélioration de l'affichage des inlines */
+.inline-group .tabular {
+    overflow-x: auto;
+}
+
+.inline-group .tabular table {
+    min-width: 100%;
+}
+
+.inline-group .tabular td input[type="number"] {
+    width: 80px !important;
+}
+
+.inline-group .tabular td input[type="text"] {
+    min-width: 150px;
+}
+
+/* Amélioration des fieldsets */
+.fieldset {
+    margin-bottom: 20px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.fieldset h2 {
+    background: #f8f9fa;
+    margin: 0;
+    padding: 10px 15px;
+    border-bottom: 1px solid #ddd;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.fieldset .fieldBox {
+    padding: 15px;
+}
+
+/* Amélioration des listes d'objets */
+.change-list .results th {
+    background: #417690;
+    color: white;
+    font-weight: 600;
+}
+
+.change-list .results tbody tr:nth-child(even) {
+    background: #f8f9fa;
+}
+
+.change-list .results tbody tr:hover {
+    background: #e8f4f9;
+}
+
+/* Badges pour les statuts */
+.status-badge {
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.status-active {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-inactive {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.status-equilibre {
+    background: #d1ecf1;
+    color: #0c5460;
+}
+
+.status-surplus {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-complement {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.status-aucun {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+/* Amélioration des formulaires */
+.form-row {
+    margin-bottom: 15px;
+}
+
+.form-row label {
+    font-weight: 600;
+    color: #333;
+}
+
+.form-row .help_text {
+    font-size: 11px;
+    color: #666;
+    margin-top: 3px;
+}
+
+/* Amélioration des messages d'erreur */
+.errorlist {
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    border-radius: 4px;
+    padding: 8px 12px;
+    margin: 5px 0;
+    color: #721c24;
+}
+
+/* Amélioration des boutons */
+.button,
+input[type="submit"],
+input[type="button"],
+.submit-row input {
+    padding: 8px 16px;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+    background: #417690;
+    color: white;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.button:hover,
+input[type="submit"]:hover,
+input[type="button"]:hover {
+    background: #205067;
+    transform: translateY(-1px);
+}
+
+/* Amélioration des tableaux */
+.results table {
+    border-collapse: separate;
+    border-spacing: 0;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+/* Responsive pour les petits écrans */
+@media (max-width: 768px) {
+    .inline-group .tabular {
+        font-size: 12px;
+    }
+
+    .inline-group .tabular td input {
+        width: 60px !important;
+    }
+
+    .change-list .results {
+        font-size: 12px;
+    }
+}
+
+/* Amélioration des filtres */
+#changelist-filter {
+    background: #f8f9fa;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 15px;
+}
+
+#changelist-filter h3 {
+    color: #417690;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+#changelist-filter li {
+    margin-bottom: 5px;
+}
+
+#changelist-filter a {
+    color: #333;
+    text-decoration: none;
+    padding: 3px 5px;
+    border-radius: 3px;
+    transition: background 0.2s;
+}
+
+#changelist-filter a:hover {
+    background: #e8f4f9;
+}
+
+#changelist-filter li.selected a {
+    background: #417690;
+    color: white;
+}
+
+/* Amélioration des actions */
+.actions {
+    background: #f8f9fa;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 10px;
+    margin-bottom: 15px;
+}
+
+.actions select {
+    padding: 5px 10px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+}
+
+.actions button {
+    background: #417690;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 3px;
+    margin-left: 10px;
+    cursor: pointer;
+}
+
+.actions button:hover {
+    background: #205067;
+}
+
+/* Style pour le résumé financier */
+.resume-financier {
+    background: #f8f9fa;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 15px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+}
+
+.resume-financier strong {
+    color: #417690;
+}
+
+.resume-financier .total {
+    border-top: 2px solid #417690;
+    padding-top: 10px;
+    margin-top: 10px;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+/* Amélioration des onglets */
+.module h2 {
+    background: linear-gradient(135deg, #417690 0%, #2c5aa0 100%);
+    color: white;
+    padding: 12px 20px;
+    margin: 0;
+    border-radius: 4px 4px 0 0;
+    font-size: 16px;
+    font-weight: 600;
+}

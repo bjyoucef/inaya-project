@@ -1,0 +1,735 @@
+{% extends "layout.html" %}
+{% load static custom_filters_medical %}
+{% block content %}
+<style>
+    :root{
+      --ft-bg-start: rgba(237,0,0,0.9);
+      --ft-bg-end: rgba(16,0,61,0.8);
+      --ft-radius: 16px;
+      --soft-pad: .5rem .9rem;
+    }
+
+    .factu-toolbar {
+      position: sticky;
+      top: .75rem;
+      z-index: 1050;
+      backdrop-filter: saturate(140%) blur(6px);
+      background: linear-gradient(180deg, var(--ft-bg-start), var(--ft-bg-end));
+      color: #fff;
+      border-radius: var(--ft-radius);
+      padding: .65rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 6px 30px rgba(2,6,23,.12), 0 2px 6px rgba(2,6,23,.06);
+      border: 1px solid rgba(255,255,255,.04);
+    }
+
+    /* Header section */
+    .factu-toolbar .title {
+      display: flex;
+      gap: .6rem;
+      align-items: center;
+      font-weight: 700;
+      font-size: clamp(1rem, 1.2vw + .6rem, 1.25rem);
+    }
+
+    .factu-toolbar .title .badge-count {
+      background: rgba(255,255,255,.12);
+      padding: .15rem .45rem;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: .8rem;
+    }
+
+    /* Soft buttons */
+    .factu-toolbar .btn-soft {
+      --btn-bg: rgba(255,255,255,.06);
+      color: rgba(255,255,255,.95);
+      background: var(--btn-bg);
+      border: 1px solid rgba(255,255,255,.06);
+      border-radius: 999px;
+      padding: var(--soft-pad);
+      font-weight: 600;
+      display: inline-flex;
+      gap: .5rem;
+      align-items: center;
+      transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+    }
+    .factu-toolbar .btn-soft:hover{
+      transform: translateY(-2px);
+      background: rgba(255,255,255,.10);
+      text-decoration: none;
+    }
+
+    /* color variants using CSS utilities when present; fallback rules: */
+    .btn-soft-danger { border-color: rgba(255,80,80,.15); }
+    .btn-soft-success { border-color: rgba(72,187,120,.15); }
+    .btn-soft-info    { border-color: rgba(88,170,255,.15); }
+    .btn-soft-primary { border-color: rgba(120,100,255,.18); }
+
+    /* compact search */
+    .factu-toolbar .search-input {
+      min-width: 180px;
+      max-width: 420px;
+      transition: width .18s ease;
+    }
+    .factu-toolbar .search-input:focus { width: 340px; }
+
+    /* controls layout */
+    .factu-toolbar .controls { gap: .5rem; display:flex; align-items:center; flex-wrap:wrap; }
+
+    /* avatar */
+    .factu-toolbar .avatar {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      display:inline-grid; place-items:center;
+      background: linear-gradient(135deg, rgba(255,255,255,.08), rgba(255,255,255,.04));
+      border: 1px solid rgba(255,255,255,.06);
+      cursor:pointer;
+    }
+
+    /* offcanvas adjustments for mobile */
+    @media (max-width: 767.98px) {
+      .factu-toolbar { padding: .5rem; }
+      .factu-toolbar .search-input { min-width: 120px; }
+    }
+
+    /* dark mode tweaks */
+    @media (prefers-color-scheme: dark) {
+      :root { --ft-bg-start: #6365f1a0; --ft-bg-end: #1f1b3ca0; }
+      .factu-toolbar { border-color: rgba(255,255,255,.06); }
+      .factu-toolbar .btn-soft { background: rgba(255,255,255,.03); }
+    }
+
+    /* small utility */
+    .me-sm-2 { margin-right: .5rem !important; }
+</style>
+
+<div class="container-fluid">
+    <div class="factu-toolbar">
+        <div class="d-flex align-items-center justify-content-between gap-2">
+            <div class="d-flex align-items-center gap-3 flex-grow-1">
+                <div class="d-flex align-items-center">
+                    <button class="btn btn-sm btn-outline-light d-md-none me-2" type="button" data-bs-toggle="offcanvas"
+                            data-bs-target="#factuOffcanvas" aria-controls="factuOffcanvas" aria-label="Ouvrir le menu">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
+
+                    <div class="title">
+                        <i class="fa-solid fa-money-bill-wave fa-lg" aria-hidden="true"></i>
+                        <div>
+                            <div>Paiements Espèces Réglées</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Controls -->
+            <div class="controls">
+                <nav class="d-none d-md-inline-flex align-items-center" role="navigation"
+                     aria-label="Actions facturation">
+                    <a href="{% url 'prestations_especes_en_attente' %}" class="btn btn-soft btn-soft-danger me-1"
+                       data-bs-toggle="tooltip" title="En attente">
+                        <i class="fa-regular fa-clock"></i><span class="d-none d-sm-inline ms-1">En Attente</span>
+                    </a>
+
+                    <a href="{% url 'prestations_especes_payees' %}" class="btn btn-soft btn-soft-success me-1"
+                       data-bs-toggle="tooltip" title="Prestations réglées">
+                        <i class="fa-regular fa-circle-check"></i><span class="d-none d-sm-inline ms-1">Réglées</span>
+                    </a>
+
+                    <a href="{% url 'dashboard_paiements_especes' %}" class="btn btn-soft btn-soft-info me-1"
+                       data-bs-toggle="tooltip" title="Dashboard">
+                        <i class="fa-solid fa-chart-line"></i><span class="d-none d-sm-inline ms-1">Dashboard</span>
+                    </a>
+
+                    <a href="{% url 'medical:prestation_list' %}" class="btn btn-soft btn-soft-primary me-1"
+                       data-bs-toggle="tooltip" title="Toutes les prestations">
+                        <i class="fa-solid fa-arrow-left"></i><span class="d-none d-sm-inline ms-1">Toutes</span>
+                    </a>
+                </nav>
+            </div>
+        </div>
+    </div>
+
+    <!-- Offcanvas for small screens -->
+    <div class="offcanvas offcanvas-start" tabindex="-1" id="factuOffcanvas" aria-labelledby="factuOffcanvasLabel">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="factuOffcanvasLabel"><i class="fa-solid fa-money-bill-wave"></i> Paiements
+            </h5>
+            <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Fermer"></button>
+        </div>
+        <div class="offcanvas-body">
+            <div class="list-group list-group-flush">
+                <a href="{% url 'prestations_especes_en_attente' %}" class="list-group-item list-group-item-action">En
+                    attente</a>
+                <a href="{% url 'prestations_especes_payees' %}"
+                   class="list-group-item list-group-item-action">Réglées</a>
+                <a href="{% url 'dashboard_paiements_especes' %}" class="list-group-item list-group-item-action">Dashboard</a>
+                <a href="{% url 'medical:prestation_list' %}" class="list-group-item list-group-item-action">Toutes les
+                    prestations</a>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Statistiques en haut -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Prestations Réglées
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_count }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-check-circle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                Total Encaissé
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_general_paye|floatformat:2 }} DA</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-coins fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                Moyenne par Prestation
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                {% if total_count > 0 %}
+                                    {{ total_general_paye|div:total_count|floatformat:2 }} DA
+                                {% else %}
+                                    0.00 DA
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-calculator fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtres -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="fas fa-filter me-2"></i>Filtres de recherche
+            </h6>
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Date de début</label>
+                    <input type="date" name="start_date" class="form-control" value="{{ start_date|date:'Y-m-d' }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Date de fin</label>
+                    <input type="date" name="end_date" class="form-control" value="{{ end_date|date:'Y-m-d' }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Médecin</label>
+                    <select name="medecin" class="form-select">
+                        <option value="">Tous</option>
+                        {% for medecin in medecins %}
+                            <option value="{{ medecin.id }}" {% if request.GET.medecin == medecin.id|stringformat:"s" %}selected{% endif %}>
+                                Dr. {{ medecin.nom_complet }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label">&nbsp;</label>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search me-2"></i>Filtrer
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Liste des prestations -->
+    <div class="card shadow">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="fas fa-list me-2"></i>Prestations réglées ({{ total_count }})
+            </h6>
+
+        </div>
+        <div class="card-body">
+            {% if page_obj %}
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover" id="prestationsTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th>ID</th>
+                                <th>Date</th>
+                                <th>Patient</th>
+                                <th>Médecin</th>
+                                <th>Actes Espèces</th>
+                                <th>Éléments Espèces</th>
+                                <th>Paiement</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in page_obj %}
+                                <tr>
+                                    <td>
+                                        <strong class="text-success">#{{ item.prestation.id }}</strong>
+                                        <div class="small text-muted">
+                                            <i class="fas fa-check-circle text-success me-1"></i>Payé le {{ item.paiement_info.date_completion|date:"d/m/Y" }}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {{ item.prestation.date_prestation|date:"d/m/Y H:i" }}
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <i class="fas fa-user me-2 text-primary"></i>
+                                            {{ item.prestation.patient.nom_complet }}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <i class="fas fa-user-md me-2 text-success"></i>
+                                            Dr. {{ item.prestation.medecin.nom_complet }}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% for acte in item.actes_especes %}
+                                            <div class="mb-1">
+                                                <span class="badge bg-secondary me-1">{{ acte.acte.code }}</span>
+                                                {{ acte.acte.libelle }}
+                                                {% if acte.convention and acte.convention.nom|lower == "urgence" %}
+                                                    <span class="badge bg-warning ms-1">Urgence</span>
+                                                {% else %}
+                                                    <span class="badge bg-success ms-1">Sans convention</span>
+                                                {% endif %}
+                                            </div>
+                                        {% endfor %}
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <span class="badge bg-success me-2">COMPLET</span>
+                                            {% if item.paiement_info.tranches_count > 1 %}
+                                                <small class="text-muted">{{ item.paiement_info.tranches_count }} paiements</small>
+                                            {% else %}
+                                                <small class="text-muted">Paiement unique</small>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td class="text-end">
+                                        <strong class="text-success fs-6">{{ item.total_especes|floatformat:2 }} DA</strong>
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{% url 'medical:prestation_detail' item.prestation.id %}" 
+                                               class="btn btn-outline-info" title="Voir détails">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            
+                                            <button class="btn btn-outline-primary voir-paiements-btn"
+                                                    data-prestation-id="{{ item.prestation.id }}"
+                                                    title="Voir l'historique des paiements">
+                                                <i class="fas fa-history"></i>
+                                            </button>
+
+                                            <a href="{% url 'medical:export_bon_paiement_especes' item.prestation.id %}"
+                                               class="btn btn-outline-success" title="Réimprimer bon de paiement">
+                                                <i class="fas fa-file-invoice-dollar"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="table-light">
+                            <tr>
+                                <th colspan="6" class="text-end">
+                                    <strong>TOTAL GÉNÉRAL:</strong>
+                                </th>
+                                <th class="text-end">
+                                    <strong class="text-success fs-5">{{ total_general_paye|floatformat:2 }} DA</strong>
+                                </th>
+                                <th></th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                {% if is_paginated %}
+                <nav aria-label="Pagination des prestations">
+                    <ul class="pagination justify-content-center">
+                        {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}&{{ request.GET.urlencode }}">Précédent</a>
+                            </li>
+                        {% endif %}
+                        
+                        {% for num in page_obj.paginator.page_range %}
+                            {% if page_obj.number == num %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ num }}</span>
+                                </li>
+                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ num }}&{{ request.GET.urlencode }}">{{ num }}</a>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}&{{ request.GET.urlencode }}">Suivant</a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                    <h5 class="text-muted">Aucune prestation réglée trouvée</h5>
+                    <p class="text-muted">Il n'y a pas de prestations espèces réglées dans cette période.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Modal pour voir l'historique des paiements -->
+<div class="modal fade" id="historiquePaiementsModal" tabindex="-1" aria-labelledby="historiquePaiementsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="historiquePaiementsModalLabel">
+                    <i class="fas fa-history me-2"></i>Historique des Paiements Espèces
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Informations de la prestation -->
+                <div class="card mb-3">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>Informations de la prestation</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>Prestation #</strong><span id="hist-modal-prestation-id"></span></p>
+                                <p><strong>Patient:</strong> <span id="hist-modal-patient"></span></p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Date:</strong> <span id="hist-modal-date"></span></p>
+                                <p><strong>Médecin:</strong> <span id="hist-modal-medecin"></span></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Résumé du paiement -->
+                <div class="card mb-3">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0"><i class="fas fa-check-circle me-2 text-success"></i>Paiement complété</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-md-4">
+                                <h4 class="text-success mb-1" id="hist-modal-total-paye">0.00 DA</h4>
+                                <small class="text-muted">Total payé</small>
+                            </div>
+                            <div class="col-md-4">
+                                <h4 class="text-primary mb-1" id="hist-modal-nb-tranches">0</h4>
+                                <small class="text-muted">Nombre de paiements</small>
+                            </div>
+                            <div class="col-md-4">
+                                <h4 class="text-info mb-1" id="hist-modal-date-completion">-</h4>
+                                <small class="text-muted">Date de finalisation</small>
+                            </div>
+                        </div>
+                        <div class="progress mt-3" style="height: 20px;">
+                            <div class="progress-bar bg-success" role="progressbar" style="width: 100%">
+                                100% PAYÉ
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Liste détaillée des actes -->
+                <div class="card mb-3">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0"><i class="fas fa-list me-2"></i>Détail des actes payés</h6>
+                    </div>
+                    <div class="card-body p-0">
+                        <div id="hist-actes-detail">
+                            <!-- Contenu généré par JavaScript -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Historique chronologique des paiements -->
+                <div class="card">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0"><i class="fas fa-money-bill-wave me-2"></i>Chronologie des encaissements</h6>
+                    </div>
+                    <div class="card-body p-0">
+                        <div id="hist-chronologie-paiements">
+                            <!-- Contenu généré par JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>Fermer
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Scripts JavaScript -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Gérer l'ouverture du modal d'historique
+    document.querySelectorAll('.voir-paiements-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const prestationId = this.dataset.prestationId;
+            chargerHistoriquePaiement(prestationId);
+        });
+    });
+
+    // Charger l'historique des paiements
+    function chargerHistoriquePaiement(prestationId) {
+            fetch(`/finance/paiement-especes-kt/${prestationId}/paiement-especes/`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    remplirModalHistorique(data);
+                    const modal = new bootstrap.Modal(document.getElementById('historiquePaiementsModal'));
+                    modal.show();
+                } else {
+                    alert('Erreur: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Erreur:', error);
+                alert('Une erreur est survenue lors du chargement des données');
+            });
+    }
+
+    // Remplir le modal d'historique avec les données
+    function remplirModalHistorique(data) {
+        // Informations prestation
+        document.getElementById('hist-modal-prestation-id').textContent = data.prestation.id;
+        document.getElementById('hist-modal-patient').textContent = data.prestation.patient;
+        document.getElementById('hist-modal-date').textContent = data.prestation.date;
+        document.getElementById('hist-modal-medecin').textContent = data.prestation.medecin;
+
+        // Résumé paiement
+        document.getElementById('hist-modal-total-paye').textContent = data.paiement.montant_paye.toFixed(2) + ' DA';
+        document.getElementById('hist-modal-nb-tranches').textContent = data.tranches.length;
+
+        // Date de completion
+        if (data.tranches.length > 0) {
+            const derniereDate = new Date(Math.max(...data.tranches.map(t => new Date(t.date_paiement))));
+            document.getElementById('hist-modal-date-completion').textContent = derniereDate.toLocaleDateString('fr-FR');
+        }
+
+            // CORRECTION: Utiliser elements_especes au lieu d'actes_especes
+            if (data.elements_especes) {
+                afficherDetailElements(data.elements_especes);
+            } else if (data.actes_especes) {
+                // Fallback pour compatibilité si l'ancienne API est encore utilisée
+        afficherDetailActes(data.actes_especes);
+            }
+
+        // Chronologie des paiements
+        afficherChronologiePaiements(data.tranches);
+    }
+
+        // NOUVELLE FONCTION: Afficher le détail de tous les éléments espèces
+        function afficherDetailElements(elements) {
+            const container = document.getElementById('hist-actes-detail');
+            let html = '';
+            let total = 0;
+
+            elements.forEach(element => {
+                total += element.tarif;
+
+                // Définir la classe de badge selon le type
+                let badgeClass = 'bg-secondary';
+                if (element.type === 'acte') {
+                    badgeClass = element.convention.toLowerCase().includes('urgence') ? 'bg-warning' : 'bg-success';
+                } else if (element.type === 'consommation') {
+                    badgeClass = 'bg-info';
+                } else if (element.type === 'frais') {
+                    badgeClass = 'bg-primary';
+                }
+
+                html += `
+                <div class="border-bottom p-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="badge ${badgeClass} me-2">${element.code}</span>
+                            <strong>${element.libelle}</strong>
+                            <div class="small text-muted mt-1">
+                                <i class="fas fa-tag me-1"></i>${element.convention}
+                            </div>
+                        </div>
+                        <div class="text-end">
+                            <strong class="text-success">${element.tarif.toFixed(2)} DA</strong>
+                        </div>
+                    </div>
+                </div>
+            `;
+            });
+
+            html += `
+            <div class="p-3 bg-light">
+                <div class="d-flex justify-content-between align-items-center">
+                    <strong>TOTAL ESPÈCES PAYÉ:</strong>
+                    <strong class="text-success fs-5">${total.toFixed(2)} DA</strong>
+                </div>
+            </div>
+        `;
+
+            container.innerHTML = html;
+        }
+
+        // ANCIENNE FONCTION: Afficher le détail des actes (fallback)
+    function afficherDetailActes(actes) {
+        const container = document.getElementById('hist-actes-detail');
+        let html = '';
+        let total = 0;
+
+        actes.forEach(acte => {
+            total += acte.tarif;
+            html += `
+                <div class="border-bottom p-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="badge bg-secondary me-2">${acte.code}</span>
+                            <strong>${acte.libelle}</strong>
+                            <div class="small text-muted mt-1">
+                                <i class="fas fa-tag me-1"></i>${acte.convention}
+                            </div>
+                        </div>
+                        <div class="text-end">
+                            <strong class="text-success">${acte.tarif.toFixed(2)} DA</strong>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        html += `
+            <div class="p-3 bg-light">
+                <div class="d-flex justify-content-between align-items-center">
+                    <strong>TOTAL DES ACTES:</strong>
+                    <strong class="text-success fs-5">${total.toFixed(2)} DA</strong>
+                </div>
+            </div>
+        `;
+
+        container.innerHTML = html;
+    }
+
+    // Afficher la chronologie des paiements
+    function afficherChronologiePaiements(tranches) {
+        const container = document.getElementById('hist-chronologie-paiements');
+
+        if (tranches.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-3 text-muted">
+                    <p>Aucun paiement trouvé</p>
+                </div>
+            `;
+            return;
+        }
+
+        // Trier les tranches par date
+        const tranchesSorted = [...tranches].sort((a, b) => new Date(a.date_paiement) - new Date(b.date_paiement));
+
+        let html = '';
+        let totalCumule = 0;
+
+        tranchesSorted.forEach((tranche, index) => {
+            totalCumule += tranche.montant;
+            const isLast = index === tranchesSorted.length - 1;
+
+            html += `
+                <div class="border-bottom p-3 ${isLast ? 'bg-light' : ''}">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <div class="d-flex align-items-center mb-2">
+                                <span class="badge ${isLast ? 'bg-success' : 'bg-primary'} me-2">
+                                    ${index + 1}
+                                </span>
+                                <strong class="text-success me-2">${tranche.montant.toFixed(2)} DA</strong>
+                                <small class="text-muted">${tranche.date_paiement}</small>
+                                ${isLast ? '<span class="badge bg-success ms-2">FINAL</span>' : ''}
+                            </div>
+                            <div class="small text-muted mb-1">
+                                <i class="fas fa-user me-1"></i>Encaissé par: ${tranche.encaisse_par}
+                            </div>
+                            ${tranche.notes ? `<div class="small text-muted"><i class="fas fa-comment me-1"></i>${tranche.notes}</div>` : ''}
+                        </div>
+                        <div class="text-end">
+                            <div class="small text-muted">Total cumulé</div>
+                            <strong class="text-primary">${totalCumule.toFixed(2)} DA</strong>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+    }
+});
+</script>
+
+<style>
+@media print {
+    .modal-header, .modal-footer {
+        display: none !important;
+    }
+
+    .modal-dialog {
+        max-width: 100% !important;
+        margin: 0 !important;
+    }
+}
+</style>
+
+{% endblock %}

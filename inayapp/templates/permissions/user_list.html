@@ -1,0 +1,225 @@
+<!-- templates/permissions/user_list.html -->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestion des Permissions Utilisateurs</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="{% load static %}{% static 'css/custom_jazzmin.css' %}" rel="stylesheet">
+    <style>
+        .user-card {
+            transition: transform 0.2s;
+        }
+        .user-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .permission-badge {
+            font-size: 0.8em;
+        }
+        .search-container {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid py-4">
+                <div class="row mb-4">
+
+            <div class="col text-end">
+                <a href="/permissions/dashboard/" class="btn btn-primary">
+                    <i class="fas fa-arrow-left"></i> Retour à Dashboard
+                </a>
+            </div>
+            <div class="col text-end">
+                <a href="/admin/" class="btn btn-primary">
+                    <i class="fas fa-arrow-left"></i> Retour à l'administration
+                </a>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-12">
+                <h1 class="mb-4">
+                    <i class="fas fa-users-cog text-primary"></i>
+                    Gestion des Permissions Utilisateurs
+                </h1>
+                
+                <!-- Barre de recherche -->
+                <div class="search-container text-white">
+                    <h4 class="mb-3">Rechercher des utilisateurs</h4>
+                    <form method="get" class="d-flex gap-3">
+                        <div class="flex-grow-1">
+                            <input type="text" 
+                                   name="search" 
+                                   class="form-control form-control-lg" 
+                                   placeholder="Rechercher par nom, email ou nom d'utilisateur..."
+                                   value="{{ search_query }}">
+                        </div>
+                        <button type="submit" class="btn btn-light btn-lg">
+                            <i class="fas fa-search"></i> Rechercher
+                        </button>
+                        {% if search_query %}
+                            <a href="{% url 'user_permissions_list' %}" class="btn btn-outline-light btn-lg">
+                                <i class="fas fa-times"></i> Effacer
+                            </a>
+                        {% endif %}
+                    </form>
+                    <div class="mt-2">
+                        <small>{{ total_users }} utilisateur{{ total_users|pluralize }} trouvé{{ total_users|pluralize }}</small>
+                    </div>
+                </div>
+
+                <!-- Navigation -->
+                <div class="mb-4">
+                    <nav class="nav nav-pills">
+                        <a class="nav-link active" href="{% url 'user_permissions_list' %}">
+                            <i class="fas fa-users"></i> Utilisateurs
+                        </a>
+                        <a class="nav-link" href="{% url 'group_permissions_list' %}">
+                            <i class="fas fa-layer-group"></i> Groupes
+                        </a>
+                    </nav>
+                </div>
+
+                <!-- Liste des utilisateurs -->
+                <div class="row">
+                    {% for user in page_obj %}
+                    <div class="col-lg-4 col-md-6 mb-4">
+                        <div class="card user-card h-100">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" 
+                                         style="width: 40px; height: 40px;">
+                                        <i class="fas fa-user"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-0">{{ user.get_full_name|default:user.username }}</h6>
+                                        <small class="text-muted">{{ user.username }}</small>
+                                    </div>
+                                </div>
+                                {% if user.is_superuser %}
+                                    <span class="badge bg-danger">Superuser</span>
+                                {% elif user.is_staff %}
+                                    <span class="badge bg-warning">Staff</span>
+                                {% endif %}
+                            </div>
+                            <div class="card-body">
+                                <p class="card-text">
+                                    <small class="text-muted">
+                                        <i class="fas fa-envelope"></i> {{ user.email|default:"Pas d'email" }}
+                                    </small>
+                                </p>
+                                
+                                <div class="mb-3">
+                                    <strong>Permissions directes:</strong>
+                                    <span class="badge bg-info permission-badge">
+                                        {{ user.user_permissions.count }}
+                                    </span>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <strong>Groupes:</strong>
+                                    {% for group in user.groups.all %}
+                                        <span class="badge bg-secondary permission-badge">{{ group.name }}</span>
+                                    {% empty %}
+                                        <span class="text-muted">Aucun groupe</span>
+                                    {% endfor %}
+                                </div>
+                                
+                                <div class="mb-2">
+                                    <small class="text-muted">
+                                        Dernière connexion: 
+                                        {% if user.last_login %}
+                                            {{ user.last_login|date:"d/m/Y H:i" }}
+                                        {% else %}
+                                            Jamais connecté
+                                        {% endif %}
+                                    </small>
+                                </div>
+                                
+                                <div class="mb-2">
+                                    <small class="text-muted">
+                                        Compte: 
+                                        {% if user.is_active %}
+                                            <span class="text-success">Actif</span>
+                                        {% else %}
+                                            <span class="text-danger">Inactif</span>
+                                        {% endif %}
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="card-footer">
+                                <a href="{% url 'user_permissions_detail' user.id %}" 
+                                   class="btn btn-primary btn-sm w-100">
+                                    <i class="fas fa-cog"></i> Gérer les permissions
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="col-12">
+                        <div class="alert alert-info text-center">
+                            <i class="fas fa-info-circle fa-2x mb-3"></i>
+                            <h4>Aucun utilisateur trouvé</h4>
+                            <p>Aucun utilisateur ne correspond à votre recherche.</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Pagination -->
+                {% if page_obj.has_other_pages %}
+                <nav aria-label="Navigation pagination">
+                    <ul class="pagination justify-content-center">
+                        {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}">
+                                    <i class="fas fa-angle-double-left"></i>
+                                </a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">
+                                    <i class="fas fa-angle-left"></i>
+                                </a>
+                            </li>
+                        {% endif %}
+                        
+                        {% for num in page_obj.paginator.page_range %}
+                            {% if page_obj.number == num %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ num }}</span>
+                                </li>
+                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}">{{ num }}</a>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">
+                                    <i class="fas fa-angle-right"></i>
+                                </a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}">
+                                    <i class="fas fa-angle-double-right"></i>
+                                </a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

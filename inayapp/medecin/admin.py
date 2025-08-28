@@ -4,14 +4,28 @@ from django.utils.html import format_html
 from django.urls import reverse
 from django.utils.safestring import mark_safe
 from .models import Medecin
+from medical.models.prestation_Kt import PrixSupplementaireConfig,HonorairesMedecin
+class PrixSupplementaireConfigInline(admin.StackedInline):
+    model = PrixSupplementaireConfig
+    extra = 0   # pas de formulaire vide en plus
+    can_delete = True
+    verbose_name = "Configuration Prix Supplémentaire"
+    verbose_name_plural = "Configurations Prix Supplémentaires"
 
+
+class HonorairesMedecinInline(admin.TabularInline):
+    model = HonorairesMedecin
+    extra = 1   # un formulaire vide dispo
+    can_delete = True
+    verbose_name = "Honoraire Médecin"
+    verbose_name_plural = "Honoraires Médecins"
+    autocomplete_fields = ["acte", "convention"]
+    ordering = ["-date_effective"]
 
 @admin.register(Medecin)
 class MedecinAdmin(admin.ModelAdmin):
-    # Configuration pour l'autocomplétion (requis par les autres admins)
     search_fields = ["first_name", "last_name", "email", "specialite"]
 
-    # Liste des champs affichés
     list_display = [
         "nom_complet_display",
         "specialite_display",
@@ -22,16 +36,10 @@ class MedecinAdmin(admin.ModelAdmin):
         "created_by",
     ]
 
-    # Filtres latéraux
     list_filter = ["specialite", "services", "created_at", "created_by"]
 
-    # Champs de recherche
-    search_fields = ["first_name", "last_name", "email", "specialite", "telephone"]
-
-    # Champs en lecture seule
     readonly_fields = ["created_at", "solde_consommations_display", "nom_complet"]
 
-    # Organisation des champs dans le formulaire
     fieldsets = (
         (
             "Informations personnelles",
@@ -51,21 +59,14 @@ class MedecinAdmin(admin.ModelAdmin):
         ),
     )
 
-    # Champs à utiliser pour l'autocomplétion
     autocomplete_fields = ["services"]
-
-    # Filtres horizontaux pour les relations ManyToMany
     filter_horizontal = ["services"]
-
-    # Nombre d'éléments par page
     list_per_page = 25
-
-    # Tri par défaut
     ordering = ["-created_at"]
 
+    inlines = [PrixSupplementaireConfigInline, HonorairesMedecinInline]
 
     def get_queryset(self, request):
-        """Optimise les requêtes avec prefetch_related"""
         return (
             super()
             .get_queryset(request)
@@ -74,8 +75,7 @@ class MedecinAdmin(admin.ModelAdmin):
         )
 
     def save_model(self, request, obj, form, change):
-        """Automatiquement définir created_by lors de la création"""
-        if not change:  # Si c'est une création
+        if not change:
             obj.created_by = request.user
         super().save_model(request, obj, form, change)
 
@@ -164,3 +164,5 @@ class MedecinAdmin(admin.ModelAdmin):
 
         css = {"all": ("admin/css/medecin_admin.css",)}  # Optionnel
         js = ("admin/js/medecin_admin.js",)  # Optionnel
+
+

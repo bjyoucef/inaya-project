@@ -1,13 +1,12 @@
 from django.urls import path
 
 from . import views
-from .views.audits import audit_detail, audit_list, audit_prestation_detail
 from .views.bloc_location import (
     ActeDetailView,
     ForfaitDetailView,
     LocationBlocCreateView,
     LocationBlocDeleteView,
-    LocationBlocDetailView,  # Vue unifiée
+    LocationBlocDetailView,
     LocationBlocEditView,
     LocationBlocListView,
     get_acte_produits,
@@ -24,24 +23,24 @@ from .views.bloc_location import (
     modifier_paiement_location,
     send_location_invoice_whatsapp,
 )
-from .views.prestations_kt import (GetActeProduitsView, GetTarifView,
-                                   PatientPrestationHistoryView,
-                                   PrestationCreateView, PrestationDeleteView,
-                                   PrestationDetailView, PrestationListView,
-                                   PrestationProgrammerView,
-                                   PrestationUpdateView)
+from .views.prestations_kt import (
+    ExportBonPaiementEspecesView,
+    ExportPrestationsPdfView,
+    GetActeProduitsView,
+    GetTarifView,
+    PatientPrestationHistoryView,
+    PrestationCreateView,
+    PrestationDeleteView,
+    PrestationDetailView,
+    PrestationListView,
+    PrestationProgrammerView,
+    PrestationUpdateView,
+    PrestationChangeStatusView,
+)
+
 
 app_name = "medical"
 
-urlaudit = [
-    path("audit/", audit_list, name="audit_list"),
-    path(
-        "audit/prestation/<int:prestation_id>/",
-        audit_prestation_detail,
-        name="audit_prestation_detail",
-    ),
-    path("audit/detail/<int:audit_id>/", audit_detail, name="audit_detail"),
-]
 
 urlpatterns = [
     # Prestations
@@ -80,6 +79,11 @@ urlpatterns = [
         PatientPrestationHistoryView.as_view(),
         name="patient_prestation_history",
     ),
+    path(
+        "prestations/<int:prestation_id>/change-status/",
+        PrestationChangeStatusView.as_view(),
+        name="prestation_change_status",
+    ),
     # Locations de bloc
     path("locations-bloc/", LocationBlocListView.as_view(), name="location_bloc_list"),
     path(
@@ -87,13 +91,11 @@ urlpatterns = [
         LocationBlocCreateView.as_view(),
         name="location_bloc_create",
     ),
-    # Vue unifiée - Point d'entrée principal
     path(
         "locations-bloc/<int:location_id>/",
         LocationBlocDetailView.as_view(),
         name="location_bloc_detail",
     ),
-    # Maintenir pour compatibilité - redirige vers la vue unifiée
     path(
         "locations-bloc/<int:location_id>/edit/",
         LocationBlocEditView.as_view(),
@@ -155,23 +157,34 @@ urlpatterns = [
     ),
     # Nouvelles URLs pour la gestion des paiements
     path(
-        "locations/<int:location_id>/marquer-reglement-surplus/",
+        "locations-bloc/<int:location_id>/marquer-reglement-surplus/",
         marquer_reglement_surplus,
         name="marquer_reglement_surplus",
     ),
     path(
-        "locations/<int:location_id>/marquer-reglement-complement/",
+        "locations-bloc/<int:location_id>/marquer-reglement-complement/",
         marquer_reglement_complement,
         name="marquer_reglement_complement",
     ),
     path(
-        "locations/<int:location_id>/modifier-paiement/",
+        "locations-bloc/<int:location_id>/modifier-paiement/",
         modifier_paiement_location,
         name="modifier_paiement_location",
     ),
     path(
-        "locations/reglements-en-attente/",
+        "locations-bloc/reglements-en-attente/",
         locations_en_attente_reglement,
         name="locations_reglements_en_attente",
     ),
-] + urlaudit
+    #############################################################
+    path(
+        "prestations/export-pdf/",
+        ExportPrestationsPdfView.as_view(),
+        name="export_prestations_pdf",
+    ),
+    path(
+        "prestations/<int:prestation_id>/export-bon-paiement-especes/",
+        ExportBonPaiementEspecesView.as_view(),
+        name="export_bon_paiement_especes",
+    ),
+]

@@ -165,8 +165,16 @@ class Personnel(models.Model):
 
         return max(0, max_days - total_duration.days)
 
+    @property
+    def nom_complet(self):
+        if hasattr(self, "user") and self.user:
+            if self.user.first_name and self.user.last_name:
+                return f"{self.user.first_name} {self.user.last_name}"
+            return self.user.username
+        return "Personnel"
+
     def __str__(self):
-        return self.nom_prenom
+        return self.nom_complet()
 
     class Meta:
         ordering = ["nom_prenom"]

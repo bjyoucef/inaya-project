@@ -1,7 +1,7 @@
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
 
-from .models import TarifActe
+from medical.models.prestation_Kt import TarifActe
 
 
 @receiver(pre_save, sender=TarifActe)

@@ -58,12 +58,12 @@ class DemandeInterneForm(forms.ModelForm):
 
         # Limiter aux pharmacies actives
         self.fields["pharmacie"].queryset = Service.objects.filter(
-            type_service="PHARMACIE", est_actif=True
+            type_service="PHARMACIE", est_active=True
         )
 
         # Limiter aux services actifs (non pharmacies)
         self.fields["service_demandeur"].queryset = Service.objects.filter(
-            est_actif=True
+            est_active=True
         ).exclude(type_service="PHARMACIE")
 
     def clean(self):
@@ -102,7 +102,7 @@ class LigneDemandeInterneForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Limiter aux produits actifs
-        self.fields["produit"].queryset = Produit.objects.filter(est_actif=True)
+        self.fields["produit"].queryset = Produit.objects.filter(est_active=True)
 
 
 # FormSet pour les lignes
@@ -229,7 +229,7 @@ class FiltreDemandeInterneForm(forms.Form):
     )
 
     service = forms.ModelChoiceField(
-        queryset=Service.objects.filter(est_actif=True),
+        queryset=Service.objects.filter(est_active=True),
         required=False,
         empty_label="Tous les services",
         widget=forms.Select(attrs={"class": "form-select form-select-sm"}),
@@ -264,7 +264,7 @@ class DemandeInterneRapideForm(forms.Form):
     """Formulaire pour création rapide d'une demande"""
 
     produit = forms.ModelChoiceField(
-        queryset=Produit.objects.filter(est_actif=True),
+        queryset=Produit.objects.filter(est_active=True),
         widget=forms.Select(attrs={"class": "form-select", "required": True}),
     )
 

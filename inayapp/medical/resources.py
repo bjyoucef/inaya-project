@@ -37,7 +37,7 @@ class BlocResource(resources.ModelResource):
             "nom_bloc",
             "prix_base",
             "prix_supplement_30min",
-            "est_actif",
+            "est_active",
             "description",
         )
         export_order = (
@@ -45,7 +45,7 @@ class BlocResource(resources.ModelResource):
             "nom_bloc",
             "prix_base",
             "prix_supplement_30min",
-            "est_actif",
+            "est_active",
             "description",
         )
 
@@ -58,7 +58,7 @@ class ForfaitResource(resources.ModelResource):
             "nom",
             "prix",
             "duree",
-            "est_actif",
+            "est_active",
             "description",
             "date_creation",
             "date_modification",
@@ -68,7 +68,7 @@ class ForfaitResource(resources.ModelResource):
             "nom",
             "prix",
             "duree",
-            "est_actif",
+            "est_active",
             "description",
             "date_creation",
             "date_modification",
@@ -131,7 +131,7 @@ class ActeLocationResource(resources.ModelResource):
             "nom",
             "prix",
             "duree_estimee",
-            "est_actif",
+            "est_active",
             "description",
             "date_creation",
             "date_modification",
@@ -141,7 +141,7 @@ class ActeLocationResource(resources.ModelResource):
             "nom",
             "prix",
             "duree_estimee",
-            "est_actif",
+            "est_active",
             "description",
             "date_creation",
             "date_modification",

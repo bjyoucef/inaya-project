@@ -629,6 +629,7 @@ def status_badge(context, status, size="normal"):
         "DUREE": {"class": "primary", "icon": "clock"},
     }
 
+
     config = status_config.get(status, {"class": "secondary", "icon": "question"})
     return {
         "status": status,
@@ -636,3 +637,7 @@ def status_badge(context, status, size="normal"):
         "size": size,
         "request": context.get("request"),
     }
+
+@register.filter
+def filter_by_status(queryset, status):
+    return [item for item in queryset if item.statut == status]

@@ -1,0 +1,473 @@
+<!-- /facturation_KT/tableau_bord.html -->
+{% extends "layout.html" %}
+{% load app_filters %}
+{% load static custom_filters_medical %}
+{% load custom_filters %}
+{% load permissions_tags %}
+{% block content %}
+
+<div class="container-fluid py-0">
+<!-- NAVBAR FACTURATION -->
+<div class="factu-toolbar sticky-top">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <h2 class="m-0 d-flex align-items-center gap-2">
+            <i class="bi bi-graph-up me-1"></i>
+            <span>Tableau de Bord Facturation KT</span>
+        </h2>
+
+        <!-- Toggle button: visible only on small screens -->
+        <button class="btn btn-outline-primary d-flex d-md-none align-items-center" type="button"
+            data-bs-toggle="offcanvas" data-bs-target="#factuOffcanvas" aria-controls="factuOffcanvas"
+            aria-label="Ouvrir le menu">
+            <i class="bi bi-list me-2"></i> Menu
+        </button>
+
+        <!-- Desktop nav: hidden on small screens (d-none d-md-flex) -->
+        <nav class="d-none d-md-flex flex-wrap gap-2">
+            {% has_permission user 'medical.manage_conventions' as can_manage_conv %}
+            {% if can_manage_conv %}
+            <a href="{% url 'gestion_convention_accorde_dossier' %}"
+                class="btn btn-soft-primary {% if request.resolver_match.url_name == 'gestion_convention_accorde_dossier' %}active{% endif %}">
+                <i class="bi bi-shield-check me-1"></i> Accord & Dossier
+            </a>
+            {% endif %}
+
+            {% has_permission user 'medical.facturer_prestationacte' as can_facturer %}
+            {% if can_facturer %}
+            <a href="{% url 'actes_a_facturer' %}"
+                class="btn btn-soft-primary {% if request.resolver_match.url_name == 'actes_a_facturer' %}active{% endif %}">
+                <i class="bi bi-receipt me-1"></i> À Facturer
+            </a>
+            {% endif %}
+
+            {% has_permission user 'medical.view_facturation_details' as can_view_facturation %}
+            {% if can_view_facturation %}
+            <a href="{% url 'actes_factures' %}"
+                class="btn btn-soft-primary {% if request.resolver_match.url_name == 'actes_factures' %}active{% endif %}">
+                <i class="bi bi-list-check me-1"></i> Actes Facturés
+            </a>
+
+            <a href="{% url 'actes_payes' %}"
+                class="btn btn-soft-success {% if request.resolver_match.url_name == 'actes_payes' %}active{% endif %}">
+                <i class="bi bi-check-circle me-1"></i> Actes Payés
+            </a>
+
+            <a href="{% url 'actes_rejetes' %}"
+                class="btn btn-soft-danger {% if request.resolver_match.url_name == 'actes_rejetes' %}active{% endif %}">
+                <i class="bi bi-x-circle me-1"></i> Actes Rejetés
+            </a>
+
+            <a href="{% url 'tableau_bord_facturation' %}"
+                class="btn btn-soft-info {% if request.resolver_match.url_name == 'tableau_bord_facturation' %}active{% endif %}">
+                <i class="bi bi-graph-up me-1"></i> Tableau de Bord
+            </a>
+            {% endif %}
+        </nav>
+    </div>
+</div>
+
+<!-- Offcanvas for small screens -->
+<div class="offcanvas offcanvas-start" tabindex="-1" id="factuOffcanvas" aria-labelledby="factuOffcanvasLabel">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title d-flex align-items-center gap-2" id="factuOffcanvasLabel">
+            <i class="bi bi-shield-check"></i> Menu Facturation
+        </h5>
+        <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Fermer"></button>
+    </div>
+    <div class="offcanvas-body">
+        <!-- Reprend les mêmes boutons mais en mode vertical pour mobile -->
+        <div class="d-grid gap-2">
+            {% has_permission user 'medical.manage_conventions' as can_manage_conv %}
+            {% if can_manage_conv %}
+            <a href="{% url 'gestion_convention_accorde_dossier' %}"
+                class="btn btn-soft-primary w-100 text-start {% if request.resolver_match.url_name == 'gestion_convention_accorde_dossier' %}active{% endif %}">
+                <i class="bi bi-shield-check me-1"></i> Accord & Dossier
+            </a>
+            {% endif %}
+
+            {% has_permission user 'medical.facturer_prestationacte' as can_facturer %}
+            {% if can_facturer %}
+            <a href="{% url 'actes_a_facturer' %}"
+                class="btn btn-soft-primary w-100 text-start {% if request.resolver_match.url_name == 'actes_a_facturer' %}active{% endif %}">
+                <i class="bi bi-receipt me-1"></i> À Facturer
+            </a>
+            {% endif %}
+
+            {% has_permission user 'medical.view_facturation_details' as can_view_facturation %}
+            {% if can_view_facturation %}
+            <a href="{% url 'actes_factures' %}"
+                class="btn btn-soft-primary w-100 text-start {% if request.resolver_match.url_name == 'actes_factures' %}active{% endif %}">
+                <i class="bi bi-list-check me-1"></i> Actes Facturés
+            </a>
+
+            <a href="{% url 'actes_payes' %}"
+                class="btn btn-soft-success w-100 text-start {% if request.resolver_match.url_name == 'actes_payes' %}active{% endif %}">
+                <i class="bi bi-check-circle me-1"></i> Actes Payés
+            </a>
+
+            <a href="{% url 'actes_rejetes' %}"
+                class="btn btn-soft-danger w-100 text-start {% if request.resolver_match.url_name == 'actes_rejetes' %}active{% endif %}">
+                <i class="bi bi-x-circle me-1"></i> Actes Rejetés
+            </a>
+
+            <a href="{% url 'tableau_bord_facturation' %}"
+                class="btn btn-soft-info w-100 text-start {% if request.resolver_match.url_name == 'tableau_bord_facturation' %}active{% endif %}">
+                <i class="bi bi-graph-up me-1"></i> Tableau de Bord
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+
+            <!-- Statistiques principales -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4>{{ stats.a_facturer }}</h4>
+                                    <p class="mb-0">À facturer</p>
+                                    <small>{{ montants.a_facturer|floatformat:2 }} DA</small>
+                                </div>
+                                <div>
+                                    <i class="bi bi-clock-history fs-1"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <a href="{% url 'actes_a_facturer' %}" class="text-white text-decoration-none">
+                                <i class="bi bi-arrow-right"></i> Voir détails
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-warning text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4>{{ stats.factures }}</h4>
+                                    <p class="mb-0">Facturés</p>
+                                    <small>{{ montants.factures|floatformat:2 }} DA</small>
+                                </div>
+                                <div>
+                                    <i class="bi bi-list-check fs-1"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <a href="{% url 'actes_factures' %}" class="text-white text-decoration-none">
+                                <i class="bi bi-arrow-right"></i> Voir détails
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4>{{ stats.payes }}</h4>
+                                    <p class="mb-0">Payés</p>
+                                    <small>{{ montants.payes|floatformat:2 }} DA</small>
+                                </div>
+                                <div>
+                                    <i class="bi bi-check-circle fs-1"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <a href="{% url 'actes_payes' %}" class="text-white text-decoration-none">
+                                <i class="bi bi-arrow-right"></i> Voir détails
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-danger text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4>{{ stats.rejetes }}</h4>
+                                    <p class="mb-0">Rejetés</p>
+                                    <small>{{ montants.rejetes|floatformat:2 }} DA</small>
+                                </div>
+                                <div>
+                                    <i class="bi bi-x-circle fs-1"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <a href="{% url 'actes_rejetes' %}" class="text-white text-decoration-none">
+                                <i class="bi bi-arrow-right"></i> Voir détails
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alertes et notifications -->
+            {% if actes_en_retard > 0 %}
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="alert alert-warning d-flex align-items-center" role="alert">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            <div>
+                                <strong>Attention !</strong> Vous avez {{ actes_en_retard }} acte{{ actes_en_retard|pluralize }} facturé{{ actes_en_retard|pluralize }} en retard de paiement (plus de 30 jours).
+                                <a href="{% url 'actes_factures' %}?en_retard=1" class="alert-link">Voir les actes en retard</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- Graphiques et analyses -->
+            <div class="row mb-4">
+                <!-- Répartition par convention -->
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="bi bi-pie-chart"></i> Top 10 - Conventions par Montant</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if conventions_stats %}
+                                <div class="table-responsive">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>Convention</th>
+                                                <th class="text-center">Nb Actes</th>
+                                                <th class="text-end">Montant Total</th>
+                                                <th class="text-center">Progression</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for conv in conventions_stats %}
+                                                <tr>
+                                                    <td>
+                                                        <strong>{{ conv.convention__nom }}</strong>
+                                                    </td>
+                                                    <td class="text-center">
+                                                        <span class="badge bg-primary">{{ conv.count }}</span>
+                                                    </td>
+                                                    <td class="text-end">
+                                                        <strong>{{ conv.montant|floatformat:2 }} DA</strong>
+                                                    </td>
+                                                    <td class="text-center">
+                                                        {% with pct=conv.montant|div:montants.payes|mul:100 %}
+                                                            <div class="progress" style="height: 20px;">
+                                                                <div class="progress-bar bg-info" role="progressbar" 
+                                                                     style="width: {{ pct|floatformat:1 }}%" 
+                                                                     aria-valuenow="{{ pct|floatformat:1 }}" 
+                                                                     aria-valuemin="0" aria-valuemax="100">
+                                                                    {{ pct|floatformat:1 }}%
+                                                                </div>
+                                                            </div>
+                                                        {% endwith %}
+                                                    </td>
+                                                </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {% else %}
+                                <div class="text-center py-3">
+                                    <i class="bi bi-inbox display-4 text-muted"></i>
+                                    <p class="text-muted">Aucune donnée disponible</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Résumé financier -->
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="bi bi-calculator"></i> Résumé Financier</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label class="form-label text-muted">Montant total facturé</label>
+                                <h4 class="text-info">{{ montants.factures|add:montants.payes|floatformat:2 }} DA</h4>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label text-muted">Montant encaissé</label>
+                                <h4 class="text-success">{{ montants.payes|floatformat:2 }} DA</h4>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label text-muted">En attente de paiement</label>
+                                <h4 class="text-warning">{{ montants.factures|floatformat:2 }} DA</h4>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label text-muted">Montant rejeté</label>
+                                <h4 class="text-danger">{{ montants.rejetes|floatformat:2 }} DA</h4>
+                            </div>
+                            <hr>
+                            <div class="mb-3">
+                                <label class="form-label text-muted">Taux de recouvrement</label>
+                                {% with total_facture=montants.factures|add:montants.payes %}
+                                    {% if total_facture > 0 %}
+                                        {% with taux=montants.payes|div:total_facture|mul:100 %}
+                                            <h4 class="text-primary">{{ taux|floatformat:1 }}%</h4>
+                                            <div class="progress">
+                                                <div class="progress-bar bg-success" role="progressbar" 
+                                                     style="width: {{ taux|floatformat:1 }}%" 
+                                                     aria-valuenow="{{ taux|floatformat:1 }}" 
+                                                     aria-valuemin="0" aria-valuemax="100">
+                                                </div>
+                                            </div>
+                                        {% endwith %}
+                                    {% else %}
+                                        <h4 class="text-muted">0%</h4>
+                                    {% endif %}
+                                {% endwith %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions rapides -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="bi bi-lightning"></i> Actions Rapides</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <div class="d-grid">
+                                        <a href="{% url 'actes_a_facturer' %}" class="btn btn-outline-primary">
+                                            <i class="bi bi-receipt"></i><br>
+                                            <strong>{{ stats.a_facturer }}</strong><br>
+                                            Actes à facturer
+                                        </a>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="d-grid">
+                                        <a href="{% url 'actes_factures' %}?en_retard=1" class="btn btn-outline-warning">
+                                            <i class="bi bi-clock-history"></i><br>
+                                            <strong>{{ actes_en_retard }}</strong><br>
+                                            En retard (+30j)
+                                        </a>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="d-grid">
+                                        <a href="{% url 'actes_payes' %}" class="btn btn-outline-success">
+                                            <i class="bi bi-check-circle"></i><br>
+                                            <strong>{{ stats.payes }}</strong><br>
+                                            Actes payés
+                                        </a>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="d-grid">
+                                        <a href="{% url 'actes_rejetes' %}" class="btn btn-outline-danger">
+                                            <i class="bi bi-x-circle"></i><br>
+                                            <strong>{{ stats.rejetes }}</strong><br>
+                                            Actes rejetés
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+</div>
+
+<style>
+.card-footer a {
+    font-size: 0.9em;
+}
+
+.progress {
+    height: 8px;
+}
+
+.btn-outline-primary:hover,
+.btn-outline-warning:hover,
+.btn-outline-success:hover,
+.btn-outline-danger:hover {
+    transform: translateY(-2px);
+    transition: all 0.2s ease;
+}
+</style>
+<style>
+    /* ===== Toolbar Facturation ===== */
+.factu-toolbar{
+  backdrop-filter: saturate(140%) blur(6px);
+  background: linear-gradient(180deg, rgba(237, 0, 0, 0.85), rgba(16, 0, 61, 0.75));
+  border-radius: 18px;
+  padding: .9rem 1rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 6px 24px rgba(16,24,40,.06), 0 1px 2px rgba(16,24,40,.06);
+  border: 1px solid rgba(0,0,0,.06);
+  top: .75rem;           /* utile avec sticky-top */
+  z-index: 1020;         /* au-dessus du contenu */
+}
+
+/* variantes “soft” (s’accordent avec Bootstrap) */
+.btn-soft-primary,
+.btn-soft-success,
+.btn-soft-danger,
+.btn-soft-info{
+  --btn-bg: var(--bs-primary);
+  --btn-text: var(--bs-primary);
+  --btn-ring: var(--bs-primary);
+  color: var(--btn-text);
+  background: color-mix(in srgb, var(--btn-bg) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--btn-bg) 18%, transparent);
+  border-radius: 999px;
+  padding: .5rem .9rem;
+  font-weight: 600;
+  transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+}
+.btn-soft-success{ --btn-bg: var(--bs-success); --btn-text: var(--bs-success); --btn-ring: var(--bs-success); }
+.btn-soft-danger{  --btn-bg: var(--bs-danger);  --btn-text: var(--bs-danger);  --btn-ring: var(--bs-danger);  }
+.btn-soft-info{    --btn-bg: var(--bs-info);    --btn-text: var(--bs-info);    --btn-ring: var(--bs-info);    }
+
+.btn-soft-primary:hover,
+.btn-soft-success:hover,
+.btn-soft-danger:hover,
+.btn-soft-info:hover{
+  background: color-mix(in srgb, var(--btn-bg) 16%, white);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--btn-bg) 18%, transparent);
+  text-decoration: none;
+}
+
+.btn-soft-primary.active,
+.btn-soft-success.active,
+.btn-soft-danger.active,
+.btn-soft-info.active{
+  background: var(--btn-bg);
+  color: #fff !important;
+  border-color: var(--btn-bg);
+  box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--btn-ring) 25%, transparent);
+}
+
+/* icônes et texte compact */
+.factu-toolbar .bi{ font-size: 1rem; line-height: 1; }
+.factu-toolbar h2{ font-size: clamp(1.05rem, 1.2vw + .8rem, 1.35rem); font-weight: 700; }
+
+/* responsive: wrap naturel + gap propre */
+.factu-toolbar nav{ row-gap: .4rem; }
+
+/* mode sombre (si tu utilises .bg-dark / body.dark) */
+@media (prefers-color-scheme: dark){
+  .factu-toolbar{
+    background: linear-gradient(180deg, #6365f158, #6365f111);
+    border-color: rgba(255,255,255,.08);
+  }
+}
+
+</style>
+{% endblock %}

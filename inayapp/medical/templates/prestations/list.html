@@ -1,6 +1,7 @@
 {% extends "layout.html" %}
-{% load static %}
+{% load static custom_filters_medical %}
 {% load custom_filters %}
+{% load permissions_tags %}
 {% block content %}
 
 
@@ -79,6 +80,7 @@
                                         class="form-control date-range-input" placeholder="Choisir une plage de dates">
                     </div>
                 </div>
+                </div>
                 <!-- Bouton mobile -->
                 <div class="col-12 d-md-none">
                     <div class="d-flex gap-2">
@@ -93,38 +95,68 @@
 
     <!-- Bouton d'ajout et information de pagination --> 
     <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="d-flex gap-2">
+    {% has_permission user 'medical.add_prestationkt' as can_create %}
+    {% if can_create %}
         <a href="{% url 'medical:prestation_create' %}" class="btn btn-success">
             <i class="fas fa-plus me-2"></i>Nouvelle prestation
         </a>
+    {% endif %}
 
-        <a href="{% url 'medical:prestation_programmer' %}" class="btn btn-success">
-            <i class="fas fa-plus me-2"></i>Programmer une Prestation
+        {% has_permission user 'medical.planifier_prestationkt' as can_schedule %}
+    {% if can_schedule %}
+            <a href="{% url 'medical:prestation_programmer' %}" class="btn btn-primary">
+                <i class="fas fa-calendar-plus me-2"></i>Programmer une Prestation
         </a>
+            {% endif %}
+                    {% has_permission user 'medical.export_prestationkt' as can_export %}
+    {% if can_export %}
+<button type="button" 
+        class="btn btn-info" 
+        data-bs-toggle="modal" 
+        data-bs-target="#exportSimpleModal"
+        title="Exporter les prestations planifiées en PDF">
+    <i class="fas fa-file-pdf me-2"></i>Exporter PDF
+</button>
+    {% endif %}
+        </div>
 
         <!-- Information de pagination et sélecteur -->
-        {% if total_count > 0 %}
-        <div class="d-flex align-items-center gap-3">
+
+    <!-- Information de pagination et sélecteur (reste inchangé) -->
+    {% if total_count > 0 %}
+    <div class="d-flex align-items-center gap-3">
         <div class="text-muted small">
             Affichage de {{ page_obj.start_index }} à {{ page_obj.end_index }}
             sur {{ total_count }} prestation{{ total_count|pluralize }}
         </div>
     
         <div class="d-flex align-items-center gap-2">
-                <label class="form-label small text-muted mb-0">Par page :</label>
-                <select class="form-select form-select-sm" style="width: auto;"
-                    onchange="changeItemsPerPage(this.value)">
-                    <option value="10" {% if items_per_page == 10 %}selected{% endif %}>10</option>
-                    <option value="25" {% if items_per_page == 25 %}selected{% endif %}>25</option>
-                    <option value="50" {% if items_per_page == 50 %}selected{% endif %}>50</option>
-                    <option value="100" {% if items_per_page == 100 %}selected{% endif %}>100</option>
+            <label class="form-label small text-muted mb-0">Par page :</label>
+            <select class="form-select form-select-sm" style="width: auto;"
+                onchange="changeItemsPerPage(this.value)">
+                <option value="10" {% if items_per_page == 10 %}selected{% endif %}>10</option>
+                <option value="25" {% if items_per_page == 25 %}selected{% endif %}>25</option>
+                <option value="50" {% if items_per_page == 50 %}selected{% endif %}>50</option>
+                <option value="100" {% if items_per_page == 100 %}selected{% endif %}>100</option>
             </select>
         </div>
     </div>
-        {% endif %}
+    {% endif %}
     </div>
 
-        <!-- Tableau -->
-        <div class="card">
+    <!-- Prestations par statut -->
+    {% if page_obj %}
+        <!-- Prestations planifiées -->
+        {% with prestations_planifiees=page_obj|filter_by_status:"PLANIFIE" %}
+        {% if prestations_planifiees %}
+        <div class="card mb-4">
+            <div class="card-header bg-warning bg-opacity-10 border-warning border-opacity-25">
+                <h5 class="mb-0 text-warning">
+                    <i class="fas fa-clock me-2"></i>
+                    Prestations Planifiées ({{ prestations_planifiees|length }})
+                </h5>
+            </div>
             <div class="table-responsive">
             <table class="table table-hover mb-0">
                 <thead class="table-light">
@@ -138,8 +170,120 @@
                             <th class="border-0">
                                 <i class="fas fa-user-md me-2 text-muted"></i>Médecin
                             </th>
+                            <th class="border-0 text-end">
+                                <i class="fas fa-euro-sign me-2 text-muted"></i>Montant
+                            </th>
+                            <th class="border-0 text-center">
+                                <i class="fas fa-cog me-2 text-muted"></i>Actions
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for prestation in prestations_planifiees %}
+                        <tr>
+                            <td class="py-3">
+                                <div class="d-flex align-items-center">
+                                    <div class="date-badge">
+                                        <div class="date-day">{{ prestation.date_prestation|date:"d" }}</div>
+                                        <div class="date-month">{{ prestation.date_prestation|date:"M" }}</div>
+                                    </div>
+                                    <div class="ms-2">
+                                        <small class="text-muted">{{ prestation.date_prestation|date:"Y" }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="py-3">
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar avatar-sm bg-primary">
+                                        {{ prestation.patient.nom_complet|first }}
+                                    </div>
+                                    <div class="ms-2">
+                                        <div class="fw-medium">{{ prestation.patient.nom_complet }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="py-3">
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar avatar-sm bg-success">
+                                        {{ prestation.medecin.nom_complet|first }}
+                                    </div>
+                                    <div class="ms-2">
+                                        <div class="fw-medium">{{ prestation.medecin.nom_complet }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="py-3 text-end">
+                                <span class="fw-bold">{{ prestation.prix_total|floatformat:2 }}€</span>
+                                {% if prestation.prix_supplementaire > 0 %}
+                                <br><small class="text-muted">+ {{ prestation.prix_supplementaire|floatformat:2 }}€ sup.</small>
+                                {% endif %}
+                            </td>
+<td class="py-3 text-center">
+    <div class="btn-group" role="group">
+        {% has_permission user 'medical.realiser_prestationkt' as can_realize %}
+        {% if can_realize %}
+        <button type="button" class="btn btn-sm btn-success" onclick="changeStatus({{ prestation.id }}, 'REALISE')"
+            title="Marquer comme réalisé">
+            <i class="fas fa-check"></i>
+        </button>
+        {% endif %}
+
+        {% has_permission user 'medical.annuler_prestationkt' as can_cancel %}
+        {% if can_cancel %}
+        <button type="button" class="btn btn-sm btn-danger" onclick="changeStatus({{ prestation.id }}, 'ANNULE')"
+            title="Annuler">
+            <i class="fas fa-times"></i>
+        </button>
+        {% endif %}
+
+        {% has_permission user 'medical.view_prestationkt' as can_view %}
+        {% if can_view %}
+        <a href="{% url 'medical:prestation_detail' prestation.id %}" class="btn btn-sm btn-outline-primary"
+            title="Détails">
+            <i class="fas fa-eye"></i>
+        </a>
+        {% endif %}
+
+        {% has_permission user 'medical.change_prestationkt' as can_edit %}
+        {% if can_edit %}
+        <a href="{% url 'medical:prestation_update' prestation.id %}" class="btn btn-sm btn-outline-warning"
+            title="Modifier">
+            <i class="fas fa-edit"></i>
+        </a>
+        {% endif %}
+    </div>
+</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        <!-- Prestations réalisées -->
+        {% with prestations_realisees=page_obj|filter_by_status:"REALISE" %}
+        {% if prestations_realisees %}
+        <div class="card mb-4">
+            <div class="card-header bg-success bg-opacity-10 border-success border-opacity-25">
+                <h5 class="mb-0 text-success">
+                    <i class="fas fa-check-circle me-2"></i>
+                    Prestations Réalisées ({{ prestations_realisees|length }})
+                </h5>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
                             <th class="border-0">
-                                <i class="fas fa-info-circle me-2 text-muted"></i>Statut
+                                <i class="fas fa-calendar-alt me-2 text-muted"></i>Date
+                            </th>
+                            <th class="border-0">
+                                <i class="fas fa-user me-2 text-muted"></i>Patient
+                            </th>
+                            <th class="border-0">
+                                <i class="fas fa-user-md me-2 text-muted"></i>Médecin
                             </th>
                             <th class="border-0 text-end">
                                 <i class="fas fa-euro-sign me-2 text-muted"></i>Montant
@@ -150,7 +294,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for prestation in page_obj %}
+                        {% for prestation in prestations_realisees %}
                     <tr>
                             <td class="py-3">
                                 <div class="d-flex align-items-center">
@@ -183,50 +327,252 @@
                                     </div>
                                 </div>
                             </td>
+                            <td class="py-3 text-end">
+                                <span class="fw-bold">{{ prestation.prix_total|floatformat:2 }}€</span>
+                                {% if prestation.prix_supplementaire > 0 %}
+                                <br><small class="text-muted">+ {{ prestation.prix_supplementaire|floatformat:2 }}€ sup.</small>
+                                {% endif %}
+                            </td>
+<td class="py-3 text-center">
+    <div class="btn-group" role="group">
+        {% has_permission user 'medical.view_prestationkt' as can_view %}
+        {% if can_view %}
+        <a href="{% url 'medical:prestation_detail' prestation.id %}" class="btn btn-sm btn-outline-primary"
+            title="Détails">
+            <i class="fas fa-eye"></i>
+        </a>
+        {% endif %}
+
+        {% has_permission user 'medical.change_prestationkt' as can_edit %}
+        {% if can_edit and prestation.statut != 'PAYE' %}
+        <a href="{% url 'medical:prestation_update' prestation.id %}" class="btn btn-sm btn-outline-warning"
+            title="Modifier">
+            <i class="fas fa-edit"></i>
+        </a>
+        {% endif %}
+    </div>
+</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        <!-- Prestations payées -->
+        {% with prestations_payees=page_obj|filter_by_status:"PAYE" %}
+        {% if prestations_payees %}
+        <div class="card mb-4">
+            <div class="card-header bg-info bg-opacity-10 border-info border-opacity-25">
+                <h5 class="mb-0 text-info">
+                    <i class="fas fa-money-bill-wave me-2"></i>
+                    Prestations Payées ({{ prestations_payees|length }})
+                </h5>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="border-0">
+                                <i class="fas fa-calendar-alt me-2 text-muted"></i>Date
+                            </th>
+                            <th class="border-0">
+                                <i class="fas fa-user me-2 text-muted"></i>Patient
+                            </th>
+                            <th class="border-0">
+                                <i class="fas fa-user-md me-2 text-muted"></i>Médecin
+                            </th>
+                            <th class="border-0 text-end">
+                                <i class="fas fa-euro-sign me-2 text-muted"></i>Montant
+                            </th>
+                            <th class="border-0 text-center">
+                                <i class="fas fa-cog me-2 text-muted"></i>Actions
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for prestation in prestations_payees %}
+                        <tr>
                             <td class="py-3">
-                            <span class="badge
-                                {% if prestation.statut == 'realise' %}bg-success
-                                {% elif prestation.statut == 'annule' %}bg-danger
-                                {% else %}bg-secondary{% endif %}">
-                                {{ prestation.get_statut_display }}
-                            </span>
-                            
+                                <div class="d-flex align-items-center">
+                                    <div class="date-badge">
+                                        <div class="date-day">{{ prestation.date_prestation|date:"d" }}</div>
+                                        <div class="date-month">{{ prestation.date_prestation|date:"M" }}</div>
+                                    </div>
+                                    <div class="ms-2">
+                                        <small class="text-muted">{{ prestation.date_prestation|date:"Y" }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="py-3">
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar avatar-sm bg-primary">
+                                        {{ prestation.patient.nom_complet|first }}
+                                    </div>
+                                    <div class="ms-2">
+                                        <div class="fw-medium">{{ prestation.patient.nom_complet }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="py-3">
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar avatar-sm bg-success">
+                                        {{ prestation.medecin.nom_complet|first }}
+                                    </div>
+                                    <div class="ms-2">
+                                        <div class="fw-medium">{{ prestation.medecin.nom_complet }}</div>
+                                    </div>
+                                </div>
                         </td>
                             <td class="py-3 text-end">
                                 <span class="fw-bold">{{ prestation.prix_total|floatformat:2 }}€ </span>
+                                {% if prestation.prix_supplementaire > 0 %}
+                                <br><small class="text-muted">+ {{ prestation.prix_supplementaire|floatformat:2 }}€ sup.</small>
+                                {% endif %}
                             </td>
-                            <td class="py-3 text-center">
-                                <div class="btn-group" role="group">
-                                    <a href="{% url 'medical:prestation_detail' prestation.id %}"
-                                        class="btn btn-sm btn-outline-primary" title="Détails">
-                                    <i class="fas fa-eye"></i>
-                                </a>
-                                    <a href="{% url 'medical:prestation_update' prestation.id %}"
-                                        class="btn btn-sm btn-outline-warning" title="Modifier">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                                    <a href="{% url 'medical:prestation_delete' prestation.id %}"
-                                        class="btn btn-sm btn-outline-danger" title="Supprimer">
-                                    <i class="fas fa-trash"></i>
-                                </a>
-                            </div>
-                        </td>
+<td class="py-3 text-center">
+    <div class="btn-group" role="group">
+        {% has_permission user 'medical.view_prestationkt' as can_view %}
+        {% if can_view %}
+        <a href="{% url 'medical:prestation_detail' prestation.id %}" class="btn btn-sm btn-outline-primary"
+            title="Détails">
+            <i class="fas fa-eye"></i>
+        </a>
+        {% endif %}
+
+        {% has_permission user 'medical.change_prestationkt' as can_edit %}
+        {% if can_edit and prestation.statut != 'PAYE' %}
+        <a href="{% url 'medical:prestation_update' prestation.id %}" class="btn btn-sm btn-outline-warning"
+            title="Modifier">
+            <i class="fas fa-edit"></i>
+        </a>
+        {% endif %}
+    </div>
+</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        <!-- Prestations annulées -->
+        {% with prestations_annulees=page_obj|filter_by_status:"ANNULE" %}
+        {% if prestations_annulees %}
+        <div class="card mb-4">
+            <div class="card-header bg-danger bg-opacity-10 border-danger border-opacity-25">
+                <h5 class="mb-0 text-danger">
+                    <i class="fas fa-times-circle me-2"></i>
+                    Prestations Annulées ({{ prestations_annulees|length }})
+                </h5>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="border-0">
+                                <i class="fas fa-calendar-alt me-2 text-muted"></i>Date
+                            </th>
+                            <th class="border-0">
+                                <i class="fas fa-user me-2 text-muted"></i>Patient
+                            </th>
+                            <th class="border-0">
+                                <i class="fas fa-user-md me-2 text-muted"></i>Médecin
+                            </th>
+                            <th class="border-0 text-end">
+                                <i class="fas fa-euro-sign me-2 text-muted"></i>Montant
+                            </th>
+                            <th class="border-0 text-center">
+                                <i class="fas fa-cog me-2 text-muted"></i>Actions
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for prestation in prestations_annulees %}
+                        <tr class="table-danger table-danger-subtle">
+                            <td class="py-3">
+                                <div class="d-flex align-items-center">
+                                    <div class="date-badge">
+                                        <div class="date-day">{{ prestation.date_prestation|date:"d" }}</div>
+                                        <div class="date-month">{{ prestation.date_prestation|date:"M" }}</div>
+                                    </div>
+                                    <div class="ms-2">
+                                        <small class="text-muted">{{ prestation.date_prestation|date:"Y" }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="py-3">
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar avatar-sm bg-primary">
+                                        {{ prestation.patient.nom_complet|first }}
+                                    </div>
+                                    <div class="ms-2">
+                                        <div class="fw-medium">{{ prestation.patient.nom_complet }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="py-3">
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar avatar-sm bg-success">
+                                        {{ prestation.medecin.nom_complet|first }}
+                                    </div>
+                                    <div class="ms-2">
+                                        <div class="fw-medium">{{ prestation.medecin.nom_complet }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="py-3 text-end">
+                                <span class="fw-bold text-decoration-line-through text-muted">{{ prestation.prix_total|floatformat:2 }}€</span>
+                                {% if prestation.prix_supplementaire > 0 %}
+                                <br><small class="text-muted text-decoration-line-through">+ {{ prestation.prix_supplementaire|floatformat:2 }}€ sup.</small>
+                                {% endif %}
+                            </td>
+<td class="py-3 text-center">
+    <div class="btn-group" role="group">
+        {% has_permission user 'medical.view_prestationkt' as can_view %}
+        {% if can_view %}
+        <a href="{% url 'medical:prestation_detail' prestation.id %}" class="btn btn-sm btn-outline-primary"
+            title="Détails">
+            <i class="fas fa-eye"></i>
+        </a>
+        {% endif %}
+
+        {% has_permission user 'medical.delete_prestationkt' as can_delete %}
+        {% if can_delete %}
+        <a href="{% url 'medical:prestation_delete' prestation.id %}" class="btn btn-sm btn-outline-danger"
+            title="Supprimer">
+            <i class="fas fa-trash"></i>
+        </a>
+        {% endif %}
+    </div>
+</td>
                     </tr>
-                    {% empty %}
-                    <tr>
-                            <td colspan="6" class="text-center py-5">
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+        {% endwith %}
+
+    {% else %}
+        <!-- État vide -->
+        <div class="card">
+            <div class="card-body">
+                <div class="text-center py-5">
                                 <div class="empty-state">
                                     <i class="fas fa-inbox text-muted mb-3" style="font-size: 3rem;"></i>
                                     <h5 class="text-muted">Aucune prestation trouvée</h5>
                                     <p class="text-muted">Modifiez vos filtres pour voir plus de résultats</p>
                                 </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                </div>
     </div>
 </div>
+    {% endif %}
 
     <!-- Navigation de pagination -->
 {% if is_paginated %}
@@ -309,6 +655,111 @@
 {% endif %}
 </div>
 
+<!-- Modal de confirmation pour changement de statut -->
+<div class="modal fade" id="statusChangeModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmer le changement de statut</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p id="statusChangeMessage"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-primary" id="confirmStatusChange">Confirmer</button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Modal d'exportation simplifié -->
+<div class="modal fade" id="exportSimpleModal" tabindex="-1" aria-labelledby="exportSimpleModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="exportSimpleModalLabel">
+                    <i class="fas fa-file-pdf me-2 text-danger"></i>
+                    Exporter les prestations planifiées
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{% url 'medical:export_prestations_pdf' %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        L'export générera un fichier PDF contenant toutes les prestations planifiées pour la date sélectionnée.
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="export_date" class="form-label">
+                            <i class="fas fa-calendar-day me-2"></i>
+                            Date de planification
+                        </label>
+                        <input type="date" 
+                               class="form-control" 
+                               id="export_date" 
+                               name="export_date" 
+                               value="{{ now|date:'Y-m-d' }}" 
+                               required>
+                        <div class="form-text">
+                            Sélectionnez la date pour laquelle exporter les prestations planifiées
+                        </div>
+                    </div>
+
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-2"></i>Annuler
+                    </button>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-file-pdf me-2"></i>Générer PDF
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Styles pour le modal d'export */
+#exportSimpleModal .modal-content {
+    border: none;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+
+#exportSimpleModal .modal-header {
+    background: linear-gradient(135deg, #dc3545, #c82333);
+    color: white;
+    border-bottom: none;
+}
+
+#exportSimpleModal .modal-header .btn-close {
+    filter: brightness(0) invert(1);
+}
+
+#exportSimpleModal .alert-info {
+    border: 1px solid #bee5eb;
+    background-color: #d1ecf1;
+    color: #0c5460;
+}
+
+#exportSimpleModal .card {
+    border: 1px solid #dee2e6;
+}
+
+#exportSimpleModal .btn-danger {
+    background: linear-gradient(135deg, #dc3545, #c82333);
+    border: none;
+    transition: all 0.3s ease;
+}
+
+#exportSimpleModal .btn-danger:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
+}
+</style>
 <!-- Scripts -->
 <script src="{% static 'js/jquery-3.7.1.min.js' %}"></script>
 <script src="{% static 'js/moment.min.js' %}"></script>
@@ -316,6 +767,77 @@
 <script src="{% static 'js/choices.min.js' %}"></script>
 
 <script>
+    // Variables globales pour le changement de statut
+    let currentPrestationId = null;
+    let currentNewStatus = null;
+
+    // Fonction pour changer le statut d'une prestation
+    function changeStatus(prestationId, newStatus) {
+        currentPrestationId = prestationId;
+        currentNewStatus = newStatus;
+
+        const messages = {
+            'REALISE': 'Êtes-vous sûr de vouloir marquer cette prestation comme réalisée ?',
+            'ANNULE': 'Êtes-vous sûr de vouloir annuler cette prestation ?'
+        };
+
+        document.getElementById('statusChangeMessage').textContent = messages[newStatus];
+
+        const modal = new bootstrap.Modal(document.getElementById('statusChangeModal'));
+        modal.show();
+    }
+
+    // Gestionnaire pour la confirmation du changement de statut
+    document.getElementById('confirmStatusChange').addEventListener('click', function() {
+        if (currentPrestationId && currentNewStatus) {
+            // Envoi de la requête AJAX
+            fetch(`/medical/prestations/${currentPrestationId}/change-status/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    'status': currentNewStatus
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Succès - recharger la page
+                    location.reload();
+                } else {
+                    // Erreur - afficher le message
+                    alert('Erreur: ' + (data.message || 'Une erreur est survenue'));
+                }
+            })
+            .catch(error => {
+                console.error('Erreur:', error);
+                alert('Une erreur est survenue lors du changement de statut');
+            });
+
+            // Fermer le modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('statusChangeModal'));
+            modal.hide();
+        }
+    });
+
+    // Fonction pour récupérer le token CSRF
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
     // Fonction pour changer le nombre d'éléments par page
     function changeItemsPerPage(perPage) {
         const url = new URL(window.location);
@@ -647,133 +1169,6 @@
         background-color: var(--primary) !important;
     }
 
-    /* Style spécifique pour les boutons de sync */
-    .sync-btn {
-        border: 2px solid rgba(255, 255, 255, 0.3);
-        padding: 0.5rem 1.25rem;
-        transition: all 0.3s ease;
-        position: relative;
-        overflow: hidden;
-    }
-
-    .sync-btn:hover {
-        background: rgba(255, 255, 255, 0.1);
-        border-color: white;
-        transform: translateY(-2px);
-    }
-
-    .sync-btn.loading {
-        padding-right: 2.5rem;
-        opacity: 0.7;
-        pointer-events: none;
-    }
-
-    .sync-btn.loading::after {
-        content: "";
-        position: absolute;
-        right: 1rem;
-        top: 50%;
-        width: 1rem;
-        height: 1rem;
-        border: 2px solid transparent;
-        border-top-color: currentColor;
-        border-radius: 50%;
-        animation: spin 0.8s linear infinite;
-        transform: translateY(-50%);
-    }
-
-    @keyframes spin {
-        0% {
-            transform: translateY(-50%) rotate(0deg);
-        }
-
-        100% {
-            transform: translateY(-50%) rotate(360deg);
-        }
-    }
-
-    /* Toast de notification */
-    .sync-toast {
-        position: fixed;
-        bottom: 1rem;
-        right: 1rem;
-        background: var(--primary);
-        color: white;
-        padding: 1rem 1.5rem;
-        border-radius: var(--radius-md);
-        box-shadow: var(--shadow);
-        display: none;
-        align-items: center;
-        gap: 0.75rem;
-    }
-
-    .sync-toast.visible {
-        display: flex;
-        animation: slideIn 0.3s ease-out;
-    }
-
-    @keyframes slideIn {
-        from {
-            transform: translateX(100%);
-        }
-
-        to {
-            transform: translateX(0);
-        }
-    }
-
-    .report-header {
-        background: linear-gradient(135deg, #6a5acd 0%, #483d8b 100%);
-        padding: 1.5rem;
-        border-radius: 1rem;
-    }
-
-    .header-top {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: space-between;
-        align-items: center;
-        gap: 1rem;
-    }
-
-    .btn-sync {
-        padding: 0.5rem 1.25rem;
-        border-width: 2px;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    .btn-sync:hover {
-        background: rgba(255, 255, 255, 0.15);
-        transform: translateY(-1px);
-    }
-
-
-    .filter-select {
-        padding: 0.625rem 1.25rem;
-        border-radius: 2rem;
-        border: 1px solid #e0e0e0;
-    }
-
-    .date-range-input {
-        padding: 0.625rem 1.25rem;
-        border-radius: 0 2rem 2rem 0;
-        border-left: 0;
-    }
-
-    @media (max-width: 768px) {
-        .report-header {
-            padding: 1rem;
-            border-radius: 0.75rem;
-        }
-
-        .header-top {
-            flex-direction: column;
-            align-items: stretch;
-        }
-    }
-</style>
-
-<style>
     /* Variables CSS */
     :root {
         --primary: #0d6efd;
@@ -859,64 +1254,6 @@
     .form-control:focus {
         border-color: var(--primary);
         box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
-    }
-
-    /* Stats */
-    .stats-bar {
-        background: white;
-        border: 1px solid var(--gray-200);
-        border-radius: var(--border-radius);
-        padding: 1rem 1.5rem;
-        display: flex;
-        align-items: center;
-        gap: 2rem;
-        box-shadow: var(--box-shadow);
-    }
-
-    .stats-item {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-    }
-
-    .stats-icon {
-        width: 40px;
-        height: 40px;
-        border-radius: var(--border-radius);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        font-size: 1rem;
-    }
-
-    .stats-number {
-        font-size: 1.25rem;
-        font-weight: 700;
-        color: var(--gray-900);
-        line-height: 1;
-    }
-
-    .stats-label {
-        font-size: 0.875rem;
-        color: var(--gray-600);
-    }
-
-    /* Table */
-    .table th {
-        font-weight: 600;
-        color: var(--gray-700);
-        padding: 1rem 0.75rem;
-        background-color: var(--gray-50);
-    }
-
-    .table td {
-        padding: 0.75rem;
-        vertical-align: middle;
-    }
-
-    .table-hover tbody tr:hover {
-        background-color: rgba(13, 110, 253, 0.05);
     }
 
     /* Date Badge */
@@ -1013,12 +1350,6 @@
 
     /* Responsive */
     @media (max-width: 768px) {
-        .stats-bar {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 1rem;
-        }
-
         .btn-group {
             flex-direction: column;
             width: 100%;
@@ -1039,6 +1370,56 @@
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+    }
+
+    /* Styles spécifiques pour les sections de statut */
+    .card-header {
+        border-bottom: 1px solid rgba(0,0,0,.125);
+        padding: 1rem 1.25rem;
+        background-color: rgba(0,0,0,.03);
+        border-top-left-radius: calc(.375rem - 1px);
+        border-top-right-radius: calc(.375rem - 1px);
+    }
+
+    /* Animations pour les boutons d'action rapide */
+    .btn-group .btn {
+        transition: all 0.2s ease-in-out;
+    }
+
+    .btn-group .btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+
+    /* Style pour les lignes de prestations annulées */
+    .table-danger-subtle {
+        background-color: rgba(220, 53, 69, 0.05);
+    }
+
+    /* Animation de chargement pour les boutons */
+    .btn.loading {
+        position: relative;
+        pointer-events: none;
+        opacity: 0.7;
+    }
+
+    .btn.loading::after {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 16px;
+        height: 16px;
+        margin: -8px 0 0 -8px;
+        border: 2px solid transparent;
+        border-top-color: currentColor;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
     }
 </style>
 {% endblock %}

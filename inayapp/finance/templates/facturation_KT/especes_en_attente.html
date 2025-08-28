@@ -1,0 +1,866 @@
+{% extends "layout.html" %}
+{% load permissions_tags %}
+{% load static custom_filters_medical %}
+{% block content %}
+<style>
+    :root{
+      --ft-bg-start: rgba(237,0,0,0.9);
+      --ft-bg-end: rgba(16,0,61,0.8);
+      --ft-radius: 16px;
+      --soft-pad: .5rem .9rem;
+    }
+
+    .factu-toolbar {
+      position: sticky;
+      top: .75rem;
+      z-index: 1050;
+      backdrop-filter: saturate(140%) blur(6px);
+      background: linear-gradient(180deg, var(--ft-bg-start), var(--ft-bg-end));
+      color: #fff;
+      border-radius: var(--ft-radius);
+      padding: .65rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 6px 30px rgba(2,6,23,.12), 0 2px 6px rgba(2,6,23,.06);
+      border: 1px solid rgba(255,255,255,.04);
+    }
+
+    /* Header section */
+    .factu-toolbar .title {
+      display: flex;
+      gap: .6rem;
+      align-items: center;
+      font-weight: 700;
+      font-size: clamp(1rem, 1.2vw + .6rem, 1.25rem);
+    }
+
+    .factu-toolbar .title .badge-count {
+      background: rgba(255,255,255,.12);
+      padding: .15rem .45rem;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: .8rem;
+    }
+
+    /* Soft buttons */
+    .factu-toolbar .btn-soft {
+      --btn-bg: rgba(255,255,255,.06);
+      color: rgba(255,255,255,.95);
+      background: var(--btn-bg);
+      border: 1px solid rgba(255,255,255,.06);
+      border-radius: 999px;
+      padding: var(--soft-pad);
+      font-weight: 600;
+      display: inline-flex;
+      gap: .5rem;
+      align-items: center;
+      transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+    }
+    .factu-toolbar .btn-soft:hover{
+      transform: translateY(-2px);
+      background: rgba(255,255,255,.10);
+      text-decoration: none;
+    }
+
+    /* color variants using CSS utilities when present; fallback rules: */
+    .btn-soft-danger { border-color: rgba(255,80,80,.15); }
+    .btn-soft-success { border-color: rgba(72,187,120,.15); }
+    .btn-soft-info    { border-color: rgba(88,170,255,.15); }
+    .btn-soft-primary { border-color: rgba(120,100,255,.18); }
+
+    /* compact search */
+    .factu-toolbar .search-input {
+      min-width: 180px;
+      max-width: 420px;
+      transition: width .18s ease;
+    }
+    .factu-toolbar .search-input:focus { width: 340px; }
+
+    /* controls layout */
+    .factu-toolbar .controls { gap: .5rem; display:flex; align-items:center; flex-wrap:wrap; }
+
+    /* avatar */
+    .factu-toolbar .avatar {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      display:inline-grid; place-items:center;
+      background: linear-gradient(135deg, rgba(255,255,255,.08), rgba(255,255,255,.04));
+      border: 1px solid rgba(255,255,255,.06);
+      cursor:pointer;
+    }
+
+    /* offcanvas adjustments for mobile */
+    @media (max-width: 767.98px) {
+      .factu-toolbar { padding: .5rem; }
+      .factu-toolbar .search-input { min-width: 120px; }
+    }
+
+    /* dark mode tweaks */
+    @media (prefers-color-scheme: dark) {
+      :root { --ft-bg-start: #6365f1a0; --ft-bg-end: #1f1b3ca0; }
+      .factu-toolbar { border-color: rgba(255,255,255,.06); }
+      .factu-toolbar .btn-soft { background: rgba(255,255,255,.03); }
+    }
+
+    /* small utility */
+    .me-sm-2 { margin-right: .5rem !important; }
+</style>
+
+<div class="container-fluid">
+    <div class="factu-toolbar">
+        <div class="d-flex align-items-center justify-content-between gap-2">
+            <div class="d-flex align-items-center gap-3 flex-grow-1">
+                <div class="d-flex align-items-center">
+                    <button class="btn btn-sm btn-outline-light d-md-none me-2" type="button" data-bs-toggle="offcanvas"
+                            data-bs-target="#factuOffcanvas" aria-controls="factuOffcanvas" aria-label="Ouvrir le menu">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
+
+                    <div class="title">
+                        <i class="fa-solid fa-money-bill-wave fa-lg" aria-hidden="true"></i>
+                        <div>
+                            <div>Paiements Espèces En Attente</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Controls -->
+            <div class="controls">
+                <nav class="d-none d-md-inline-flex align-items-center" role="navigation"
+                     aria-label="Actions facturation">
+                    <a href="{% url 'prestations_especes_en_attente' %}" class="btn btn-soft btn-soft-danger me-1"
+                       data-bs-toggle="tooltip" title="En attente">
+                        <i class="fa-regular fa-clock"></i><span class="d-none d-sm-inline ms-1">En Attente</span>
+                    </a>
+
+                    <a href="{% url 'prestations_especes_payees' %}" class="btn btn-soft btn-soft-success me-1"
+                       data-bs-toggle="tooltip" title="Prestations réglées">
+                        <i class="fa-regular fa-circle-check"></i><span class="d-none d-sm-inline ms-1">Réglées</span>
+                    </a>
+
+                    <a href="{% url 'dashboard_paiements_especes' %}" class="btn btn-soft btn-soft-info me-1"
+                       data-bs-toggle="tooltip" title="Dashboard">
+                        <i class="fa-solid fa-chart-line"></i><span class="d-none d-sm-inline ms-1">Dashboard</span>
+                    </a>
+
+                    <a href="{% url 'medical:prestation_list' %}" class="btn btn-soft btn-soft-primary me-1"
+                       data-bs-toggle="tooltip" title="Toutes les prestations">
+                        <i class="fa-solid fa-arrow-left"></i><span class="d-none d-sm-inline ms-1">Toutes</span>
+                    </a>
+                </nav>
+            </div>
+        </div>
+    </div>
+
+    <!-- Offcanvas for small screens -->
+    <div class="offcanvas offcanvas-start" tabindex="-1" id="factuOffcanvas" aria-labelledby="factuOffcanvasLabel">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="factuOffcanvasLabel"><i class="fa-solid fa-money-bill-wave"></i> Paiements
+            </h5>
+            <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Fermer"></button>
+        </div>
+        <div class="offcanvas-body">
+            <div class="list-group list-group-flush">
+                <a href="{% url 'prestations_especes_en_attente' %}" class="list-group-item list-group-item-action">En
+                    attente</a>
+                <a href="{% url 'prestations_especes_payees' %}"
+                   class="list-group-item list-group-item-action">Réglées</a>
+                <a href="{% url 'dashboard_paiements_especes' %}" class="list-group-item list-group-item-action">Dashboard</a>
+                <a href="{% url 'medical:prestation_list' %}" class="list-group-item list-group-item-action">Toutes les
+                    prestations</a>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Statistiques en haut -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                En Attente de Paiement
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_count }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-clock fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Total à Encaisser
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_general_attente|floatformat:2 }} DA</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-dollar-sign fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtres -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="fas fa-filter me-2"></i>Filtres de recherche
+            </h6>
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Date de début</label>
+                    <input type="date" name="start_date" class="form-control" value="{{ start_date|date:'Y-m-d' }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Date de fin</label>
+                    <input type="date" name="end_date" class="form-control" value="{{ end_date|date:'Y-m-d' }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Médecin</label>
+                    <select name="medecin" class="form-select">
+                        <option value="">Tous</option>
+                        {% for medecin in medecins %}
+                            <option value="{{ medecin.id }}" {% if request.GET.medecin == medecin.id|stringformat:"s" %}selected{% endif %}>
+                                Dr. {{ medecin.nom_complet }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label">&nbsp;</label>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search me-2"></i>Filtrer
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Liste des prestations -->
+    <div class="card shadow">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="fas fa-list me-2"></i>Prestations en attente de paiement ({{ total_count }})
+            </h6>
+        </div>
+        <div class="card-body">
+            {% if page_obj %}
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>ID</th>
+                                <th>Date</th>
+                                <th>Patient</th>
+                                <th>Médecin</th>
+                                <th>Actes Espèces</th>
+                                <th>Statut Paiement</th>
+                                <th class="text-end">Montant Total</th>
+                                <th class="text-end">Payé</th>
+                                <th class="text-end">Restant</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in page_obj %}
+                                <tr>
+                                    <td>
+                                        <strong>#{{ item.prestation.id }}</strong>
+                                    </td>
+                                    <td>
+                                        {{ item.prestation.date_prestation|date:"d/m/Y H:i" }}
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <i class="fas fa-user me-2 text-primary"></i>
+                                            {{ item.prestation.patient.nom_complet }}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <i class="fas fa-user-md me-2 text-success"></i>
+                                            Dr. {{ item.prestation.medecin.nom_complet }}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% for acte in item.actes_especes %}
+                                            <div class="mb-1">
+                                                <span class="badge bg-secondary me-1">{{ acte.acte.code }}</span>
+                                                {{ acte.acte.libelle }}
+                                                {% if acte.convention and acte.convention.nom|lower == "urgence" %}
+                                                    <span class="badge bg-warning ms-1">Urgence</span>
+                                                {% else %}
+                                                    <span class="badge bg-success ms-1">Sans convention</span>
+                                                {% endif %}
+                                            </div>
+                                        {% endfor %}
+                                    </td>
+                                    <td>
+                                        {% if item.paiement_info.montant_paye > 0 %}
+                                            <div class="progress mb-1" style="height: 20px;">
+                                                <div class="progress-bar bg-success" role="progressbar"
+                                                     style="width: {{ item.paiement_info.pourcentage_paye }}%"
+                                                     aria-valuenow="{{ item.paiement_info.pourcentage_paye }}"
+                                                     aria-valuemin="0" aria-valuemax="100">
+                                                    {{ item.paiement_info.pourcentage_paye|floatformat:0 }}%
+                                                </div>
+                                            </div>
+                                            <small class="text-muted">Paiement partiel</small>
+                                        {% else %}
+                                            <span class="badge bg-warning">En attente</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">
+                                        <strong class="text-primary">{{ item.paiement_info.total_especes|floatformat:2 }} DA</strong>
+                                    </td>
+                                    <td class="text-end">
+                                        <strong class="text-success">{{ item.paiement_info.montant_paye|floatformat:2 }} DA</strong>
+                                    </td>
+                                    <td class="text-end">
+                                        <strong class="text-warning">{{ item.paiement_info.montant_restant|floatformat:2 }} DA</strong>
+                                    </td>
+                                    {% has_permission user 'medical.manage_paiements_especes' as can_manage_especes %}
+{% if not can_manage_especes %}
+<div class="alert alert-danger">
+    <i class="fas fa-lock me-2"></i>
+    Vous n'avez pas les permissions pour gérer les paiements espèces.
+</div>
+{% else %}
+
+<!-- Boutons d'action -->
+<td class="text-center">
+    <div class="btn-group btn-group-sm">
+        {% has_permission user 'medical.view_prestationkt' as can_view %}
+        {% if can_view %}
+        <a href="{% url 'medical:prestation_detail' item.prestation.id %}" class="btn btn-outline-info"
+            title="Voir détails">
+            <i class="fas fa-eye"></i>
+        </a>
+        {% endif %}
+
+        {% has_permission user 'medical.encaisser_especes' as can_encaiss %}
+        {% if can_encaiss %}
+        <button class="btn btn-outline-success gerer-paiement-btn" data-prestation-id="{{ item.prestation.id }}"
+            title="Gérer le paiement">
+            <i class="fas fa-coins"></i>
+        </button>
+        {% endif %}
+
+        {% has_permission user 'medical.generate_bon_paiement' as can_generate_bon %}
+        {% if can_generate_bon %}
+        <a href="{% url 'medical:export_bon_paiement_especes' item.prestation.id %}" class="btn btn-outline-primary"
+            title="Bon de paiement">
+            <i class="fas fa-file-invoice-dollar"></i>
+        </a>
+        {% endif %}
+    </div>
+</td>
+
+{% endif %}
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                {% if is_paginated %}
+                <nav aria-label="Pagination des prestations">
+                    <ul class="pagination justify-content-center">
+                        {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}&{{ request.GET.urlencode }}">Précédent</a>
+                            </li>
+                        {% endif %}
+                        
+                        {% for num in page_obj.paginator.page_range %}
+                            {% if page_obj.number == num %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ num }}</span>
+                                </li>
+                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ num }}&{{ request.GET.urlencode }}">{{ num }}</a>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}&{{ request.GET.urlencode }}">Suivant</a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">Aucune prestation en attente de paiement</h5>
+                    <p class="text-muted">Toutes les prestations espèces sont réglées ou il n'y a pas de prestations dans cette période.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Modal de gestion des paiements -->
+<div class="modal fade" id="paiementModal" tabindex="-1" aria-labelledby="paiementModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="paiementModalLabel">
+                    <i class="fas fa-coins me-2"></i>Gestion du Paiement Espèces
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Informations de la prestation -->
+                <div class="card mb-3">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>Informations de la prestation</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>Prestation #</strong><span id="modal-prestation-id"></span></p>
+                                <p><strong>Patient:</strong> <span id="modal-patient"></span></p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Date:</strong> <span id="modal-date"></span></p>
+                                <p><strong>Médecin:</strong> <span id="modal-medecin"></span></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Résumé du paiement -->
+                <div class="card mb-3">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0"><i class="fas fa-calculator me-2"></i>Résumé du paiement</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-md-4">
+                                <div class="border-end">
+                                    <h4 class="text-primary mb-1" id="modal-total-du">0.00 DA</h4>
+                                    <small class="text-muted">Total dû</small>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="border-end">
+                                    <h4 class="text-success mb-1" id="modal-montant-paye">0.00 DA</h4>
+                                    <small class="text-muted">Déjà payé</small>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <h4 class="text-warning mb-1" id="modal-montant-restant">0.00 DA</h4>
+                                <small class="text-muted">Restant à payer</small>
+                            </div>
+                        </div>
+                        <div class="progress mt-3" style="height: 20px;">
+                            <div class="progress-bar bg-success" role="progressbar"
+                                 id="modal-progress-bar" style="width: 0%">
+                                <span id="modal-pourcentage">0%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+<!-- À ajouter dans le modal paiementModal, après la section "Résumé du paiement" -->
+<div class="card mb-3">
+    <div class="card-header bg-light">
+        <h6 class="mb-0"><i class="fas fa-list me-2"></i>Détail des éléments en espèces</h6>
+    </div>
+    <div class="card-body p-0">
+        <div id="modal-elements-detail">
+            <!-- Contenu généré par JavaScript -->
+            <div class="text-center py-3 text-muted">
+                <i class="fas fa-money-bill-wave fa-2x mb-2"></i>
+                <p>Chargement des éléments...</p>
+            </div>
+        </div>
+    </div>
+</div>
+                <!-- Formulaire de nouveau paiement -->
+                <div class="card mb-3">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0"><i class="fas fa-plus me-2"></i>Nouveau paiement</h6>
+                    </div>
+                    <div class="card-body">
+                        <form id="nouveau-paiement-form">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label for="montant-paiement" class="form-label">Montant du paiement *</label>
+                                    <div class="input-group">
+                                        <input type="number"
+                                               class="form-control"
+                                               id="montant-paiement"
+                                               name="montant"
+                                               step="0.01"
+                                               min="0.01"
+                                               required>
+                                        <span class="input-group-text">DA</span>
+                                    </div>
+                                    <div class="form-text">
+                                        <button type="button" class="btn btn-link btn-sm p-0" id="btn-montant-complet">
+                                            Payer le montant complet
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="notes-paiement" class="form-label">Notes (optionnel)</label>
+                                    <textarea class="form-control"
+                                              id="notes-paiement"
+                                              name="notes"
+                                              rows="3"
+                                              placeholder="Notes sur ce paiement..."></textarea>
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <button type="submit" class="btn btn-success">
+                                    <i class="fas fa-check me-2"></i>Enregistrer le paiement
+                                </button>
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                    <i class="fas fa-times me-2"></i>Annuler
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Historique des paiements -->
+                <div class="card">
+                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0"><i class="fas fa-history me-2"></i>Historique des paiements</h6>
+                        <span class="badge bg-primary" id="badge-nb-tranches">0</span>
+                    </div>
+                    <div class="card-body p-0">
+                        <div id="historique-paiements">
+                            <div class="text-center py-3 text-muted">
+                                <i class="fas fa-clock fa-2x mb-2"></i>
+                                <p>Aucun paiement enregistré</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Scripts JavaScript -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let currentPrestationId = null;
+    let currentPaiementData = null;
+
+    // Fonction pour mettre à jour le badge du nombre de prestations en attente
+    function updateBadgeAttente() {
+        fetch('/finance/paiement-especes-kt/?ajax=1')
+            .then(response => response.json())
+            .then(data => {
+                const badge = document.getElementById('badge-attente');
+                if (badge && data.count !== undefined) {
+                    badge.textContent = data.count;
+                    badge.style.display = data.count > 0 ? 'inline' : 'none';
+                }
+            })
+            .catch(error => console.error('Erreur lors de la mise à jour du badge:', error));
+    }
+
+    // Gérer l'ouverture du modal de paiement
+    document.querySelectorAll('.gerer-paiement-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            currentPrestationId = this.dataset.prestationId;
+            chargerDonneesPaiement(currentPrestationId);
+        });
+    });
+
+    // Charger les données de paiement
+    function chargerDonneesPaiement(prestationId) {
+        fetch(`/finance/paiement-especes-kt/${prestationId}/paiement-especes/`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    currentPaiementData = data;
+                    remplirModalPaiement(data);
+                    const modal = new bootstrap.Modal(document.getElementById('paiementModal'));
+                    modal.show();
+                } else {
+                    alert('Erreur: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Erreur:', error);
+                alert('Une erreur est survenue lors du chargement des données');
+            });
+    }
+    
+    // Remplir le modal avec les données
+    function remplirModalPaiement(data) {
+        // Informations prestation
+        document.getElementById('modal-prestation-id').textContent = data.prestation.id;
+        document.getElementById('modal-patient').textContent = data.prestation.patient;
+        document.getElementById('modal-date').textContent = data.prestation.date;
+        document.getElementById('modal-medecin').textContent = data.prestation.medecin;
+
+        // Résumé paiement
+        document.getElementById('modal-total-du').textContent = data.paiement.montant_total_du.toFixed(2) + ' DA';
+        document.getElementById('modal-montant-paye').textContent = data.paiement.montant_paye.toFixed(2) + ' DA';
+        document.getElementById('modal-montant-restant').textContent = data.paiement.montant_restant.toFixed(2) + ' DA';
+
+        const pourcentage = data.paiement.pourcentage_paye.toFixed(0);
+        document.getElementById('modal-pourcentage').textContent = pourcentage + '%';
+        document.getElementById('modal-progress-bar').style.width = pourcentage + '%';
+
+        // Mettre à jour le montant maximum
+        document.getElementById('montant-paiement').max = data.paiement.montant_restant;
+
+                // Afficher les éléments espèces (au lieu des actes uniquement)
+                afficherElementsEspeces(data.elements_especes);
+
+        // Historique des paiements
+        afficherHistoriquePaiements(data.tranches);
+
+        // Badge nombre de tranches
+        document.getElementById('badge-nb-tranches').textContent = data.tranches.length;
+    }
+
+            // NOUVELLE FONCTION: Afficher tous les éléments espèces
+            function afficherElementsEspeces(elements) {
+                // Vous pouvez ajouter une section dans le modal pour afficher le détail
+                // Pour l'instant, on peut logger ou afficher dans une section dédiée
+                console.log('Éléments espèces:', elements);
+
+                // Si vous avez une section dans le modal pour afficher le détail des éléments:
+                const detailContainer = document.getElementById('modal-elements-detail');
+                if (detailContainer) {
+                    let html = '';
+                    let total = 0;
+
+                    elements.forEach(element => {
+                        total += element.tarif;
+                        let badgeClass = 'bg-secondary';
+                        if (element.type === 'acte') {
+                            badgeClass = element.convention.toLowerCase().includes('urgence') ? 'bg-warning' : 'bg-success';
+                        } else if (element.type === 'consommation') {
+                            badgeClass = 'bg-info';
+                        } else if (element.type === 'frais') {
+                            badgeClass = 'bg-primary';
+                        }
+
+                        html += `
+                    <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                        <div>
+                            <span class="badge ${badgeClass} me-2">${element.code}</span>
+                            <span>${element.libelle}</span>
+                            <div class="small text-muted">${element.convention}</div>
+                        </div>
+                        <div class="text-end">
+                            <strong>${element.tarif.toFixed(2)} DA</strong>
+                        </div>
+                    </div>
+                `;
+                    });
+
+                    html += `
+                <div class="d-flex justify-content-between align-items-center py-2 bg-light">
+                    <strong>TOTAL ESPÈCES:</strong>
+                    <strong class="text-primary">${total.toFixed(2)} DA</strong>
+                </div>
+            `;
+
+                    detailContainer.innerHTML = html;
+                }
+            }
+
+    // Afficher l'historique des paiements
+    function afficherHistoriquePaiements(tranches) {
+        const container = document.getElementById('historique-paiements');
+
+        if (tranches.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-3 text-muted">
+                    <i class="fas fa-clock fa-2x mb-2"></i>
+                    <p>Aucun paiement enregistré</p>
+                </div>
+            `;
+            return;
+        }
+
+        let html = '';
+        tranches.forEach(tranche => {
+            html += `
+                <div class="border-bottom p-3" data-tranche-id="${tranche.id}">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <div class="d-flex align-items-center mb-1">
+                                <strong class="text-success me-2">${tranche.montant.toFixed(2)} DA</strong>
+                                <small class="text-muted">${tranche.date_paiement}</small>
+                            </div>
+                            <div class="small text-muted">
+                                <i class="fas fa-user me-1"></i>Encaissé par: ${tranche.encaisse_par}
+                            </div>
+                            ${tranche.notes ? `<div class="small text-muted mt-1"><i class="fas fa-comment me-1"></i>${tranche.notes}</div>` : ''}
+                        </div>
+                        <button class="btn btn-outline-danger btn-sm supprimer-tranche-btn"
+                                data-tranche-id="${tranche.id}"
+                                title="Supprimer ce paiement">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+
+        // Ajouter les événements de suppression
+        container.querySelectorAll('.supprimer-tranche-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+                const trancheId = this.dataset.trancheId;
+                if (confirm('Êtes-vous sûr de vouloir supprimer ce paiement ?')) {
+                    supprimerTranche(trancheId);
+                }
+            });
+        });
+    }
+
+    // Bouton pour payer le montant complet
+    document.getElementById('btn-montant-complet').addEventListener('click', function() {
+        if (currentPaiementData) {
+            document.getElementById('montant-paiement').value = currentPaiementData.paiement.montant_restant.toFixed(2);
+        }
+    });
+
+    // Soumission du formulaire de nouveau paiement
+    document.getElementById('nouveau-paiement-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const formData = new FormData(this);
+        const montant = parseFloat(formData.get('montant'));
+        const notes = formData.get('notes');
+            
+        if (!montant || montant <= 0) {
+            alert('Veuillez saisir un montant valide');
+            return;
+        }
+
+        if (currentPaiementData && montant > currentPaiementData.paiement.montant_restant) {
+            alert('Le montant ne peut pas dépasser ce qui reste à payer');
+            return;
+        }
+
+        enregistrerNouveauPaiement(currentPrestationId, montant, notes);
+    });
+
+    // Enregistrer un nouveau paiement
+    function enregistrerNouveauPaiement(prestationId, montant, notes) {
+        const submitBtn = document.querySelector('#nouveau-paiement-form button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+                
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Enregistrement...';
+
+        fetch(`/finance/paiement-especes-kt/${prestationId}/paiement-especes/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                montant: montant,
+                notes: notes
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Réinitialiser le formulaire
+                document.getElementById('nouveau-paiement-form').reset();
+
+                // Recharger les données
+                chargerDonneesPaiement(prestationId);
+
+                // Recharger la page si paiement complet
+                if (data.prestation_payee) {
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1500);
+                    alert('Paiement complet ! La prestation sera marquée comme payée.');
+                } else {
+                    // Mettre à jour l'affichage de la ligne
+                    updateTableRow(prestationId, data);
+                }
+            } else {
+                alert('Erreur: ' + data.message);
+                    }
+                })
+        .catch(error => {
+            console.error('Erreur:', error);
+            alert('Une erreur est survenue');
+        })
+        .finally(() => {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+        });
+    }
+
+    // Supprimer une tranche de paiement
+    function supprimerTranche(trancheId) {
+        fetch(`/finance/paiement-especes-kt/tranches/${trancheId}/`, {
+            method: 'DELETE'
+        })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                // Recharger les données
+                chargerDonneesPaiement(currentPrestationId);
+
+                // Recharger la page si la prestation n'est plus payée
+                if (currentPaiementData && currentPaiementData.paiement.statut === 'COMPLET') {
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1000);
+                }
+                    } else {
+                        alert('Erreur: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Erreur:', error);
+                    alert('Une erreur est survenue');
+                });
+            }
+
+    // Mettre à jour une ligne du tableau
+    function updateTableRow(prestationId, data) {
+        // Cette fonction peut être améliorée pour mettre à jour directement
+        // les cellules du tableau sans recharger la page
+        updateBadgeAttente();
+    }
+
+    // Mettre à jour le badge au chargement de la page
+    updateBadgeAttente();
+
+    // Optionnel: Mettre à jour toutes les 5 minutes
+    setInterval(updateBadgeAttente, 5 * 60 * 1000);
+});
+</script>
+{% endblock %}

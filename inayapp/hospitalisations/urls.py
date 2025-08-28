@@ -5,52 +5,57 @@ from . import views
 app_name = "hospitalisation"
 
 urlpatterns = [
-    # Plan d'étage centralisé
+    # Vue principale du plan d"étage
     path(
-        "service/<int:service_id>/plan/",
+        "floor_plan/<int:service_id>/",
         views.floor_plan_centralized,
         name="floor_plan_centralized",
     ),
-    # Gestion des demandes d'admission
+    # API endpoints pour les actions AJAX
+    path("api/admit_patient/", views.admit_patient, name="admit_patient"),
+    path("api/transfer_patient/", views.transfer_patient, name="transfer_patient"),
     path(
-        "api/add-admission-request/",
+        "api/transfer_patient_to_service/",
+        views.transfer_patient_to_service,
+        name="transfer_patient_to_service",
+    ),
+    path(
+        "api/add_admission_request/",
         views.add_admission_request,
         name="add_admission_request",
     ),
-
     path(
-        "api/cancel-request/<int:request_id>/",
-        views.cancel_admission_request,
-        name="cancel_admission_request",
-    ),
-    # API pour les opérations principales
-    path("api/admit-patient/", views.admit_patient, name="admit_patient"),
-    path("api/transfer-patient/", views.transfer_patient, name="transfer_patient"),
-    # API pour les détails des admissions
-    path(
-        "api/admission/<int:admission_id>/",
-        views.admission_detail_api,
-        name="admission_detail_api",
-    ),
-    # Gestion des patients
-    path(
-        "admissions/<int:admission_id>/sortie/",
+        "api/discharge_patient/<int:admission_id>/",
         views.discharge_patient,
         name="discharge_patient",
     ),
-    # Gestion des chambres
-
     path(
-        "api/room/<int:room_id>/",
-        views.room_detail_api,
-        name="room_detail_api",
+        "api/cancel_admission_request/<int:request_id>/",
+        views.cancel_admission_request,
+        name="cancel_admission_request",
     ),
-
-
-    # Mise à jour du statut des lits
+    # API endpoints pour récupérer les données
     path(
-        "api/bed/<int:bed_id>/update-status/",
-        views.update_bed_status,
-        name="update_bed_status",
+        "api/admission_detail/<int:admission_id>/",
+        views.admission_detail_api,
+        name="admission_detail_api",
+    ),
+    path(
+        "api/available_beds/",
+        views.available_beds_by_service_api,
+        name="available_beds_api",
+    ),
+    path(
+        "api/available_beds/<int:service_id>/",
+        views.available_beds_by_service_api,
+        name="available_beds_by_service_api",
+    ),
+    path(
+        "api/room_detail/<int:room_id>/", views.room_detail_api, name="room_detail_api"
+    ),
+    path(
+        "api/check-requests-status/",
+        views.check_requests_status,
+        name="check_requests_status",
     ),
 ]

@@ -1,0 +1,430 @@
+<!-- /facturation_KT/actes_rejetes.html -->
+{% extends "layout.html" %}
+{% load app_filters %}
+{% load static %}
+{% load custom_filters %}
+{% load permissions_tags %}
+{% block content %}
+
+<div class="container-fluid py-0">
+
+<!-- NAVBAR FACTURATION -->
+<div class="factu-toolbar sticky-top">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <h2 class="m-0 d-flex align-items-center gap-2">
+            <i class="bi bi-x-circle"></i>
+            <span>Gestion des Actes Rejetés</span>
+        </h2>
+
+        <!-- Toggle button: visible only on small screens -->
+        <button class="btn btn-outline-primary d-flex d-md-none align-items-center" type="button"
+            data-bs-toggle="offcanvas" data-bs-target="#factuOffcanvas" aria-controls="factuOffcanvas"
+            aria-label="Ouvrir le menu">
+            <i class="bi bi-list me-2"></i> Menu
+        </button>
+
+        <!-- Desktop nav: hidden on small screens (d-none d-md-flex) -->
+        <nav class="d-none d-md-flex flex-wrap gap-2">
+            {% has_permission user 'medical.manage_conventions' as can_manage_conv %}
+            {% if can_manage_conv %}
+            <a href="{% url 'gestion_convention_accorde_dossier' %}"
+                class="btn btn-soft-primary {% if request.resolver_match.url_name == 'gestion_convention_accorde_dossier' %}active{% endif %}">
+                <i class="bi bi-shield-check me-1"></i> Accord & Dossier
+            </a>
+            {% endif %}
+
+            {% has_permission user 'medical.facturer_prestationacte' as can_facturer %}
+            {% if can_facturer %}
+            <a href="{% url 'actes_a_facturer' %}"
+                class="btn btn-soft-primary {% if request.resolver_match.url_name == 'actes_a_facturer' %}active{% endif %}">
+                <i class="bi bi-receipt me-1"></i> À Facturer
+            </a>
+            {% endif %}
+
+            {% has_permission user 'medical.view_facturation_details' as can_view_facturation %}
+            {% if can_view_facturation %}
+            <a href="{% url 'actes_factures' %}"
+                class="btn btn-soft-primary {% if request.resolver_match.url_name == 'actes_factures' %}active{% endif %}">
+                <i class="bi bi-list-check me-1"></i> Actes Facturés
+            </a>
+
+            <a href="{% url 'actes_payes' %}"
+                class="btn btn-soft-success {% if request.resolver_match.url_name == 'actes_payes' %}active{% endif %}">
+                <i class="bi bi-check-circle me-1"></i> Actes Payés
+            </a>
+
+            <a href="{% url 'actes_rejetes' %}"
+                class="btn btn-soft-danger {% if request.resolver_match.url_name == 'actes_rejetes' %}active{% endif %}">
+                <i class="bi bi-x-circle me-1"></i> Actes Rejetés
+            </a>
+
+            <a href="{% url 'tableau_bord_facturation' %}"
+                class="btn btn-soft-info {% if request.resolver_match.url_name == 'tableau_bord_facturation' %}active{% endif %}">
+                <i class="bi bi-graph-up me-1"></i> Tableau de Bord
+            </a>
+            {% endif %}
+        </nav>
+    </div>
+</div>
+
+<!-- Offcanvas for small screens -->
+<div class="offcanvas offcanvas-start" tabindex="-1" id="factuOffcanvas" aria-labelledby="factuOffcanvasLabel">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title d-flex align-items-center gap-2" id="factuOffcanvasLabel">
+            <i class="bi bi-shield-check"></i> Menu Facturation
+        </h5>
+        <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Fermer"></button>
+    </div>
+    <div class="offcanvas-body">
+        <!-- Reprend les mêmes boutons mais en mode vertical pour mobile -->
+        <div class="d-grid gap-2">
+            {% has_permission user 'medical.manage_conventions' as can_manage_conv %}
+            {% if can_manage_conv %}
+            <a href="{% url 'gestion_convention_accorde_dossier' %}"
+                class="btn btn-soft-primary w-100 text-start {% if request.resolver_match.url_name == 'gestion_convention_accorde_dossier' %}active{% endif %}">
+                <i class="bi bi-shield-check me-1"></i> Accord & Dossier
+            </a>
+            {% endif %}
+
+            {% has_permission user 'medical.facturer_prestationacte' as can_facturer %}
+            {% if can_facturer %}
+            <a href="{% url 'actes_a_facturer' %}"
+                class="btn btn-soft-primary w-100 text-start {% if request.resolver_match.url_name == 'actes_a_facturer' %}active{% endif %}">
+                <i class="bi bi-receipt me-1"></i> À Facturer
+            </a>
+            {% endif %}
+
+            {% has_permission user 'medical.view_facturation_details' as can_view_facturation %}
+            {% if can_view_facturation %}
+            <a href="{% url 'actes_factures' %}"
+                class="btn btn-soft-primary w-100 text-start {% if request.resolver_match.url_name == 'actes_factures' %}active{% endif %}">
+                <i class="bi bi-list-check me-1"></i> Actes Facturés
+            </a>
+
+            <a href="{% url 'actes_payes' %}"
+                class="btn btn-soft-success w-100 text-start {% if request.resolver_match.url_name == 'actes_payes' %}active{% endif %}">
+                <i class="bi bi-check-circle me-1"></i> Actes Payés
+            </a>
+
+            <a href="{% url 'actes_rejetes' %}"
+                class="btn btn-soft-danger w-100 text-start {% if request.resolver_match.url_name == 'actes_rejetes' %}active{% endif %}">
+                <i class="bi bi-x-circle me-1"></i> Actes Rejetés
+            </a>
+
+            <a href="{% url 'tableau_bord_facturation' %}"
+                class="btn btn-soft-info w-100 text-start {% if request.resolver_match.url_name == 'tableau_bord_facturation' %}active{% endif %}">
+                <i class="bi bi-graph-up me-1"></i> Tableau de Bord
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+
+
+            <!-- Statistiques -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card bg-danger text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4>{{ total_actes }}</h4>
+                                    <p class="mb-0">Actes rejetés</p>
+                                </div>
+                                <div>
+                                    <i class="bi bi-x-circle fs-1"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card bg-secondary text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4>{{ montant_total|floatformat:2 }} DA</h4>
+                                    <p class="mb-0">Montant rejeté</p>
+                                </div>
+                                <div>
+                                    <i class="bi bi-currency-exchange fs-1"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filtres et recherche -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <form method="GET" class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label">Recherche</label>
+                            <input type="text" name="search" value="{{ search }}" 
+                                   class="form-control" placeholder="Patient, acte, motif...">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Convention</label>
+                            <select name="convention" class="form-select">
+                                <option value="">Toutes</option>
+                                {% for conv in conventions %}
+                                    <option value="{{ conv.id }}" 
+                                            {% if conv.id|stringformat:"s" == selected_convention %}selected{% endif %}>
+                                        {{ conv.nom }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Médecin</label>
+                            <select name="medecin" class="form-select">
+                                <option value="">Tous</option>
+                                {% for medecin in medecins %}
+                                    <option value="{{ medecin.id }}" 
+                                            {% if medecin.id|stringformat:"s" == selected_medecin %}selected{% endif %}>
+                                        {{ medecin.last_name }} {{ medecin.first_name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-search"></i> Filtrer
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Messages Django -->
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <!-- Liste des actes rejetés -->
+            <div class="card">
+                <div class="card-body">
+                    {% if page_obj %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Patient</th>
+                                        <th>Acte</th>
+                                        <th>Médecin</th>
+                                        <th>Convention</th>
+                                        <th>Date Facture</th>
+                                        <th>Date Rejet</th>
+                                        <th>Montant</th>
+                                        <th>Motif de Rejet</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for acte in page_obj %}
+                                        <tr>
+                                            <td>
+                                                <strong>{{ acte.prestation.patient.nom_complet }}</strong>
+                                                <br><small class="text-muted">{{ acte.prestation.patient.date_naissance|date:"d/m/Y" }}</small>
+                                            </td>
+                                            <td>
+                                                <strong>{{ acte.acte.code }}</strong>
+                                                <br><small>{{ acte.acte.libelle }}</small>
+                                            </td>
+                                            <td>
+                                                <strong>{{ acte.prestation.medecin.last_name }} {{ acte.prestation.medecin.first_name }}</strong>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-info">{{ acte.convention.nom }}</span>
+                                            </td>
+                                            <td>
+                                                {{ acte.date_facturation|date:"d/m/Y" }}
+                                            </td>
+                                            <td>
+                                                <strong class="text-danger">{{ acte.date_rejet|date:"d/m/Y" }}</strong>
+                                            </td>
+                                            <td>
+                                                <strong class="text-danger">{{ acte.tarif_conventionne|floatformat:2 }} DA</strong>
+                                            </td>
+                                            <td>
+                                                <button type="button" class="btn btn-outline-danger btn-sm" 
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#modalMotif{{ acte.id }}"
+                                                        title="Voir le motif de rejet">
+                                                    <i class="bi bi-eye"></i> Voir motif
+                                                </button>
+
+                                                <!-- Modal Motif de rejet -->
+                                                <div class="modal fade" id="modalMotif{{ acte.id }}" tabindex="-1">
+                                                    <div class="modal-dialog">
+                                                        <div class="modal-content">
+                                                            <div class="modal-header">
+                                                                <h5 class="modal-title">Motif de Rejet</h5>
+                                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                            </div>
+                                                            <div class="modal-body">
+                                                                <div class="mb-3">
+                                                                    <label class="form-label">Patient</label>
+                                                                    <p class="form-control-plaintext">{{ acte.prestation.patient.nom }} {{ acte.prestation.patient.prenom }}</p>
+                                                                </div>
+                                                                <div class="mb-3">
+                                                                    <label class="form-label">Acte</label>
+                                                                    <p class="form-control-plaintext">{{ acte.acte.code }} - {{ acte.acte.libelle }}</p>
+                                                                </div>
+                                                                <div class="mb-3">
+                                                                    <label class="form-label">Convention</label>
+                                                                    <p class="form-control-plaintext">{{ acte.convention.nom }}</p>
+                                                                </div>
+                                                                <div class="mb-3">
+                                                                    <label class="form-label">Date de rejet</label>
+                                                                    <p class="form-control-plaintext">{{ acte.date_rejet|date:"d/m/Y" }}</p>
+                                                                </div>
+                                                                <div class="mb-3">
+                                                                    <label class="form-label">Montant rejeté</label>
+                                                                    <p class="form-control-plaintext text-danger">{{ acte.tarif_conventionne|floatformat:2 }} DA</p>
+                                                                </div>
+                                                                <div class="mb-3">
+                                                                    <label class="form-label">Motif du rejet</label>
+                                                                    <div class="alert alert-danger">
+                                                                        {{ acte.motif_rejet|linebreaks }}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <div class="modal-footer">
+                                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-danger">
+                                                    <i class="bi bi-x-circle"></i> Rejeté
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Pagination -->
+                        {% if page_obj.has_other_pages %}
+                            <nav aria-label="Navigation pagination">
+                                <ul class="pagination justify-content-center">
+                                    {% if page_obj.has_previous %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page=1{% if search %}&search={{ search }}{% endif %}{% if selected_convention %}&convention={{ selected_convention }}{% endif %}{% if selected_medecin %}&medecin={{ selected_medecin }}{% endif %}">Premier</a>
+                                        </li>
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if selected_convention %}&convention={{ selected_convention }}{% endif %}{% if selected_medecin %}&medecin={{ selected_medecin }}{% endif %}">Précédent</a>
+                                        </li>
+                                    {% endif %}
+
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ page_obj.number }} sur {{ page_obj.paginator.num_pages }}</span>
+                                    </li>
+
+                                    {% if page_obj.has_next %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if selected_convention %}&convention={{ selected_convention }}{% endif %}{% if selected_medecin %}&medecin={{ selected_medecin }}{% endif %}">Suivant</a>
+                                        </li>
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search %}&search={{ search }}{% endif %}{% if selected_convention %}&convention={{ selected_convention }}{% endif %}{% if selected_medecin %}&medecin={{ selected_medecin }}{% endif %}">Dernier</a>
+                                        </li>
+                                    {% endif %}
+                                </ul>
+                            </nav>
+                        {% endif %}
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="bi bi-inbox display-1 text-muted"></i>
+                            <h4 class="text-muted">Aucun acte rejeté</h4>
+                            <p class="text-muted">Aucun acte rejeté trouvé avec ces critères.</p>
+                        </div>
+                    {% endif %}
+                </div>
+
+    </div>
+</div>
+<style>
+    /* ===== Toolbar Facturation ===== */
+.factu-toolbar{
+  backdrop-filter: saturate(140%) blur(6px);
+  background: linear-gradient(180deg, rgba(237, 0, 0, 0.85), rgba(16, 0, 61, 0.75));
+  border-radius: 18px;
+  padding: .9rem 1rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 6px 24px rgba(16,24,40,.06), 0 1px 2px rgba(16,24,40,.06);
+  border: 1px solid rgba(0,0,0,.06);
+  top: .75rem;           /* utile avec sticky-top */
+  z-index: 1020;         /* au-dessus du contenu */
+}
+
+/* variantes “soft” (s’accordent avec Bootstrap) */
+.btn-soft-primary,
+.btn-soft-success,
+.btn-soft-danger,
+.btn-soft-info{
+  --btn-bg: var(--bs-primary);
+  --btn-text: var(--bs-primary);
+  --btn-ring: var(--bs-primary);
+  color: var(--btn-text);
+  background: color-mix(in srgb, var(--btn-bg) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--btn-bg) 18%, transparent);
+  border-radius: 999px;
+  padding: .5rem .9rem;
+  font-weight: 600;
+  transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+}
+.btn-soft-success{ --btn-bg: var(--bs-success); --btn-text: var(--bs-success); --btn-ring: var(--bs-success); }
+.btn-soft-danger{  --btn-bg: var(--bs-danger);  --btn-text: var(--bs-danger);  --btn-ring: var(--bs-danger);  }
+.btn-soft-info{    --btn-bg: var(--bs-info);    --btn-text: var(--bs-info);    --btn-ring: var(--bs-info);    }
+
+.btn-soft-primary:hover,
+.btn-soft-success:hover,
+.btn-soft-danger:hover,
+.btn-soft-info:hover{
+  background: color-mix(in srgb, var(--btn-bg) 16%, white);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--btn-bg) 18%, transparent);
+  text-decoration: none;
+}
+
+.btn-soft-primary.active,
+.btn-soft-success.active,
+.btn-soft-danger.active,
+.btn-soft-info.active{
+  background: var(--btn-bg);
+  color: #fff !important;
+  border-color: var(--btn-bg);
+  box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--btn-ring) 25%, transparent);
+}
+
+/* icônes et texte compact */
+.factu-toolbar .bi{ font-size: 1rem; line-height: 1; }
+.factu-toolbar h2{ font-size: clamp(1.05rem, 1.2vw + .8rem, 1.35rem); font-weight: 700; }
+
+/* responsive: wrap naturel + gap propre */
+.factu-toolbar nav{ row-gap: .4rem; }
+
+/* mode sombre (si tu utilises .bg-dark / body.dark) */
+@media (prefers-color-scheme: dark){
+  .factu-toolbar{
+    background: linear-gradient(180deg, #6365f158, #6365f111);
+    border-color: rgba(255,255,255,.08);
+  }
+}
+
+</style>
+{% endblock %}

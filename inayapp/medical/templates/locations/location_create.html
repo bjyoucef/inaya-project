@@ -3,7 +3,6 @@
 
 {% block content %}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
 <div class="container-fluid py-4">
@@ -12,7 +11,7 @@
     <div class="d-flex justify-content-between align-items-center">
       <div>
         <h1 class="h2 mb-2"><i class="bi bi-building me-3"></i>Location de Bloc Opératoire</h1>
-        <p class="mb-0 opacity-90">Créer une nouvelle location avec gestion automatique des produits inclus</p>
+        <p class="mb-0 opacity-90">Interface simplifiée avec gestion unifiée des produits et actes</p>
       </div>
       <a class="btn btn-light" href="{% url 'medical:location_bloc_list' %}">
         <i class="bi bi-arrow-left me-2"></i>Retour
@@ -72,94 +71,92 @@
           </div>
 
           <div class="col-md-4">
+            <label class="form-label fw-semibold">Nom de l'intervention <span class="text-danger">*</span></label>
+            <input type="text" name="nom_acte" id="nomActe" class="form-control"
+              value="{{ form_data.nom_acte|default:'' }}" placeholder="Ex: Appendicectomie laparoscopique" required>
+          </div>
+
+          <div class="col-12">
             <label class="form-label fw-semibold">Observations</label>
-            <textarea name="observations" class="form-control" rows="1" 
+            <textarea name="observations" class="form-control" rows="2" 
               placeholder="Notes additionnelles...">{{ form_data.observations|default:'' }}</textarea>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- 2. Sélection du bloc -->
+    <!-- 2. Sélection du bloc et mode de tarification -->
     <div class="card shadow-sm mb-4">
       <div class="card-header bg-primary text-white">
-        <i class="bi bi-hospital me-2"></i>Sélection du bloc opératoire
+        <i class="bi bi-hospital me-2"></i>Configuration du bloc et tarification
       </div>
       <div class="card-body">
-        <div class="row g-3">
-          {% for bloc in blocs %}
-          <div class="col-xl-3 col-lg-4 col-md-6">
-            <div class="card h-100 pricing-card border-2 {% if form_data.bloc|stringformat:'s' == bloc.id|stringformat:'s' %}border-primary{% endif %}"
-                 onclick="LocationManager.selectBloc(this,'bloc_{{ bloc.id }}')" style="cursor: pointer;">
-              <input class="d-none" type="radio" id="bloc_{{ bloc.id }}" name="bloc" value="{{ bloc.id }}"
-                data-bloc-id="{{ bloc.id }}" {% if form_data.bloc|stringformat:'s' == bloc.id|stringformat:'s' %}checked{% endif %}>
-              <div class="card-body text-center">
-                <h6 class="card-title">{{ bloc.nom_bloc }}</h6>
-                <div class="h4 text-primary">{{ bloc.prix_base|floatformat:2 }} DA</div>
-                <small class="text-muted d-block mb-2">90 min incluses</small>
-                <hr>
-                <small class="d-block mb-2">+ {{ bloc.prix_supplement_30min|floatformat:2 }} DA / 30min</small>
-                {% if bloc.description %}
-                <p class="small text-muted">{{ bloc.description }}</p>
-                {% endif %}
-                {% if bloc.produits_inclus.exists %}
-                <span class="badge bg-success">
-                  <i class="bi bi-check-circle"></i> {{ bloc.produits_inclus.count }} produit(s) inclus
-                </span>
-                {% endif %}
+        <!-- Mode de tarification -->
+        <div class="row mb-4">
+          <div class="col-12">
+            <h6 class="fw-bold mb-3">Mode de tarification</h6>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <div class="card h-100 pricing-card border-2 {% if form_data.type_tarification == 'DUREE' or not form_data.type_tarification %}border-primary{% endif %}"
+                     onclick="LocationManager.chooseTarif('DUREE')" style="cursor: pointer;">
+                  <input class="d-none" id="tarif_duree" type="radio" name="type_tarification" value="DUREE"
+                    {% if form_data.type_tarification == 'DUREE' or not form_data.type_tarification %}checked{% endif %}>
+                  <div class="card-body text-center">
+                    <i class="bi bi-clock fs-2 text-primary"></i>
+                    <h5 class="mt-2">Tarification à la durée</h5>
+                    <p class="text-muted">Prix calculé selon la durée réelle</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="col-md-6">
+                <div class="card h-100 pricing-card border-2 {% if form_data.type_tarification == 'FORFAIT' %}border-primary{% endif %}"
+                     onclick="LocationManager.chooseTarif('FORFAIT')" style="cursor: pointer;">
+                  <input class="d-none" id="tarif_forfait" type="radio" name="type_tarification" value="FORFAIT"
+                    {% if form_data.type_tarification == 'FORFAIT' %}checked{% endif %}>
+                  <div class="card-body text-center">
+                    <i class="bi bi-box fs-2 text-primary"></i>
+                    <h5 class="mt-2">Tarification forfaitaire</h5>
+                    <p class="text-muted">Prix fixe avec éléments inclus</p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-          {% endfor %}
         </div>
-      </div>
-    </div>
 
-    <!-- 3. Mode de tarification -->
-    <div class="card shadow-sm mb-4">
-      <div class="card-header bg-primary text-white">
-        <i class="bi bi-cash-coin me-2"></i>Mode de tarification
-      </div>
-      <div class="card-body">
-        <div class="row g-3">
-          <div class="col-md-6">
-            <div class="card h-100 pricing-card border-2 {% if form_data.type_tarification == 'DUREE' or not form_data.type_tarification %}border-primary{% endif %}"
-                 onclick="LocationManager.chooseTarif('DUREE')" style="cursor: pointer;">
-              <input class="d-none" id="tarif_duree" type="radio" name="type_tarification" value="DUREE"
-                {% if form_data.type_tarification == 'DUREE' or not form_data.type_tarification %}checked{% endif %}>
-              <div class="card-body text-center">
-                <i class="bi bi-clock fs-2 text-primary"></i>
-                <h5 class="mt-2">Tarification à la durée</h5>
-                <p class="text-muted">Prix calculé selon la durée réelle d'utilisation</p>
+        <!-- Sélection du bloc -->
+        <div class="row mb-4">
+          <div class="col-12">
+            <h6 class="fw-bold mb-3">Sélection du bloc opératoire</h6>
+            <div class="row g-3">
+              {% for bloc in blocs %}
+              <div class="col-xl-3 col-lg-4 col-md-6">
+                <div class="card h-100 pricing-card border-2 {% if form_data.bloc|stringformat:'s' == bloc.id|stringformat:'s' %}border-primary{% endif %}"
+                     onclick="LocationManager.selectBloc(this,'bloc_{{ bloc.id }}')" style="cursor: pointer;">
+                  <input class="d-none" type="radio" id="bloc_{{ bloc.id }}" name="bloc" value="{{ bloc.id }}"
+                    data-bloc-id="{{ bloc.id }}" {% if form_data.bloc|stringformat:'s' == bloc.id|stringformat:'s' %}checked{% endif %}>
+                  <div class="card-body text-center">
+                    <h6 class="card-title">{{ bloc.nom_bloc }}</h6>
+                    <div class="h4 text-primary">{{ bloc.prix_base|floatformat:2 }} DA</div>
+                    <small class="text-muted d-block mb-2">90 min incluses</small>
+                    <hr>
+                    <small class="d-block mb-2">+ {{ bloc.prix_supplement_30min|floatformat:2 }} DA / 30min</small>
+                    {% if bloc.description %}
+                    <p class="small text-muted">{{ bloc.description }}</p>
+                    {% endif %}
+                  </div>
+                </div>
               </div>
+              {% endfor %}
             </div>
           </div>
+        </div>
 
-          <div class="col-md-6">
-            <div class="card h-100 pricing-card border-2 {% if form_data.type_tarification == 'FORFAIT' %}border-primary{% endif %}"
-                 onclick="LocationManager.chooseTarif('FORFAIT')" style="cursor: pointer;">
-              <input class="d-none" id="tarif_forfait" type="radio" name="type_tarification" value="FORFAIT"
-                {% if form_data.type_tarification == 'FORFAIT' %}checked{% endif %}>
-              <div class="card-body text-center">
-                <i class="bi bi-box fs-2 text-primary"></i>
-                <h5 class="mt-2">Tarification forfaitaire</h5>
-                <p class="text-muted">Prix fixe avec durée incluse + suppléments éventuels</p>
-              </div>
-            </div>
-          </div>
-
-          <div class="col-12 {% if form_data.type_tarification == 'FORFAIT' %}d-none{% endif %}" id="nomActeGroup">
-            <label class="form-label fw-semibold" for="nomActe">
-              Nom de l'intervention principale
-              <span id="nomActeRequired" class="text-danger {% if form_data.type_tarification == 'FORFAIT' %}d-none{% endif %}">*</span>
-            </label>
-            <input type="text" name="nom_acte" id="nomActe" class="form-control"
-              value="{{ form_data.nom_acte|default:'' }}" placeholder="Ex: Appendicectomie laparoscopique"
-              {% if form_data.type_tarification == 'DUREE' or not form_data.type_tarification %}required{% endif %}>
-          </div>
-
-          <div id="forfait-config" class="col-12 {% if form_data.type_tarification != 'FORFAIT' %}d-none{% endif %}">
-            <label class="form-label fw-semibold">Sélectionner un forfait</label>
+        <!-- Sélection forfait (conditionnel) -->
+        <div id="forfait-selection" class="row {% if form_data.type_tarification != 'FORFAIT' %}d-none{% endif %}">
+          <div class="col-12">
+            <h6 class="fw-bold mb-3">Sélection du forfait</h6>
             <div class="row g-3">
               {% for f in forfaits %}
               <div class="col-xl-3 col-lg-4 col-md-6">
@@ -172,8 +169,6 @@
                     <p class="small text-muted">{{ f.description }}</p>
                     <div class="h5 text-primary">{{ f.prix|floatformat:2 }} DA</div>
                     <small class="text-muted"><i class="bi bi-clock"></i> {{ f.duree }} min incluses</small>
-
-                    <!-- NOUVEAU : Affichage des éléments inclus -->
                     <div class="mt-2">
                     {% if f.produits.exists %}
                       <span class="badge bg-success me-1">
@@ -196,151 +191,120 @@
       </div>
     </div>
 
-    <!-- NOUVEAU : 4. Actes inclus dans le forfait -->
-    <div class="card shadow-sm mb-4" id="actesInclusCard" style="display: none;">
+    <!-- 3. ACTES UNIFIÉS -->
+    <div class="card shadow-sm mb-4">
       <div class="card-header bg-info text-white">
-        <i class="bi bi-clipboard-check me-2"></i>Actes inclus dans le forfait
+        <i class="bi bi-clipboard-check me-2"></i>Gestion des actes
+        <div class="float-end">
+          <small class="opacity-75">Inclus + Supplémentaires</small>
+        </div>
       </div>
       <div class="card-body">
         <div class="alert alert-info">
           <i class="bi bi-info-circle me-2"></i>
-          Ces actes sont automatiquement inclus dans le forfait sélectionné.
-          Les quantités supplémentaires seront facturées en plus.
+          <strong>Actes inclus :</strong> Quantités incluses dans le forfait (seules les surconsommations sont facturées)
+          <strong class="ms-3">Actes supplémentaires :</strong> Facturés intégralement
         </div>
 
-        <div id="actes-inclus-loading" class="text-center p-4" style="display: none;">
-          <div class="spinner-border text-primary" role="status">
-            <span class="visually-hidden">Chargement...</span>
-          </div>
-          <p class="mt-2 text-muted">Chargement des actes inclus...</p>
+        <!-- Conteneur pour les actes inclus (forfait) -->
+        <div id="actes-inclus-section" style="display: none;">
+          <h6 class="text-info mb-3"><i class="bi bi-gift me-2"></i>Actes inclus dans le forfait</h6>
+          <div id="actes-inclus-container"></div>
+          <hr class="my-4">
         </div>
 
-        <div id="actes-inclus-container"></div>
-
-        <div class="row mt-4">
-          <div class="col-md-6">
-            <div class="text-success fs-5 fw-bold">
-              <i class="bi bi-arrow-down-circle me-1"></i>
-              Économies actes : <span id="economiesActes">0.00 DA</span>
-            </div>
-          </div>
-          <div class="col-md-6 text-end">
-            <div class="text-danger fs-5 fw-bold">
-              <i class="bi bi-arrow-up-circle me-1"></i>
-              Suppléments actes : <span id="supplementsActes">0.00 DA</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 5. Produits inclus -->
-    <div class="card shadow-sm mb-4" id="produitsInclusCard" style="display: none;">
-      <div class="card-header bg-success text-white">
-        <i class="bi bi-box-seam me-2"></i>Produits inclus - Ajustement des quantités
-      </div>
-      <div class="card-body">
-        <div class="alert alert-success">
-          <i class="bi bi-info-circle me-2"></i>
-          Les produits ci-dessous sont automatiquement inclus. Ajustez les quantités selon la consommation réelle.
-          <div class="mt-2">
-            <span class="badge bg-success me-2">Écarts négatifs = économies</span>
-            <span class="badge bg-danger me-1">Écarts positifs = suppléments facturés</span>
-            <span class="badge bg-warning"><i class="bi bi-arrow-clockwise"></i> = Reset inclus</span>
-          </div>
-        </div>
-
-        <div id="produits-inclus-loading" class="text-center p-4" style="display: none;">
-          <div class="spinner-border text-primary" role="status">
-            <span class="visually-hidden">Chargement...</span>
-          </div>
-          <p class="mt-2 text-muted">Chargement des produits inclus...</p>
-        </div>
-
-        <div id="produits-inclus-container"></div>
-
-        <div class="row mt-4">
-          <div class="col-md-6">
-            <div class="text-success fs-5 fw-bold">
-              <i class="bi bi-arrow-down-circle me-1"></i>
-              Économies produits : <span id="economiesProduits">0.00 DA</span>
-            </div>
-          </div>
-          <div class="col-md-6 text-end">
-            <div class="text-danger fs-5 fw-bold">
-              <i class="bi bi-arrow-up-circle me-1"></i>
-              Suppléments produits : <span id="supplementsProduits">0.00 DA</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 6. Actes supplémentaires -->
-    <div class="card shadow-sm mb-4">
-      <div class="card-header bg-primary text-white">
-        <i class="bi bi-clipboard-plus me-2"></i>Actes supplémentaires
-      </div>
-      <div class="card-body">
-        <div id="actes-container"></div>
+        <!-- Actes supplémentaires -->
+        <h6 class="text-primary mb-3"><i class="bi bi-plus-circle me-2"></i>Actes supplémentaires</h6>
+        <div id="actes-supplementaires-container"></div>
         
         <button type="button" id="add-acte" class="btn btn-outline-primary">
           <i class="bi bi-plus"></i> Ajouter un acte
         </button>
 
-        <div class="row mt-4">
-          <div class="col-md-6">
-            <div class="fs-5 fw-bold text-primary">
-              <i class="bi bi-clipboard-check me-1"></i>
-              Total actes : <span id="totalActes">0.00 DA</span>
+        <!-- Totaux des actes -->
+        <div class="row mt-4 p-3 bg-light rounded">
+          <div class="col-md-4">
+            <div class="text-info fw-bold">
+              <i class="bi bi-gift me-1"></i>
+              Suppléments actes inclus : <span id="supplementsActesInclus">0.00 DA</span>
             </div>
           </div>
-          <div class="col-md-6 text-end">
-            <div class="fs-6 text-muted">
-              <strong>Impact produits actes :</strong> <span id="impactProduitsActes">0.00 DA</span>
+          <div class="col-md-4">
+            <div class="text-primary fw-bold">
+              <i class="bi bi-clipboard-check me-1"></i>
+              Total actes supplémentaires : <span id="totalActesSupp">0.00 DA</span>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="fs-5 fw-bold text-success">
+              <i class="bi bi-calculator me-1"></i>
+              Total actes : <span id="totalActesGlobal">0.00 DA</span>
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- 7. Produits supplémentaires -->
+    <!-- 4. PRODUITS UNIFIÉS -->
     <div class="card shadow-sm mb-4">
       <div class="card-header bg-warning text-dark">
-        <i class="bi bi-plus-square me-2"></i>Produits supplémentaires
+        <i class="bi bi-box-seam me-2"></i>Gestion des produits
+        <div class="float-end">
+          <small class="opacity-75">Inclus + Supplémentaires</small>
+        </div>
       </div>
       <div class="card-body">
         <div class="alert alert-warning">
-          <i class="bi bi-exclamation-triangle me-2"></i>
-          Produits non inclus dans le bloc, forfait ou actes - facturés intégralement en supplément.
+          <i class="bi bi-info-circle me-2"></i>
+          <strong>Produits inclus :</strong> Ajustez selon la consommation réelle (seules les surconsommations sont facturées)
+          <strong class="ms-3">Produits supplémentaires :</strong> Non inclus, facturés intégralement
         </div>
-        
+
+        <!-- Conteneur pour les produits inclus -->
+        <div id="produits-inclus-section" style="display: none;">
+          <h6 class="text-success mb-3"><i class="bi bi-gift me-2"></i>Produits inclus</h6>
+          <div id="produits-inclus-container"></div>
+          <hr class="my-4">
+        </div>
+
+        <!-- Produits supplémentaires -->
+        <h6 class="text-warning mb-3"><i class="bi bi-plus-circle me-2"></i>Produits supplémentaires</h6>
         <div id="produits-supplementaires-container"></div>
 
         <button type="button" id="add-produit-supp" class="btn btn-outline-warning">
           <i class="bi bi-plus"></i> Ajouter un produit supplémentaire
         </button>
 
-        <div class="mt-4 text-end">
-          <div class="fs-5 fw-bold text-warning">
-            <i class="bi bi-plus-circle me-1"></i>
-            Total produits supplémentaires : <span id="totalProduitsSupp">0.00 DA</span>
+        <!-- Totaux des produits -->
+        <div class="row mt-4 p-3 bg-light rounded">
+          <div class="col-md-4">
+            <div class="text-success fw-bold">
+              <i class="bi bi-gift me-1"></i>
+              Suppléments produits inclus : <span id="supplementsProduitsInclus">0.00 DA</span>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="text-warning fw-bold">
+              <i class="bi bi-box-seam me-1"></i>
+              Total produits supplémentaires : <span id="totalProduitsSupp">0.00 DA</span>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="fs-5 fw-bold text-success">
+              <i class="bi bi-calculator me-1"></i>
+              Total produits : <span id="totalProduitsGlobal">0.00 DA</span>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- 8. Gestion des paiements -->
+    <!-- 5. Gestion des paiements -->
     <div class="card shadow-sm mb-4 border-info">
       <div class="card-header bg-info text-white">
         <i class="bi bi-cash-stack me-2"></i>Gestion des paiements
       </div>
       <div class="card-body">
-        <div class="alert alert-info">
-          <i class="bi bi-info-circle me-2"></i>
-          Saisissez le montant effectivement payé par le patient à la caisse.
-        </div>
-
         <div class="row g-3">
           <div class="col-md-6">
             <label class="form-label fw-semibold" for="montantPayeCaisse">
@@ -351,7 +315,6 @@
                      value="{{ form_data.montant_paye_caisse|default:'0' }}" min="0" step="0.01" placeholder="0.00">
               <span class="input-group-text">DA</span>
             </div>
-            <small class="text-muted">Montant effectivement reçu par la caisse</small>
           </div>
           
           <div class="col-md-6">
@@ -361,91 +324,71 @@
           </div>
         </div>
 
-        <div class="mt-4" id="calculsPaiement" style="display: none;">
-          <h6><i class="bi bi-calculator me-2"></i>Analyse du paiement</h6>
+        <!-- Analyse du paiement -->
+        <div class="mt-4" id="analysePaiement" style="display: none;">
           <div class="row g-3">
             <div class="col-md-4">
               <div class="card border-primary">
                 <div class="card-body text-center">
-                  <h6 class="text-primary"><i class="bi bi-receipt"></i> Montant facturé</h6>
-                  <h5 class="text-primary" id="montantFacturePaiement">0.00 DA</h5>
+                  <h6 class="text-primary"><i class="bi bi-receipt"></i> À facturer</h6>
+                  <h5 class="text-primary" id="montantFacture">0.00 DA</h5>
                 </div>
               </div>
             </div>
             <div class="col-md-4">
               <div class="card border-info">
                 <div class="card-body text-center">
-                  <h6 class="text-info"><i class="bi bi-cash"></i> Montant payé</h6>
-                  <h5 class="text-info" id="montantPayePaiement">0.00 DA</h5>
+                  <h6 class="text-info"><i class="bi bi-cash"></i> Payé</h6>
+                  <h5 class="text-info" id="montantPaye">0.00 DA</h5>
                 </div>
               </div>
             </div>
             <div class="col-md-4">
-              <div class="card" id="cardDifference">
+              <div class="card" id="cardStatut">
                 <div class="card-body text-center">
-                  <h6 id="titreDifference"><i class="bi bi-arrow-left-right"></i> Différence</h6>
-                  <h5 id="montantDifference">0.00 DA</h5>
+                  <h6 id="titreStatut"><i class="bi bi-calculator"></i> Statut</h6>
+                  <h5 id="montantStatut">0.00 DA</h5>
                 </div>
               </div>
             </div>
           </div>
-          <div class="mt-3" id="alertePaiement" style="display: none;"></div>
         </div>
       </div>
     </div>
 
-    <!-- 9. Récapitulatif final -->
+    <!-- 6. Récapitulatif final -->
     <div class="card shadow-sm mb-4 border-success">
       <div class="card-header bg-success text-white">
         <i class="bi bi-calculator me-2"></i>Récapitulatif final
       </div>
       <div class="card-body">
         <div class="row">
-          <div class="col-lg-6">
-            <h6 class="mb-3">Coûts de la location</h6>
+          <div class="col-lg-8">
             <table class="table table-borderless">
               <tr>
                 <td><i class="bi bi-building me-2"></i>Prix du bloc/forfait :</td>
                 <td class="text-end fw-bold"><span id="prixBloc">0.00</span> DA</td>
               </tr>
               <tr>
-                <td><i class="bi bi-clipboard-check me-2"></i>Actes supplémentaires :</td>
+                <td><i class="bi bi-clipboard-check me-2"></i>Total actes :</td>
                 <td class="text-end fw-bold"><span id="recapActes">0.00</span> DA</td>
               </tr>
-              <tr class="text-success">
-                <td><i class="bi bi-arrow-down-circle me-2"></i>Économies produits :</td>
-                <td class="text-end fw-bold">- <span id="recapEconomies">0.00</span> DA</td>
-              </tr>
-              <tr class="text-danger">
-                <td><i class="bi bi-arrow-up-circle me-2"></i>Suppléments produits :</td>
-                <td class="text-end fw-bold">+ <span id="recapSupplements">0.00</span> DA</td>
-              </tr>
               <tr>
-                <td><i class="bi bi-plus-circle me-2"></i>Produits supplémentaires :</td>
-                <td class="text-end fw-bold"><span id="recapProdSupp">0.00</span> DA</td>
+                <td><i class="bi bi-box-seam me-2"></i>Total produits :</td>
+                <td class="text-end fw-bold"><span id="recapProduits">0.00</span> DA</td>
               </tr>
               <tr class="table-success fw-bold fs-5">
-                <td><i class="bi bi-currency-exchange me-2"></i>Total à facturer :</td>
+                <td><i class="bi bi-currency-exchange me-2"></i>TOTAL GÉNÉRAL :</td>
                 <td class="text-end"><span id="totalGeneral">0.00</span> DA</td>
               </tr>
             </table>
           </div>
           
-          <div class="col-lg-6">
-            <h6 class="mb-3">Situation financière</h6>
-            <div class="p-4 bg-light rounded">
-              <div class="d-flex justify-content-between mb-2">
-                <span>Montant payé :</span>
-                <strong><span id="montantPayeResume">0.00</span> DA</strong>
-              </div>
-              <div class="d-flex justify-content-between mb-3">
-                <span>Montant facturé :</span>
-                <strong><span id="montantFactureResume">0.00</span> DA</strong>
-              </div>
-              <hr>
-              <div class="text-center" id="statutFinancier">
-                <div class="fs-6 text-muted">Statut</div>
-                <div class="fs-4 fw-bold" id="libelle-statut">Aucun paiement</div>
+          <div class="col-lg-4">
+            <div class="p-4 bg-light rounded text-center">
+              <h6 class="mb-3">Situation financière</h6>
+              <div id="statutFinancier">
+                <div class="fs-4 fw-bold" id="libelle-statut">En attente</div>
                 <div class="mt-2" id="montant-action" style="display: none;">
                   <span id="action-text"></span>
                   <div class="fs-5 fw-bold" id="montant-action-value">0.00 DA</div>
@@ -470,13 +413,53 @@
 </div>
 
 <!-- Templates -->
-<template id="acte-row-template">
-  <div class="card mb-3 acte-row" data-index="{index}">
+<template id="acte-inclus-template">
+  <div class="card mb-3 acte-inclus-item border-info" data-acte-id="{acte_id}" data-index="{index}">
     <div class="card-body">
-      <div class="row g-3">
+      <div class="row g-3 align-items-center">
+        <div class="col-md-3">
+          <strong>{nom_acte}</strong>
+          <input type="hidden" name="actes_inclus[id][]" value="{acte_id}">
+          <input type="hidden" name="actes_inclus[quantite_incluse][]" value="{quantite_incluse}">
+          <input type="hidden" name="actes_inclus[prix_unitaire][]" value="{prix_unitaire}">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small">Qté utilisée</label>
+          <input type="number" name="actes_inclus[quantite_utilisee][]" 
+                 class="form-control quantite-acte-inclus" value="{quantite_incluse}" min="0" step="1">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small">Qté incluse</label>
+          <div class="text-center">
+            <span class="badge bg-success fs-6">{quantite_incluse}</span>
+          </div>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small">Prix unitaire</label>
+          <div class="text-end small">{prix_unitaire} DA</div>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small">Écart</label>
+          <div class="text-center">
+            <span class="ecart-acte badge bg-secondary">0</span>
+          </div>
+        </div>
+        <div class="col-md-1">
+          <label class="form-label small">Impact</label>
+          <div class="text-end fw-bold impact-acte">0.00 DA</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<template id="acte-supplementaire-template">
+  <div class="card mb-3 acte-supp-item" data-index="{index}">
+    <div class="card-body">
+      <div class="row g-3 align-items-center">
         <div class="col-md-4">
-          <label class="form-label small fw-semibold">Acte</label>
-          <select name="acte_id[]" class="form-select acte-select" required>
+          <label class="form-label small">Acte</label>
+          <select name="actes_supp[id][]" class="form-select acte-supp-select" required>
             <option value="">-- Choisir un acte --</option>
             {% for acte in actes_location %}
             <option value="{{ acte.id }}" data-prix="{{ acte.prix }}">
@@ -486,1443 +469,1363 @@
           </select>
         </div>
         <div class="col-md-2">
-          <label class="form-label small fw-semibold">Quantité</label>
-          <input type="number" name="acte_quantite[]" class="form-control quantite-acte" min="1" value="1">
+          <label class="form-label small">Quantité</label>
+          <input type="number" name="actes_supp[quantite][]" class="form-control quantite-acte-supp" min="1" value="1">
         </div>
         <div class="col-md-2">
-          <label class="form-label small fw-semibold">Prix unitaire</label>
+          <label class="form-label small">Prix unitaire</label>
           <div class="input-group">
-            <input type="text" name="acte_prix[]" class="form-control prix-acte" readonly>
-            <span class="input-group-text">DA</span>
+            <input type="text" name="actes_supp[prix][]" class="form-control prix-acte-supp text-end" readonly>
+            <span class="input-group-text small">DA</span>
           </div>
         </div>
         <div class="col-md-3">
-          <label class="form-label small fw-semibold">Produits inclus</label>
-          <div class="produits-acte-info text-muted small"></div>
+          <label class="form-label small">Total</label>
+          <div class="text-end fw-bold fs-5 total-acte-supp">0.00 DA</div>
         </div>
-        <div class="col-md-1 d-flex align-items-end">
-          <button type="button" class="btn btn-danger btn-sm remove-acte">
+        <div class="col-md-1">
+          <label class="form-label small">&nbsp;</label>
+          <button type="button" class="btn btn-danger btn-sm remove-acte-supp d-block">
             <i class="bi bi-trash"></i>
           </button>
-        </div>
-      </div>
-      <div class="produit-container mt-3" style="display: none;">
-        <div class="alert alert-light">
-          <h6 class="alert-heading"><i class="bi bi-box-seam me-1"></i>Produits de cet acte</h6>
-          <div class="produit-loading text-center p-2" style="display: none;">
-            <div class="spinner-border spinner-border-sm text-primary" role="status">
-              <span class="visually-hidden">Chargement...</span>
-            </div>
-          </div>
-          <div class="produit-list"></div>
         </div>
       </div>
     </div>
   </div>
 </template>
 
-<script src="{% static 'js/choices.min.js' %}"></script>
-<script>
-// Module LocationManager pour gérer toute la logique
-const LocationManager = (function() {
-    // Variables privées
-    let acteCounter = 0;
-    let produitSuppCounter = 0;
-    let dataCache = {
-        blocs: {},
-        forfaits: {},
-        actes: [],
-        produitsSupp: []
-    };
+<template id="produit-inclus-template">
+  <div class="card mb-2 produit-inclus-item border-success" data-produit-id="{produit_id}" data-index="{index}">
+    <div class="card-body py-2">
+      <div class="row g-2 align-items-center">
+        <div class="col-md-3">
+          <strong>{nom_produit}</strong>
+          <input type="hidden" name="produits_inclus[id][]" value="{produit_id}">
+          <input type="hidden" name="produits_inclus[quantite_incluse][]" value="{quantite_incluse}">
+          <input type="hidden" name="produits_inclus[prix_unitaire][]" value="{prix_unitaire}">
+          <div class="small text-muted">{source_info}</div>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small">Qté utilisée</label>
+          <div class="input-group input-group-sm">
+            <input type="number" name="produits_inclus[quantite_utilisee][]" 
+                   class="form-control quantite-produit-inclus" value="{quantite_incluse}" min="0" step="0.1">
+            <button type="button" class="btn btn-outline-secondary reset-produit-inclus" 
+                    data-original="{quantite_incluse}" title="Reset">
+              <i class="bi bi-arrow-clockwise"></i>
+            </button>
+          </div>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small">Qté incluse</label>
+          <div class="text-center">
+            <span class="badge bg-success">{quantite_incluse}</span>
+          </div>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small">Prix unitaire</label>
+          <div class="text-end small">{prix_unitaire} DA</div>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small">Écart</label>
+          <div class="text-center">
+            <span class="ecart-produit badge bg-secondary">0</span>
+          </div>
+        </div>
+        <div class="col-md-1">
+          <label class="form-label small">Impact</label>
+          <div class="text-end fw-bold small impact-produit">0.00 DA</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
 
-    // URLs AJAX
-    const AJAX_URLS = {
+<template id="produit-supplementaire-template">
+  <div class="card mb-2 produit-supp-item" data-index="{index}">
+    <div class="card-body py-2">
+      <div class="row g-2 align-items-center">
+        <div class="col-md-4">
+          <label class="form-label small">Produit</label>
+          <select name="produits_supp[id][]" class="form-select form-select-sm produit-supp-select" required>
+            <option value="">-- Choisir un produit --</option>
+            {options_produits}
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small">Quantité</label>
+          <input type="number" name="produits_supp[quantite][]" class="form-control form-control-sm quantite-produit-supp" min="0.1" step="0.1" value="1">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small">Prix unitaire</label>
+          <div class="input-group input-group-sm">
+            <input type="text" name="produits_supp[prix][]" class="form-control prix-produit-supp text-end" readonly>
+            <span class="input-group-text">DA</span>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small">Total</label>
+          <div class="text-end fw-bold total-produit-supp">0.00 DA</div>
+        </div>
+        <div class="col-md-1">
+          <label class="form-label small">&nbsp;</label>
+          <button type="button" class="btn btn-danger btn-sm remove-produit-supp d-block">
+            <i class="bi bi-trash"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<!-- Scripts modulaires -->
+<script src="{% static 'js/choices.min.js' %}"></script>
+
+<!-- 1. Configuration et utilitaires -->
+<script>
+// Configuration globale
+window.LocationConfig = {
+    AJAX_URLS: {
         blocs: "{% url 'medical:ajax_get_all_blocs_data' %}",
         forfaits: "{% url 'medical:ajax_get_all_forfaits_data' %}",
         actes: "{% url 'medical:ajax_get_all_actes_data' %}",
         produits_supp: "{% url 'medical:ajax_get_produits_supplementaires' %}",
-        bloc_detail: "{% url 'medical:ajax_get_bloc_produits' bloc_id=0 %}",
-        forfait_detail: "{% url 'medical:ajax_get_forfait_produits' forfait_id=0 %}",
-        acte_detail: "{% url 'medical:ajax_get_acte_produits' acte_id=0 %}"
-    };
+        bloc_detail: "{% url 'medical:ajax_get_bloc_produits' bloc_id=0 %}".replace('0', ''),
+        forfait_detail: "{% url 'medical:ajax_get_forfait_produits' forfait_id=0 %}".replace('0', ''),
+        acte_detail: "{% url 'medical:ajax_get_acte_produits' acte_id=0 %}".replace('0', '')
+    }
+};
 
-    // Utilitaires
-    const Utils = {
-        toNumber: (v, fallback = 0) => {
-            const n = typeof v === 'number' ? v : parseFloat(String(v).replace(',', '.'));
-            return isNaN(n) ? fallback : n;
-        },
-        formatDA: n => Utils.toNumber(n).toFixed(2) + ' DA',
-        safeGet: (obj, key, fallback = null) => obj?.[key] ?? fallback,
-        setLoading: (element, show) => {
-            if (element) element.style.display = show ? 'block' : 'none';
-        },
-        updateElement: (id, value) => {
-            const el = document.getElementById(id);
-            if (el) el.textContent = value;
+// Variables globales
+window.LocationCounters = {
+    acteInclus: 0,
+    acteSupp: 0,
+    produitInclus: 0,
+    produitSupp: 0
+};
+
+window.LocationCache = {
+    blocs: {},
+    forfaits: {},
+    actes: [],
+    produitsSupp: []
+};
+</script>
+
+<!-- 2. Utilitaires -->
+<script>
+window.LocationUtils = {
+    toNumber: (v, fallback = 0) => {
+        const n = typeof v === 'number' ? v : parseFloat(String(v).replace(',', '.'));
+        return isNaN(n) ? fallback : n;
+    },
+    
+    formatDA: n => LocationUtils.toNumber(n).toFixed(2) + ' DA',
+    
+    updateElement: (id, value) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = value;
+    },
+    
+    setLoading: (element, show) => {
+        if (element) element.style.display = show ? 'block' : 'none';
+    },
+    
+    createElement: (template, replacements) => {
+        let html = template.innerHTML;
+        for (const [key, value] of Object.entries(replacements)) {
+            const regex = new RegExp(`\\{${key}\\}`, 'g');
+            html = html.replace(regex, value);
         }
-    };
-
-    // Gestion des données
-    const DataManager = {
-        async loadAll() {
-            try {
-                const responses = await Promise.all([
-                    fetch(AJAX_URLS.blocs),
-                    fetch(AJAX_URLS.forfaits),
-                    fetch(AJAX_URLS.actes),
-                    fetch(AJAX_URLS.produits_supp)
-                ]);
-
-                const [blocsData, forfaitsData, actesData, produitsData] = await Promise.all(
-                    responses.map(r => r.json())
-                );
-
-                if (blocsData.success) dataCache.blocs = blocsData.blocs;
-                if (forfaitsData.success) dataCache.forfaits = forfaitsData.forfaits;
-                if (actesData.success) dataCache.actes = actesData.actes;
-                if (produitsData.success) dataCache.produitsSupp = produitsData.produits;
-
-                return true;
-            } catch (error) {
-                console.error('Erreur lors du chargement des données:', error);
-                alert('Erreur lors du chargement des données. Veuillez rafraîchir la page.');
-                return false;
-            }
-        }
-    };
-
-
-    // NOUVEAU : Gestion des actes inclus dans les forfaits
-    const ActesInclusManager = {
-        async charger(forfaitId) {
-            if (!forfaitId) return;
-
-            const card = document.getElementById('actesInclusCard');
-            const container = document.getElementById('actes-inclus-container');
-            const loading = document.getElementById('actes-inclus-loading');
-
-            if (!card || !container) return;
-
-            Utils.setLoading(loading, true);
-            container.innerHTML = '';
-
-            let forfaitData = dataCache.forfaits[forfaitId];
-
-            if (!forfaitData) {
-                try {
-                    const url = AJAX_URLS.forfait_detail.replace('0', forfaitId);
-                    const response = await fetch(url);
-                    const result = await response.json();
-
-                    if (result.success) {
-                        forfaitData = {
-                            actes_inclus: result.actes || [],
-                            produits_inclus: result.produits || []
-                        };
-                        dataCache.forfaits[forfaitId] = forfaitData;
-                    }
-                } catch (error) {
-                    console.error('Erreur lors du chargement des actes inclus:', error);
-                }
-            }
-
-            const actesInclus = forfaitData?.actes_inclus || [];
-            if (!actesInclus.length) {
-                card.style.display = 'none';
-                Utils.setLoading(loading, false);
-                return;
-            }
-
-            // NOUVEAU : Charger les produits inclus dans chaque acte
-            const actesAvecProduits = await this.chargerProduitsDesActes(actesInclus);
-
-            Utils.setLoading(loading, false);
-
-            container.innerHTML = this.renderActesTable(actesAvecProduits);
-            card.style.display = 'block';
-
-            // Attacher les listeners
-            container.querySelectorAll('.quantite-acte-inclus-input').forEach(input => {
-                input.addEventListener('input', () => this.onQuantiteChange(input));
-            });
-
-            // NOUVEAU : Attacher les listeners pour les produits des actes forfaitaires
-            container.querySelectorAll('.quantite-produit-acte-forfait-input').forEach(input => {
-                input.addEventListener('input', () => this.onQuantiteProduitActeForfaitChange(input));
-            });
-
-            container.querySelectorAll('.reset-produit-acte-forfait').forEach(btn => {
-                btn.addEventListener('click', () => this.resetProduitActeForfait(btn));
-            });
-
-            this.calculerImpact();
-        },
-
-        async chargerProduitsDesActes(actesInclus) {
-            const actesAvecProduits = [];
-
-            for (const acte of actesInclus) {
-                // Vérifier si l'acte a déjà ses produits en cache
-                let acteData = dataCache.actes.find(a => a.id === acte.id);
-
-                if (!acteData?.produits_inclus) {
-                    try {
-                        const url = AJAX_URLS.acte_detail.replace('0', acte.id);
-                        const response = await fetch(url);
-                        const result = await response.json();
-
-                        if (result.success) {
-                            // Mettre à jour le cache
-                            if (acteData) {
-                                acteData.produits_inclus = result.produits || [];
-                            } else {
-                                acteData = {
-                                    ...acte,
-                                    produits_inclus: result.produits || []
-                                };
-                                dataCache.actes.push(acteData);
-                            }
-                        }
-                    } catch (error) {
-                        console.error(`Erreur lors du chargement des produits de l'acte ${acte.id}:`, error);
-                        acteData = { ...acte, produits_inclus: [] };
-                    }
-                }
-
-                actesAvecProduits.push({
-                    ...acte,
-                    produits_inclus: acteData?.produits_inclus || []
-                });
-            }
-
-            return actesAvecProduits;
-        },
-
-        renderActesTable(actes) {
-            let html = `
-                <div class="table-responsive">
-                    <table class="table table-sm">
-                        <thead>
-                            <tr>
-                                <th>Acte</th>
-                                <th>Qté utilisée</th>
-                                <th>Prix unitaire</th>
-                                <th>Qté incluse</th>
-                                <th>Écart</th>
-                                <th>Impact</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-            `;
-
-            actes.forEach((acte, index) => {
-                const acteId = acte.id || '';
-                const nom = acte.nom || 'Acte';
-                const quantiteIncluse = Utils.toNumber(acte.quantite_incluse || 0);
-                const prixUnitaireInclus = Utils.toNumber(acte.prix_unitaire_inclus || 0);
-                const prixStandard = Utils.toNumber(acte.prix_standard || 0);
-                const produitsCount = (acte.produits_inclus || []).length;
-
-                html += `
-                    <tr class="acte-inclus-item" data-acte-id="${acteId}"
-                        data-included-qty="${quantiteIncluse}" data-included-price="${prixUnitaireInclus}"
-                        data-standard-price="${prixStandard}" data-acte-index="${index}">
-                        <input type="hidden" name="actes_inclus[id][]" value="${acteId}">
-                        <td><strong>${nom}</strong></td>
-                        <td>
-                            <input type="number" name="actes_inclus[quantite_utilisee][]"
-                                   class="form-control form-control-sm quantite-acte-inclus-input"
-                                   value="${quantiteIncluse}" min="0" step="1">
-                        </td>
-                        <td>
-                            <div class="input-group input-group-sm">
-                                <input type="text" class="form-control text-end"
-                                       value="${prixStandard.toFixed(2)}" readonly>
-                                <span class="input-group-text">DA</span>
-                            </div>
-                        </td>
-                        <td class="text-center text-success fw-bold">${quantiteIncluse}</td>
-                        <td class="text-center">
-                            <span class="ecart-acte-value badge bg-secondary">0</span>
-                        </td>
-                        <td class="text-end">
-                            <span class="montant-acte-value fw-bold">0.00</span> DA
-                        </td>
-
-                    </tr>
-                `;
-
-                // Ajouter une ligne cachée pour les produits de cet acte
-                if (produitsCount > 0) {
-                    html += `
-                        <tr class="produits-acte-row" id="produits-acte-${index}">
-                            <td colspan="7">
-                                <div class="bg-light p-3 rounded">
-                                    <h6 class="mb-3">
-                                        <i class="bi bi-box-seam me-2"></i>
-                                        Produits inclus dans "${nom}"
-                                    </h6>
-                                    ${this.renderProduitsActeTable(acte.produits_inclus, quantiteIncluse, index)}
-                                </div>
-                            </td>
-                    </tr>
-                `;
-                }
-            });
-
-            html += '</tbody></table></div>';
-            return html;
-        },
-
-        renderProduitsActeTable(produits, quantiteActe, acteIndex) {
-            if (!produits || !produits.length) {
-                return '<p class="text-muted">Aucun produit inclus</p>';
-            }
-
-            let html = `
-                <div class="table-responsive">
-                    <table class="table table-sm table-bordered">
-                        <thead class="table-secondary">
-                            <tr>
-                                <th>Produit</th>
-                                <th>Qté utilisée</th>
-                                <th>Qté par acte</th>
-                                <th>Qté totale incluse</th>
-                                <th>Prix unitaire</th>
-                                <th>Écart</th>
-                                <th>Impact</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-            `;
-
-            produits.forEach((produit, prodIndex) => {
-                const quantiteUnitaire = Utils.toNumber(produit.quantite_defaut || 0);
-                const quantiteTotaleIncluse = quantiteUnitaire * quantiteActe;
-                const prixUnitaire = Utils.toNumber(produit.prix_unitaire || 0);
-
-                html += `
-                    <tr class="produit-acte-forfait-row" data-acte-index="${acteIndex}"
-                        data-produit-index="${prodIndex}" data-produit-id="${produit.id}"
-                        data-base-qty="${quantiteUnitaire}" data-unit-price="${prixUnitaire}"
-                        data-included-total="${quantiteTotaleIncluse}">
-                        <input type="hidden" name="actes_forfait[${acteIndex}][produits][${prodIndex}][id]" value="${produit.id}">
-                        <input type="hidden" name="actes_forfait[${acteIndex}][produits][${prodIndex}][quantite_incluse]" value="${quantiteTotaleIncluse}">
-                        <td><strong>${produit.nom}</strong></td>
-                        <td>
-                            <div class="input-group input-group-sm">
-                                <input type="number" name="actes_forfait[${acteIndex}][produits][${prodIndex}][quantite_utilisee]"
-                                       class="form-control quantite-produit-acte-forfait-input"
-                                       value="${quantiteTotaleIncluse}" min="0" step="0.1">
-                                <button type="button" class="btn btn-outline-secondary btn-sm reset-produit-acte-forfait"
-                                        data-original-qty="${quantiteTotaleIncluse}" title="Remettre à la quantité incluse">
-                                    <i class="bi bi-arrow-clockwise"></i>
-                                </button>
-                            </div>
-                            <small class="text-muted">Inclus dans le forfait</small>
-                        </td>
-                        <td class="text-center">${quantiteUnitaire}</td>
-                        <td class="text-center text-success fw-bold quantite-totale-incluse">${quantiteTotaleIncluse}</td>
-                        <td class="text-end">${prixUnitaire.toFixed(2)} DA</td>
-                        <td class="text-center">
-                            <span class="ecart-produit-acte-forfait badge bg-secondary">0</span>
-                        </td>
-                        <td class="text-end">
-                            <span class="impact-produit-acte-forfait fw-bold">0.00</span> DA
-                        </td>
-                    </tr>
-                `;
-            });
-
-            html += `
-                        </tbody>
-                        <tfoot class="table-light">
-                            <tr>
-                                <th colspan="5" class="text-end">Total valeur incluse :</th>
-                                <th class="text-end text-success" id="total-valeur-incluse-acte-${acteIndex}">
-                                    ${produits.reduce((sum, p) =>
-                                        sum + (Utils.toNumber(p.quantite_defaut, 0) * quantiteActe * Utils.toNumber(p.prix_unitaire, 0)), 0
-                                    ).toFixed(2)} DA
-                                </th>
-                                <th class="text-end text-danger" id="total-impact-acte-${acteIndex}">0.00 DA</th>
-                            </tr>
-                        </tfoot>
-                    </table>
-                </div>
-            `;
-
-            return html;
-        },
-
-        toggleProduitsActe(button) {
-            const acteIndex = button.dataset.acteIndex;
-            const produitsRow = document.getElementById(`produits-acte-${acteIndex}`);
-
-            if (produitsRow) {
-                const isHidden = produitsRow.classList.contains('d-none');
-
-                if (isHidden) {
-                    produitsRow.classList.remove('d-none');
-                    button.innerHTML = '<i class="bi bi-box-seam"></i> <i class="bi bi-chevron-up"></i>';
-                    button.classList.remove('btn-outline-info');
-                    button.classList.add('btn-info', 'text-white');
-                } else {
-                    produitsRow.classList.add('d-none');
-                    const produitsCount = produitsRow.querySelectorAll('tbody tr').length;
-                    button.innerHTML = `<i class="bi bi-box-seam"></i> ${produitsCount}`;
-                    button.classList.remove('btn-info', 'text-white');
-                    button.classList.add('btn-outline-info');
-                }
-            }
-        },
-
-        onQuantiteChange(input) {
-            const row = input.closest('tr');
-            if (!row) return;
-
-            const quantiteUtilisee = Utils.toNumber(input.value, 0);
-            const quantiteIncluse = Utils.toNumber(row.dataset.includedQty, 0);
-            const prixStandard = Utils.toNumber(row.dataset.standardPrice, 0);
-            const acteIndex = row.dataset.acteIndex;
-
-            const ecart = quantiteUtilisee - quantiteIncluse;
-            const impact = ecart > 0 ? ecart * prixStandard : 0; // Seuls les suppléments sont facturables
-
-            const ecartEl = row.querySelector('.ecart-acte-value');
-            const impactEl = row.querySelector('.montant-acte-value');
-
-            if (ecartEl) {
-                ecartEl.textContent = ecart.toFixed(0);
-                ecartEl.className = 'ecart-acte-value badge ' +
-                    (ecart > 0 ? 'bg-danger' : (ecart < 0 ? 'bg-success' : 'bg-secondary'));
-            }
-            if (impactEl) {
-                impactEl.textContent = impact.toFixed(2);
-            }
-
-            // NOUVEAU : Mettre à jour les quantités de produits affichées
-            this.updateProduitsQuantites(acteIndex, quantiteUtilisee);
-
-            this.calculerImpact();
-        },
-
-        updateProduitsQuantites(acteIndex, nouvelleQuantiteActe) {
-            const produitsRow = document.getElementById(`produits-acte-${acteIndex}`);
-            if (!produitsRow) return;
-
-            let totalValeur = 0;
-
-            // Mettre à jour chaque ligne de produit
-            produitsRow.querySelectorAll('.quantite-totale-produit').forEach(cell => {
-                const quantiteBase = Utils.toNumber(cell.dataset.baseQty, 0);
-                const nouvelleQuantiteTotale = quantiteBase * nouvelleQuantiteActe;
-                cell.textContent = nouvelleQuantiteTotale;
-
-                // Mettre à jour la valeur correspondante
-                const valeurCell = cell.closest('tr').querySelector('.valeur-totale-produit');
-                if (valeurCell) {
-                    const prixUnitaire = Utils.toNumber(
-                        cell.closest('tr').children[3].textContent.replace(' DA', ''), 0
-                    );
-                    const nouvelleValeur = nouvelleQuantiteTotale * prixUnitaire;
-                    valeurCell.textContent = nouvelleValeur.toFixed(2) + ' DA';
-                    totalValeur += nouvelleValeur;
-                }
-            });
-
-            // Mettre à jour le total
-            const totalCell = document.getElementById(`total-valeur-acte-${acteIndex}`);
-            if (totalCell) {
-                totalCell.textContent = totalValeur.toFixed(2) + ' DA';
-            }
-        },
-
-        calculerImpact() {
-            let supplements = 0;
-            let economies = 0;
-
-            document.querySelectorAll('#actes-inclus-container .montant-acte-value').forEach((el, index) => {
-                const value = Utils.toNumber(el.textContent, 0);
-                const row = el.closest('tr');
-                const ecart = Utils.toNumber(row?.querySelector('.ecart-acte-value')?.textContent, 0);
-
-                if (value > 0) supplements += value;
-                if (ecart < 0) {
-                    const prixStandard = Utils.toNumber(row?.dataset.standardPrice, 0);
-                    economies += Math.abs(ecart * prixStandard);
-                }
-            });
-
-            Utils.updateElement('supplementsActes', Utils.formatDA(supplements));
-            Utils.updateElement('economiesActes', Utils.formatDA(economies));
-
-            CalculsManager.calculerTotal();
-        }
-    };
-
-    // Gestion des produits inclus (mis à jour)
-    const ProduitsInclusManager = {
-        async charger(id, type) {
-            if (!id) return;
-
-            const card = document.getElementById('produitsInclusCard');
-            const container = document.getElementById('produits-inclus-container');
-            const loading = document.getElementById('produits-inclus-loading');
-            
-            if (!card || !container) return;
-
-            Utils.setLoading(loading, true);
-            container.innerHTML = '';
-
-            let data = type === 'bloc' ? dataCache.blocs[id] : dataCache.forfaits[id];
-
-            if (!data) {
-                try {
-                    const url = (type === 'bloc' ? AJAX_URLS.bloc_detail : AJAX_URLS.forfait_detail)
-                        .replace('0', id);
-                    const response = await fetch(url);
-                    const result = await response.json();
-                    
-                    if (result.success) {
-                        data = { produits_inclus: result.produits };
-                        if (type === 'bloc') dataCache.blocs[id] = data;
-                        else dataCache.forfaits[id] = data;
-                    }
-                } catch (error) {
-                    console.error('Erreur lors du chargement des produits:', error);
-                }
-            }
-
-            Utils.setLoading(loading, false);
-
-            // Gérer les produits inclus dans les actes du forfait
-            let allProduits = [...(data?.produits_inclus || [])];
-
-            if (type === 'forfait') {
-                const actesInclus = data?.actes_inclus || [];
-
-                // NOUVEAU : Parcourir les actes avec leurs produits déjà chargés
-                actesInclus.forEach(acte => {
-                    // Utiliser les produits déjà chargés par ActesInclusManager
-                    const produitsActe = acte.produits_inclus || [];
-
-                    produitsActe.forEach(produitActe => {
-                        const quantiteTotale = Utils.toNumber(produitActe.quantite_defaut, 0) * Utils.toNumber(acte.quantite_incluse, 0);
-
-                            // Vérifier si le produit existe déjà
-                            const existant = allProduits.find(p => p.id === produitActe.id);
-                            if (existant) {
-                            existant.quantite_defaut = Utils.toNumber(existant.quantite_defaut, 0) + quantiteTotale;
-                            existant.source = existant.source === 'acte_inclus' ? 'mixte' : 'mixte';
-                            } else {
-                                allProduits.push({
-                                    ...produitActe,
-                                    quantite_defaut: quantiteTotale,
-                                source: 'acte_inclus',
-                                acte_source: acte.nom
-                                });
-                            }
-                        });
-                });
-            }
-
-            if (!allProduits.length) {
-                card.style.display = 'none';
-                return;
-            }
-
-            container.innerHTML = this.renderProduitsTable(allProduits);
-            card.style.display = 'block';
-
-            // Attacher les listeners
-            container.querySelectorAll('.quantite-inclus-input').forEach(input => {
-                input.addEventListener('input', () => this.onQuantiteChange(input));
-            });
-
-            // NOUVEAU : Attacher les listeners pour les boutons reset
-            container.querySelectorAll('.reset-to-included').forEach(btn => {
-                btn.addEventListener('click', () => this.resetQuantiteToIncluded(btn));
-            });
-
-            this.calculerImpact();
-        },
-
-        renderProduitsTable(produits) {
-            let html = `
-                <div class="table-responsive">
-                    <table class="table table-sm">
-                        <thead>
-                            <tr>
-                                <th>Produit</th>
-                                <th>Qté utilisée</th>
-                                <th>Prix unitaire</th>
-                                <th>Qté incluse</th>
-                                <th>Écart</th>
-                                <th>Impact</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-            `;
-
-            produits.forEach(p => {
-                const prodId = p.id || '';
-                const nom = p.nom || 'Produit';
-                const quantiteDefaut = Utils.toNumber(p.quantite_defaut || 0);
-                const prixUnitaire = Utils.toNumber(p.prix_unitaire || 0);
-                const source = p.source || 'direct';
-
-                html += `
-                    <tr class="product-item" data-prod-id="${prodId}" 
-                        data-default-qty="${quantiteDefaut}" data-unit-price="${prixUnitaire}"
-                        data-source="${source}">
-                        <input type="hidden" name="produits_inclus[id][]" value="${prodId}">
-                        <td>
-                            <strong>${nom}</strong>
-                            ${source === 'acte_inclus' ? `<br><small class="text-info">(via acte: ${p.acte_source || 'N/A'})</small>` : ''}
-                            ${source === 'mixte' ? '<br><small class="text-warning">(direct + actes)</small>' : ''}
-                        </td>
-                        <td>
-                            <div class="input-group input-group-sm">
-                            <input type="number" name="produits_inclus[quantite_reelle][]"
-                                       class="form-control quantite-inclus-input"
-                                   value="${quantiteDefaut}" min="0" step="0.1">
-                                ${source !== 'direct' ? `
-                                    <button type="button" class="btn btn-outline-secondary btn-sm reset-to-included"
-                                            data-original-qty="${quantiteDefaut}" title="Remettre à la quantité incluse">
-                                        <i class="bi bi-arrow-clockwise"></i>
-                                    </button>
-                                ` : ''}
-                            </div>
-                            ${source === 'acte_inclus' ? '<small class="text-muted">Calculée depuis les actes</small>' : ''}
-                            ${source === 'mixte' ? '<small class="text-warning">Consolidée (direct + actes)</small>' : ''}
-                        </td>
-                        <td>
-                            <div class="input-group input-group-sm">
-                                <input type="text" class="form-control text-end" 
-                                       value="${prixUnitaire.toFixed(2)}" readonly>
-                                <span class="input-group-text">DA</span>
-                            </div>
-                        </td>
-                        <td class="text-center text-success fw-bold">${quantiteDefaut}</td>
-                        <td class="text-center">
-                            <span class="ecart-value badge bg-secondary">0</span>
-                        </td>
-                        <td class="text-end">
-                            <span class="montant-value fw-bold">0.00</span> DA
-                        </td>
-                    </tr>
-                `;
-            });
-
-            html += '</tbody></table></div>';
-
-            // Ajouter une note explicative
-            html += `
-                <div class="mt-3">
-                    <div class="alert alert-info">
-                        <h6 class="alert-heading">
-                            <i class="bi bi-info-circle me-2"></i>Gestion des quantités
-                        </h6>
-                        <ul class="mb-0">
-                            <li><strong>Quantité utilisée :</strong> Modifiable selon la consommation réelle</li>
-                            <li><strong>Quantité incluse :</strong> Calculée automatiquement (forfait + actes inclus)</li>
-                            <li><strong>Écart :</strong> Différence entre utilisé et inclus (+ = supplément, - = économie)</li>
-                            <li><strong>Bouton reset :</strong> Remet la quantité utilisée = quantité incluse</li>
-                        </ul>
-                    </div>
-                </div>
-            `;
-
-            return html;
-        },
-
-        onQuantiteChange(input) {
-            const row = input.closest('tr');
-            if (!row) return;
-
-            const quantiteUtilisee = Utils.toNumber(input.value, 0);
-            const quantiteIncluse = Utils.toNumber(row.dataset.defaultQty, 0);
-            const prixUnitaire = Utils.toNumber(row.dataset.unitPrice, 0);
-            const source = row.dataset.source;
-
-            const ecart = quantiteUtilisee - quantiteIncluse;
-            const impact = ecart * prixUnitaire;
-
-            const ecartEl = row.querySelector('.ecart-value');
-            const impactEl = row.querySelector('.montant-value');
-            const resetBtn = row.querySelector('.reset-to-included');
-
-            if (ecartEl) {
-                ecartEl.textContent = ecart.toFixed(1);
-                ecartEl.className = 'ecart-value badge ' + 
-                    (ecart > 0 ? 'bg-danger' : (ecart < 0 ? 'bg-success' : 'bg-secondary'));
-            }
-            if (impactEl) {
-                impactEl.textContent = impact.toFixed(2);
-                // Changer la couleur selon l'impact
-                impactEl.className = 'montant-value fw-bold ' +
-                    (impact > 0 ? 'text-danger' : (impact < 0 ? 'text-success' : 'text-dark'));
-            }
-
-            // Gérer l'affichage du bouton reset
-            if (resetBtn) {
-                if (ecart !== 0) {
-                    resetBtn.classList.remove('btn-outline-secondary');
-                    resetBtn.classList.add('btn-warning');
-                    resetBtn.title = `Écart de ${ecart.toFixed(1)} - Cliquer pour remettre à ${quantiteIncluse}`;
-                } else {
-                    resetBtn.classList.remove('btn-warning');
-                    resetBtn.classList.add('btn-outline-secondary');
-                    resetBtn.title = 'Remettre à la quantité incluse';
-                }
-            }
-
-            // Mettre à jour les quantités dans les actes inclus si nécessaire
-            if (source !== 'direct') {
-                this.updateRelatedActesQuantites(row, quantiteUtilisee, quantiteIncluse);
-            }
-
-            this.calculerImpact();
-        },
-
-        resetQuantiteToIncluded(button) {
-            const row = button.closest('tr');
-            if (!row) return;
-
-            const quantiteIncluse = Utils.toNumber(row.dataset.defaultQty, 0);
-            const input = row.querySelector('.quantite-inclus-input');
-
-            if (input) {
-                input.value = quantiteIncluse;
-                // Déclencher l'événement de changement pour mettre à jour les calculs
-                this.onQuantiteChange(input);
-            }
-
-            // Animation de feedback
-            button.classList.add('btn-success');
-            setTimeout(() => {
-                button.classList.remove('btn-success');
-                button.classList.add('btn-outline-secondary');
-            }, 500);
-        },
-
-        updateRelatedActesQuantites(produitRow, nouvelleQuantite, quantiteIncluse) {
-            // Cette fonction pourrait être utilisée pour mettre à jour les affichages
-            // dans la section des actes inclus si nécessaire
-            const produitId = produitRow.dataset.prodId;
-            const source = produitRow.dataset.source;
-
-            // Optionnel : Mise à jour visuelle dans la section actes inclus
-            // Pour l'instant, on garde juste un log pour le debug
-            console.log(`Produit ${produitId} (${source}): ${quantiteIncluse} → ${nouvelleQuantite}`);
-        },
-
-        calculerImpact() {
-            let supplements = 0;
-            let economies = 0;
-
-            document.querySelectorAll('#produits-inclus-container .montant-value').forEach(el => {
-                const value = Utils.toNumber(el.textContent, 0);
-                if (value > 0) supplements += value;
-                else if (value < 0) economies += Math.abs(value);
-            });
-
-            Utils.updateElement('supplementsProduits', Utils.formatDA(supplements));
-            Utils.updateElement('economiesProduits', Utils.formatDA(economies));
-            Utils.updateElement('recapSupplements', supplements.toFixed(2));
-            Utils.updateElement('recapEconomies', economies.toFixed(2));
-
-            CalculsManager.calculerTotal();
-        }
-    };
-
-    // Gestion des actes supplémentaires (existant)
-    const ActesManager = {
-        ajouter() {
-            const container = document.getElementById('actes-container');
-            const template = document.getElementById('acte-row-template');
-            if (!template || !container) return;
-
-            const html = template.innerHTML.replace(/\{index\}/g, acteCounter);
-            const div = document.createElement('div');
-            div.innerHTML = html;
-            container.appendChild(div.firstElementChild);
-
-            this.initActeRow(container.lastElementChild, acteCounter);
-            acteCounter++;
-            this.calculerTotal();
-        },
-
-        initActeRow(row, index) {
-            const select = row.querySelector('.acte-select');
-            const quantiteInput = row.querySelector('.quantite-acte');
-            const prixInput = row.querySelector('.prix-acte');
-            const removeBtn = row.querySelector('.remove-acte');
-            const produitsInfo = row.querySelector('.produits-acte-info');
-            const produitContainer = row.querySelector('.produit-container');
-
-            if (select) {
-                select.addEventListener('change', async () => {
-                    const acteId = select.value;
-                    if (acteId) {
-                        const acte = dataCache.actes.find(a => String(a.id) === String(acteId));
-                        if (acte) {
-                            // Vérifier si cet acte est inclus dans le forfait sélectionné
-                            const forfaitSelected = document.querySelector('[name="forfait"]:checked');
-                            let prixUtilise = Utils.toNumber(acte.prix, 0);
-                            let isIncluded = false;
-
-                            if (forfaitSelected && dataCache.forfaits[forfaitSelected.value]?.actes_inclus) {
-                                const acteInclus = dataCache.forfaits[forfaitSelected.value].actes_inclus
-                                    .find(ai => ai.id === acte.id);
-                                if (acteInclus) {
-                                    isIncluded = true;
-                                    produitsInfo.innerHTML = `
-                                        <span class="badge bg-warning">
-                                            <i class="bi bi-exclamation-triangle"></i>
-                                            Partiellement inclus dans le forfait (${acteInclus.quantite_incluse})
-                                        </span>`;
-                                }
-                            }
-
-                            if (!isIncluded) {
-                                prixInput.value = prixUtilise.toFixed(2);
-                            await this.chargerProduitsActe(row, acte, index);
-
-                            const produitsCount = (acte.produits_inclus || []).length;
-                            if (produitsCount > 0) {
-                                produitsInfo.innerHTML = `<span class="badge bg-success">
-                                    <i class="bi bi-check-circle"></i> ${produitsCount} produit(s) inclus</span>`;
-                                produitContainer.style.display = 'block';
-                            } else {
-                                produitsInfo.innerHTML = '<span class="text-muted">Aucun produit inclus</span>';
-                                produitContainer.style.display = 'none';
-                            }
-                            } else {
-                                prixInput.value = prixUtilise.toFixed(2);
-                            }
-                        }
-                    } else {
-                        prixInput.value = '';
-                        produitsInfo.innerHTML = '';
-                        produitContainer.style.display = 'none';
-                    }
-                    this.calculerTotal();
-                });
-            }
-
-            if (quantiteInput) {
-                quantiteInput.addEventListener('input', async () => {
-                    this.calculerTotal();
-                    if (select?.value) {
-                        const acte = dataCache.actes.find(a => String(a.id) === String(select.value));
-                        if (acte) await this.chargerProduitsActe(row, acte, index);
-                    }
-                });
-            }
-
-            if (removeBtn) {
-                removeBtn.addEventListener('click', () => {
-                    row.remove();
-                    this.calculerTotal();
-                    this.calculerImpactProduits();
-                });
-            }
-        },
-
-        async chargerProduitsActe(acteRow, acte, acteIndex) {
-            const container = acteRow.querySelector('.produit-list');
-            const loading = acteRow.querySelector('.produit-loading');
-            if (!container) return;
-
-            Utils.setLoading(loading, true);
-            
-            const quantiteActe = Utils.toNumber(
-                acteRow.querySelector('.quantite-acte')?.value, 1
-            );
-
-            let produitsInclus = acte.produits_inclus || [];
-            
-            if (!produitsInclus.length && acte.id) {
-                try {
-                    const url = AJAX_URLS.acte_detail.replace('0', acte.id);
-                    const response = await fetch(url);
-                    const result = await response.json();
-                    
-                    if (result.success) {
-                        produitsInclus = result.produits;
-                        const acteInCache = dataCache.actes.find(a => a.id === acte.id);
-                        if (acteInCache) acteInCache.produits_inclus = produitsInclus;
-                    }
-                } catch (error) {
-                    console.error('Erreur lors du chargement des produits de l\'acte:', error);
-                }
-            }
-
-            Utils.setLoading(loading, false);
-
-            let html = `
-                <div class="table-responsive">
-                    <table class="table table-sm">
-                        <thead>
-                            <tr>
-                                <th>Produit</th>
-                                <th>Qté réelle</th>
-                                <th>Prix unit.</th>
-                                <th>Qté incluse</th>
-                                <th>Écart</th>
-                                <th>Impact</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-            `;
-
-            produitsInclus.forEach((produit, prodIndex) => {
-                const quantiteAjustee = Utils.toNumber(produit.quantite_defaut, 0) * quantiteActe;
-                
-                html += `
-                    <tr class="produit-row" data-prod-index="${prodIndex}" 
-                        data-default-qty="${quantiteAjustee}" 
-                        data-unit-price="${Utils.toNumber(produit.prix_unitaire, 0)}"
-                        data-prod-id="${produit.id}">
-                        <input type="hidden" name="actes[${acteIndex}][produits][]" value="${produit.id}">
-                        <td><strong>${produit.nom}</strong></td>
-                        <td>
-                            <input type="number" name="actes[${acteIndex}][quantites_reelles][]" 
-                                   class="form-control form-control-sm quantite-acte-produit-input" 
-                                   value="${quantiteAjustee}" min="0" step="0.1">
-                        </td>
-                        <td>${Utils.formatDA(produit.prix_unitaire)}</td>
-                        <td class="text-center text-success fw-bold">${quantiteAjustee}</td>
-                        <td class="text-center">
-                            <span class="ecart-value badge bg-secondary">0</span>
-                        </td>
-                        <td class="text-end">
-                            <span class="montant-value fw-bold">0.00</span> DA
-                        </td>
-                    </tr>
-                `;
-            });
-
-            html += '</tbody></table></div>';
-            container.innerHTML = html;
-
-            container.querySelectorAll('.quantite-acte-produit-input').forEach(input => {
-                input.addEventListener('input', () => this.onQuantiteProduitChange(input));
-            });
-
-            this.calculerImpactProduits();
-        },
-
-        onQuantiteProduitChange(input) {
-            const row = input.closest('tr');
-            if (!row) return;
-
-            const quantiteReelle = Utils.toNumber(input.value, 0);
-            const quantiteIncluse = Utils.toNumber(row.dataset.defaultQty, 0);
-            const prixUnitaire = Utils.toNumber(row.dataset.unitPrice, 0);
-
-            const ecart = quantiteReelle - quantiteIncluse;
-            const impact = ecart * prixUnitaire;
-
-            const ecartEl = row.querySelector('.ecart-value');
-            const impactEl = row.querySelector('.montant-value');
-
-            if (ecartEl) {
-                ecartEl.textContent = ecart.toFixed(1);
-                ecartEl.className = 'ecart-value badge ' + 
-                    (ecart > 0 ? 'bg-danger' : (ecart < 0 ? 'bg-success' : 'bg-secondary'));
-            }
-            if (impactEl) impactEl.textContent = impact.toFixed(2);
-
-            this.calculerImpactProduits();
-        },
-
-        calculerTotal() {
-            let total = 0;
-            document.querySelectorAll('#actes-container .acte-row').forEach(row => {
-                const prix = Utils.toNumber(row.querySelector('.prix-acte')?.value, 0);
-                const quantite = Utils.toNumber(row.querySelector('.quantite-acte')?.value, 0);
-                total += prix * quantite;
-            });
-
-            Utils.updateElement('totalActes', Utils.formatDA(total));
-            Utils.updateElement('recapActes', total.toFixed(2));
-            CalculsManager.calculerTotal();
-        },
-
-        calculerImpactProduits() {
-            let total = 0;
-            document.querySelectorAll('#actes-container .montant-value').forEach(el => {
-                total += Utils.toNumber(el.textContent, 0);
-            });
-            Utils.updateElement('impactProduitsActes', Utils.formatDA(total));
-            CalculsManager.calculerTotal();
-        }
-    };
-
-    // Gestion des produits supplémentaires (existant)
-    const ProduitsSupplementairesManager = {
-        ajouter() {
-            const container = document.getElementById('produits-supplementaires-container');
-            if (!container) return;
-
-            const div = document.createElement('div');
-            div.className = 'card mb-2';
-
-            const optionsHtml = dataCache.produitsSupp.map(p => 
-                `<option value="${p.id}" data-prix="${Utils.toNumber(p.prix, 0)}">
-                    ${p.code ? p.code + ' - ' : ''}${p.nom} (${Utils.toNumber(p.prix, 0).toFixed(2)} DA)
-                </option>`
-            ).join('');
-
-            div.innerHTML = `
-                <div class="card-body">
-                    <div class="row g-3">
-                        <div class="col-md-4">
-                            <select name="produits_supp[id][]" class="form-select produit-supp-select" required>
-                                <option value="">-- Choisir un produit --</option>
-                                ${optionsHtml}
-                            </select>
-                        </div>
-                        <div class="col-md-2">
-                            <input type="number" name="produits_supp[quantite][]" 
-                                   class="form-control quantite-supp-input" value="1" min="0.1" step="0.1">
-                        </div>
-                        <div class="col-md-2">
-                            <div class="input-group">
-                                <input type="text" name="produits_supp[prix][]" 
-                                       class="form-control prix-supp-input text-end" readonly>
-                                <span class="input-group-text">DA</span>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="total-supp-value text-end fw-bold fs-5">0.00 DA</div>
-                        </div>
-                        <div class="col-md-1">
-                            <button type="button" class="btn btn-danger btn-sm remove-produit-supp">
-                                <i class="bi bi-trash"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-
-            container.appendChild(div);
-            this.initProduitRow(div);
-            produitSuppCounter++;
-        },
-
-        initProduitRow(row) {
-            const select = row.querySelector('.produit-supp-select');
-            const quantiteInput = row.querySelector('.quantite-supp-input');
-            const prixInput = row.querySelector('.prix-supp-input');
-            const removeBtn = row.querySelector('.remove-produit-supp');
-
-            if (select) {
-                select.addEventListener('change', function() {
-                    const option = this.options[this.selectedIndex];
-                    if (option?.value && prixInput) {
-                        prixInput.value = Utils.toNumber(option.dataset.prix, 0).toFixed(2);
-                    } else if (prixInput) {
-                        prixInput.value = '';
-                    }
-                    ProduitsSupplementairesManager.calculerTotalProduit(row);
-                });
-            }
-
-            if (quantiteInput) {
-                quantiteInput.addEventListener('input', () => this.calculerTotalProduit(row));
-            }
-
-            if (removeBtn) {
-                removeBtn.addEventListener('click', () => {
-                    row.remove();
-                    this.calculerTotal();
-                });
-            }
-        },
-
-        calculerTotalProduit(row) {
-            const prix = Utils.toNumber(row.querySelector('.prix-supp-input')?.value, 0);
-            const quantite = Utils.toNumber(row.querySelector('.quantite-supp-input')?.value, 0);
-            const total = prix * quantite;
-
-            const totalEl = row.querySelector('.total-supp-value');
-            if (totalEl) totalEl.textContent = total.toFixed(2) + ' DA';
-
-            this.calculerTotal();
-        },
-
-        calculerTotal() {
-            let total = 0;
-            document.querySelectorAll('#produits-supplementaires-container .total-supp-value').forEach(el => {
-                const text = String(el.textContent || '').replace(' DA', '').trim();
-                total += Utils.toNumber(text, 0);
-            });
-
-            Utils.updateElement('totalProduitsSupp', Utils.formatDA(total));
-            Utils.updateElement('recapProdSupp', total.toFixed(2));
-            CalculsManager.calculerTotal();
-        }
-    };
-
-    // Gestion des calculs (mis à jour)
-    const CalculsManager = {
-        calculerPrixBloc() {
-            const blocSelected = document.querySelector('input[name="bloc"]:checked');
-            const dureeInput = document.getElementById('dureeReelle');
-            const typeTarif = document.querySelector('input[name="type_tarification"]:checked')?.value;
-
-            if (!blocSelected || !dureeInput?.value) {
-                Utils.updateElement('prixBloc', '0.00');
-                return 0;
-            }
-
-            const blocId = blocSelected.value;
-            const duree = Utils.toNumber(dureeInput.value, 0);
-            const bloc = dataCache.blocs[blocId];
-            
-            if (!bloc) {
-                Utils.updateElement('prixBloc', '0.00');
-                return 0;
-            }
-
-            let prix = 0;
-            if (typeTarif === 'FORFAIT') {
-                const forfaitSelected = document.querySelector('input[name="forfait"]:checked');
-                if (forfaitSelected) {
-                    const forfaitId = forfaitSelected.value;
-                    const forfait = dataCache.forfaits[forfaitId];
-                    if (forfait) {
-                        prix = Utils.toNumber(forfait.prix, 0);
-                        if (duree > Utils.toNumber(forfait.duree, 0)) {
-                            const minutesSupp = duree - Utils.toNumber(forfait.duree, 0);
-                            const tranches = Math.ceil(minutesSupp / 30);
-                            prix += tranches * Utils.toNumber(bloc.prix_supplement_30min, 0);
-                        }
-                    }
-                }
-            } else {
-                prix = Utils.toNumber(bloc.prix_base, 0);
-                if (duree > 90) {
-                    const minutesSupp = duree - 90;
-                    const tranches = Math.ceil(minutesSupp / 30);
-                    prix += tranches * Utils.toNumber(bloc.prix_supplement_30min, 0);
-                }
-            }
-
-            Utils.updateElement('prixBloc', prix.toFixed(2));
-            return prix;
-        },
-
-        calculerTotal() {
-            const prixBloc = this.calculerPrixBloc();
-            const totalActes = Utils.toNumber(document.getElementById('recapActes')?.textContent, 0);
-            const supplements = Utils.toNumber(document.getElementById('recapSupplements')?.textContent, 0);
-            const economies = Utils.toNumber(document.getElementById('recapEconomies')?.textContent, 0);
-            const impactProduitsActes = Utils.toNumber(
-                (document.getElementById('impactProduitsActes')?.textContent || '').replace(' DA',''), 0
-            );
-            const totalProdSupp = Utils.toNumber(document.getElementById('recapProdSupp')?.textContent, 0);
-
-            // NOUVEAU : Ajouter les suppléments d'actes forfaitaires
-            const supplementsActes = Utils.toNumber(
-                (document.getElementById('supplementsActes')?.textContent || '').replace(' DA',''), 0
-            );
-
-            const totalGeneral = prixBloc + totalActes + supplements + impactProduitsActes + totalProdSupp + supplementsActes - economies;
-            Utils.updateElement('totalGeneral', totalGeneral.toFixed(2));
-
-            this.calculerStatutPaiement();
-        },
-
-        calculerStatutPaiement() {
-            const montantPaye = Utils.toNumber(document.getElementById('montantPayeCaisse')?.value, 0);
-            const montantFacture = Utils.toNumber(document.getElementById('totalGeneral')?.textContent, 0);
-            const difference = montantPaye - montantFacture;
-
-            const calculsPaiement = document.getElementById('calculsPaiement');
-            const alertePaiement = document.getElementById('alertePaiement');
-
-            if (montantPaye > 0 || montantFacture > 0) {
-                calculsPaiement.style.display = 'block';
-
-                Utils.updateElement('montantFacturePaiement', Utils.formatDA(montantFacture));
-                Utils.updateElement('montantPayePaiement', Utils.formatDA(montantPaye));
-                Utils.updateElement('montantDifference', Utils.formatDA(Math.abs(difference)));
-                Utils.updateElement('montantPayeResume', montantPaye.toFixed(2));
-                Utils.updateElement('montantFactureResume', montantFacture.toFixed(2));
-
-                const cardDifference = document.getElementById('cardDifference');
-                const statutFinancier = document.getElementById('libelle-statut');
-                const montantAction = document.getElementById('montant-action');
-
-                if (montantPaye === 0) {
-                    cardDifference.className = 'card border-secondary';
-                    statutFinancier.textContent = 'Aucun paiement';
-                    statutFinancier.className = 'fs-4 fw-bold text-secondary';
-                    montantAction.style.display = 'none';
-                    alertePaiement.innerHTML = `
-                        <div class="alert alert-secondary">
-                            <i class="bi bi-info-circle me-2"></i>Aucun paiement enregistré
-                        </div>`;
-                } else if (difference > 0) {
-                    cardDifference.className = 'card border-success';
-                    statutFinancier.textContent = 'Surplus à verser';
-                    statutFinancier.className = 'fs-4 fw-bold text-success';
-                    montantAction.style.display = 'block';
-                    document.getElementById('action-text').textContent = 'À verser au médecin :';
-                    document.getElementById('montant-action-value').textContent = Utils.formatDA(difference);
-                    alertePaiement.innerHTML = `
-                        <div class="alert alert-success">
-                            <i class="bi bi-check-circle me-2"></i>
-                            <strong>Surplus de ${Utils.formatDA(difference)}</strong><br>
-                            La clinique doit verser ${Utils.formatDA(difference)} au médecin.
-                        </div>`;
-                } else if (difference < 0) {
-                    cardDifference.className = 'card border-warning';
-                    statutFinancier.textContent = 'Complément requis';
-                    statutFinancier.className = 'fs-4 fw-bold text-warning';
-                    montantAction.style.display = 'block';
-                    document.getElementById('action-text').textContent = 'Dû par le médecin :';
-                    document.getElementById('montant-action-value').textContent = Utils.formatDA(Math.abs(difference));
-                    alertePaiement.innerHTML = `
-                        <div class="alert alert-warning">
-                            <i class="bi bi-exclamation-triangle me-2"></i>
-                            <strong>Complément de ${Utils.formatDA(Math.abs(difference))} requis</strong><br>
-                            Le médecin doit payer ${Utils.formatDA(Math.abs(difference))} à la clinique.
-                        </div>`;
-                } else {
-                    cardDifference.className = 'card border-primary';
-                    statutFinancier.textContent = 'Équilibré';
-                    statutFinancier.className = 'fs-4 fw-bold text-primary';
-                    montantAction.style.display = 'none';
-                    alertePaiement.innerHTML = `
-                        <div class="alert alert-primary">
-                            <i class="bi bi-check-circle me-2"></i>
-                            <strong>Paiement équilibré</strong>
-                        </div>`;
-                }
-
-                alertePaiement.style.display = 'block';
-            } else {
-                calculsPaiement.style.display = 'none';
-                alertePaiement.style.display = 'none';
-            }
-        }
-    };
-
-    // API publique
-    return {
-        init() {
-            // Charger les données
-            DataManager.loadAll().then(() => {
-                this.initializeInterface();
-            });
-
-            // Initialiser Flatpickr
-            flatpickr("#datetimepicker", {
-                enableTime: true,
-                dateFormat: "Y-m-d H:i",
-                time_24hr: true,
-                locale: { firstDayOfWeek: 7 },
-                defaultDate: document.getElementById("date_operation").value + " " + 
-                           (document.getElementById("heure_operation").value || "00:00"),
-                onChange: function(selectedDates, dateStr) {
-                    const [date, time] = dateStr.split(" ");
-                    document.getElementById("date_operation").value = date;
-                    document.getElementById("heure_operation").value = time;
-                }
-            });
-
-            // Event listeners
-            this.attachEventListeners();
-        },
-
-        initializeInterface() {
-            const currentType = document.querySelector('[name="type_tarification"]:checked')?.value || 'DUREE';
-            this.chooseTarif(currentType);
-
-            const blocChecked = document.querySelector('[name="bloc"]:checked');
-            if (blocChecked && currentType === 'DUREE') {
-                ProduitsInclusManager.charger(blocChecked.value, 'bloc');
-            }
-
-            if (currentType === 'FORFAIT') {
-                const forfaitChecked = document.querySelector('[name="forfait"]:checked');
-                if (forfaitChecked) {
-                    ActesInclusManager.charger(forfaitChecked.value);
-                    ProduitsInclusManager.charger(forfaitChecked.value, 'forfait');
-                }
-            }
-
-            CalculsManager.calculerTotal();
-        },
-
-        attachEventListeners() {
-            // Ajout acte
-            document.getElementById('add-acte')?.addEventListener('click', () => ActesManager.ajouter());
-
-            // Ajout produit supplémentaire
-            document.getElementById('add-produit-supp')?.addEventListener('click', () => 
-                ProduitsSupplementairesManager.ajouter()
-            );
-
-            // Durée réelle
-            document.getElementById('dureeReelle')?.addEventListener('input', () => {
-                CalculsManager.calculerTotal();
-            });
-
-            // Montant payé
-            document.getElementById('montantPayeCaisse')?.addEventListener('input', () => {
-                CalculsManager.calculerStatutPaiement();
-            });
-
-            // Validation du formulaire
-            document.getElementById('prestationBlocForm')?.addEventListener('submit', this.validateForm);
-        },
-
-        selectBloc(element, inputId) {
-            // Retirer la classe active de toutes les cartes bloc
-            document.querySelectorAll('.section-card:has(.bi-hospital) .pricing-card').forEach(card => {
-                card.classList.remove('border-primary');
-                card.classList.add('border-2');
-            });
-            
-            if (element) {
-                element.classList.add('border-primary');
-            }
-
-            const input = document.getElementById(inputId);
-            if (input) input.checked = true;
-
-            const blocId = input?.value;
-            const currentType = document.querySelector('[name="type_tarification"]:checked')?.value || 'DUREE';
-
-            if (blocId && currentType === 'DUREE') {
-                ProduitsInclusManager.charger(blocId, 'bloc');
-            }
-
-            CalculsManager.calculerTotal();
-        },
-
-        selectForfait(element, inputId) {
-            // Retirer la classe active de tous les forfaits
-            document.querySelectorAll('#forfait-config .pricing-card').forEach(card => {
-                card.classList.remove('border-primary');
-            });
-            
-            if (element) {
-                element.classList.add('border-primary');
-            }
-
-            const input = document.getElementById(inputId);
-            if (input) input.checked = true;
-
-            const forfaitId = element?.dataset?.forfaitId || input?.value;
-            if (forfaitId) {
-                // NOUVEAU : Charger les actes inclus dans le forfait
-                ActesInclusManager.charger(forfaitId);
-                ProduitsInclusManager.charger(forfaitId, 'forfait');
-            }
-
-            CalculsManager.calculerTotal();
-        },
-
-        chooseTarif(type) {
-            // Mise à jour visuelle
-            document.querySelectorAll('[name="type_tarification"]').forEach(input => {
-                const card = input.closest('.pricing-card');
-                if (card) {
-                    if (input.value === type) {
-                        card.classList.add('border-primary');
-                    } else {
-                        card.classList.remove('border-primary');
-                    }
-                }
-            });
-
-            const forfaitConfig = document.getElementById('forfait-config');
-            const nomActeGroup = document.getElementById('nomActeGroup');
-            const nomActeRequired = document.getElementById('nomActeRequired');
-            const nomActeInput = document.getElementById('nomActe');
-            const actesInclusCard = document.getElementById('actesInclusCard');
-
-            if (type === 'FORFAIT') {
-                nomActeGroup?.classList.add('d-none');
-                nomActeRequired?.classList.add('d-none');
-                if (nomActeInput) {
-                    nomActeInput.required = false;
-                    nomActeInput.value = '';
-                }
-                forfaitConfig?.classList.remove('d-none');
-
-                const forfaitChecked = document.querySelector('[name="forfait"]:checked');
-                if (forfaitChecked) {
-                    ActesInclusManager.charger(forfaitChecked.value);
-                    ProduitsInclusManager.charger(forfaitChecked.value, 'forfait');
-                } else {
-                    // Masquer les cartes si aucun forfait sélectionné
-                    if (actesInclusCard) actesInclusCard.style.display = 'none';
-                }
-            } else {
-                nomActeGroup?.classList.remove('d-none');
-                nomActeRequired?.classList.remove('d-none');
-                if (nomActeInput) nomActeInput.required = true;
-                forfaitConfig?.classList.add('d-none');
-
-                // Masquer la carte des actes inclus en mode durée
-                if (actesInclusCard) actesInclusCard.style.display = 'none';
-
-                const blocChecked = document.querySelector('[name="bloc"]:checked');
-                if (blocChecked) {
-                    ProduitsInclusManager.charger(blocChecked.value, 'bloc');
-                }
-            }
-
-            const radio = document.getElementById('tarif_' + type.toLowerCase());
-            if (radio) radio.checked = true;
-
-            CalculsManager.calculerTotal();
-        },
-
-        validateForm(e) {
-            const typeTarif = document.querySelector('[name="type_tarification"]:checked')?.value;
-            const nomActeInput = document.getElementById('nomActe');
-            const dureeReelle = document.getElementById('dureeReelle');
-
-            // Validation durée
-            if (!dureeReelle?.value || Utils.toNumber(dureeReelle.value, 0) <= 0) {
-                e.preventDefault();
-                alert('La durée réelle est obligatoire et doit être positive.');
-                return false;
-            }
-
-            // Validation nom acte pour DUREE
-            if (typeTarif === 'DUREE' && nomActeInput && !nomActeInput.value.trim()) {
-                e.preventDefault();
-                alert('Le nom de l\'intervention est obligatoire pour la tarification à la durée.');
-                return false;
-            }
-
-            // Validation forfait pour FORFAIT
-            if (typeTarif === 'FORFAIT') {
-                const forfait = document.querySelector('[name="forfait"]:checked');
-                if (!forfait) {
-                    e.preventDefault();
-                    alert('Veuillez sélectionner un forfait pour la tarification forfaitaire.');
-                    return false;
-                }
-            }
+        const div = document.createElement('div');
+        div.innerHTML = html;
+        return div.firstElementChild;
+    }
+};
+</script>
+
+<!-- 3. Gestionnaire de données -->
+<script>
+window.LocationDataManager = {
+    async loadAll() {
+        try {
+            const [blocsRes, forfaitsRes, actesRes, produitsRes] = await Promise.all([
+                fetch(LocationConfig.AJAX_URLS.blocs).then(r => r.json()),
+                fetch(LocationConfig.AJAX_URLS.forfaits).then(r => r.json()),
+                fetch(LocationConfig.AJAX_URLS.actes).then(r => r.json()),
+                fetch(LocationConfig.AJAX_URLS.produits_supp).then(r => r.json())
+            ]);
+
+            if (blocsRes.success) LocationCache.blocs = blocsRes.blocs;
+            if (forfaitsRes.success) LocationCache.forfaits = forfaitsRes.forfaits;
+            if (actesRes.success) LocationCache.actes = actesRes.actes;
+            if (produitsRes.success) LocationCache.produitsSupp = produitsRes.produits;
 
             return true;
+        } catch (error) {
+            console.error('Erreur lors du chargement des données:', error);
+            alert('Erreur lors du chargement des données. Veuillez rafraîchir la page.');
+            return false;
         }
-    };
-})();
+    },
 
-// Initialisation au chargement du DOM
+    async loadActeDetails(acteId) {
+        let acteData = LocationCache.actes.find(a => a.id == acteId);
+        
+        if (!acteData?.produits_inclus) {
+            try {
+                const url = LocationConfig.AJAX_URLS.acte_detail.replace('0', acteId);
+                const response = await fetch(url);
+                const result = await response.json();
+                
+                if (result.success) {
+                    if (acteData) {
+                        acteData.produits_inclus = result.produits || [];
+                    } else {
+                        acteData = {
+                            id: acteId,
+                            nom: result.nom || 'Acte inconnu',
+                            produits_inclus: result.produits || []
+                        };
+                        LocationCache.actes.push(acteData);
+                    }
+                }
+            } catch (error) {
+                console.error(`Erreur lors du chargement des produits de l'acte ${acteId}:`, error);
+                return null;
+            }
+        }
+        
+        return acteData;
+    }
+};
+</script>
+
+<!-- 4. Gestionnaire des actes inclus -->
+<script>
+window.LocationActesInclus = {
+    async charger(forfaitId) {
+        const section = document.getElementById('actes-inclus-section');
+        const container = document.getElementById('actes-inclus-container');
+        
+        if (!section || !container) return;
+
+        container.innerHTML = '';
+        
+        let forfaitData = LocationCache.forfaits[forfaitId];
+        
+        if (!forfaitData) {
+            try {
+                const url = LocationConfig.AJAX_URLS.forfait_detail.replace('0', forfaitId);
+                const response = await fetch(url);
+                forfaitData = await response.json();
+                LocationCache.forfaits[forfaitId] = forfaitData;
+            } catch (error) {
+                console.error('Erreur lors du chargement des actes inclus:', error);
+            }
+        }
+
+        const actesInclus = forfaitData?.actes_inclus || [];
+        
+        if (!actesInclus.length) {
+            section.style.display = 'none';
+            return;
+        }
+
+        actesInclus.forEach((acte, index) => {
+            this.ajouterActeInclus(acte, index);
+        });
+
+        section.style.display = 'block';
+        this.calculerTotal();
+    },
+
+    ajouterActeInclus(acte, index) {
+        const container = document.getElementById('actes-inclus-container');
+        const template = document.getElementById('acte-inclus-template');
+        
+        if (!template || !container) return;
+
+        const element = LocationUtils.createElement(template, {
+            acte_id: acte.id,
+            index: index,
+            nom_acte: acte.nom,
+            quantite_incluse: acte.quantite_incluse || 0,
+            prix_unitaire: (acte.prix_standard || 0).toFixed(2)
+        });
+        
+        container.appendChild(element);
+        
+        const quantiteInput = element.querySelector('.quantite-acte-inclus');
+        if (quantiteInput) {
+            quantiteInput.addEventListener('input', () => this.onQuantiteChange(element));
+        }
+    },
+
+    onQuantiteChange(element) {
+        const quantiteInput = element.querySelector('.quantite-acte-inclus');
+        const quantiteUtilisee = LocationUtils.toNumber(quantiteInput.value, 0);
+        const quantiteIncluse = LocationUtils.toNumber(element.querySelector('[name="actes_inclus[quantite_incluse][]"]').value, 0);
+        const prixUnitaire = LocationUtils.toNumber(element.querySelector('[name="actes_inclus[prix_unitaire][]"]').value, 0);
+        const acteId = element.dataset.acteId;
+
+        const ecart = quantiteUtilisee - quantiteIncluse;
+        const impact = Math.max(0, ecart) * prixUnitaire;
+
+        const ecartEl = element.querySelector('.ecart-acte');
+        const impactEl = element.querySelector('.impact-acte');
+
+        if (ecartEl) {
+            ecartEl.textContent = ecart.toFixed(0);
+            ecartEl.className = 'ecart-acte badge ' + 
+                (ecart > 0 ? 'bg-danger' : (ecart < 0 ? 'bg-success' : 'bg-secondary'));
+        }
+        
+        if (impactEl) {
+            impactEl.textContent = impact.toFixed(2) + ' DA';
+            impactEl.className = 'text-end fw-bold impact-acte ' + 
+                (impact > 0 ? 'text-danger' : 'text-dark');
+        }
+
+        this.mettreAJourProduitsActe(acteId, quantiteUtilisee, quantiteIncluse);
+        this.calculerTotal();
+    },
+
+    mettreAJourProduitsActe(acteId, nouvelleQuantiteActe, quantiteIncluseActe) {
+        const forfaitSelected = document.querySelector('[name="forfait"]:checked');
+        if (!forfaitSelected) return;
+
+        const forfaitId = forfaitSelected.value;
+        const forfaitData = LocationCache.forfaits[forfaitId];
+        if (!forfaitData) return;
+
+        const acte = forfaitData.actes_inclus?.find(a => a.id == acteId);
+        if (!acte || !acte.produits_inclus) return;
+
+        console.log(`Mise à jour des produits de l'acte ${acte.nom}: ${quantiteIncluseActe} → ${nouvelleQuantiteActe}`);
+
+        document.querySelectorAll('#produits-inclus-container .produit-inclus-item').forEach(produitElement => {
+            const produitId = produitElement.dataset.produitId;
+
+            if (!this.produitEstLieAActe(produitElement, acteId, acte.nom)) return;
+
+            const produitActe = acte.produits_inclus.find(p => p.id == produitId);
+            if (!produitActe) return;
+
+            this.ajusterQuantitesProduit(produitElement, produitActe, nouvelleQuantiteActe, quantiteIncluseActe, acte);
+        });
+    },
+
+    produitEstLieAActe(produitElement, acteId, acteNom) {
+        const hasSourceClass = produitElement.classList.contains('source-acte_inclus') ||
+                              produitElement.classList.contains('source-mixte') ||
+                              produitElement.classList.contains('source-multiple_actes');
+
+        if (!hasSourceClass) return false;
+
+        const actesSourceIds = produitElement.dataset.actesSourceIds;
+        if (actesSourceIds && actesSourceIds.split(',').includes(acteId.toString())) {
+            return true;
+        }
+
+        const badges = produitElement.querySelectorAll('.badge');
+        for (const badge of badges) {
+            if (badge.textContent.includes(acteNom)) return true;
+        }
+
+        return false;
+    },
+
+    ajusterQuantitesProduit(produitElement, produitActe, nouvelleQuantiteActe, quantiteIncluseActe, acte) {
+        const quantiteInput = produitElement.querySelector('.quantite-produit-inclus');
+        const quantiteIncluseInput = produitElement.querySelector('[name="produits_inclus[quantite_incluse][]"]');
+        const resetBtn = produitElement.querySelector('.reset-produit-inclus');
+        const badgeIncluse = produitElement.querySelector('.badge.bg-success');
+
+        if (!quantiteInput || !quantiteIncluseInput || !resetBtn) {
+            console.warn('Éléments manquants dans le produit:', produitElement);
+            return;
+        }
+
+        const quantiteUnitaire = LocationUtils.toNumber(produitActe.quantite_defaut, 0);
+        const ancienneQuantiteTotaleIncluse = quantiteUnitaire * quantiteIncluseActe;
+        const nouvelleQuantiteTotaleIncluse = quantiteUnitaire * nouvelleQuantiteActe;
+
+        const quantiteIncluseActuelle = LocationUtils.toNumber(quantiteIncluseInput.value, 0);
+        const quantiteUtiliseeActuelle = LocationUtils.toNumber(quantiteInput.value, 0);
+
+        const differenceQuantite = nouvelleQuantiteTotaleIncluse - ancienneQuantiteTotaleIncluse;
+        const nouvelleQuantiteIncluse = Math.max(0, quantiteIncluseActuelle + differenceQuantite);
+
+        quantiteIncluseInput.value = nouvelleQuantiteIncluse.toFixed(1);
+        resetBtn.dataset.original = nouvelleQuantiteIncluse.toFixed(1);
+
+        if (Math.abs(quantiteUtiliseeActuelle - quantiteIncluseActuelle) < 0.1) {
+            quantiteInput.value = nouvelleQuantiteIncluse.toFixed(1);
+        } else {
+            const ratio = quantiteIncluseActuelle > 0 ? (quantiteUtiliseeActuelle / quantiteIncluseActuelle) : 1;
+            quantiteInput.value = Math.max(0, nouvelleQuantiteIncluse * ratio).toFixed(1);
+        }
+
+        if (badgeIncluse) {
+            badgeIncluse.textContent = nouvelleQuantiteIncluse.toFixed(1);
+        }
+
+        this.mettreAJourBadgesDetail(produitElement, acte, nouvelleQuantiteTotaleIncluse);
+        LocationProduitsInclus.onQuantiteChange(produitElement);
+
+        console.log(`Produit ${produitActe.nom}: incluse ${quantiteIncluseActuelle} → ${nouvelleQuantiteIncluse}, utilisée ${quantiteUtiliseeActuelle} → ${quantiteInput.value}`);
+    },
+
+    mettreAJourBadgesDetail(produitElement, acte, nouvelleQuantite) {
+        const sourceInfo = produitElement.querySelector('.mt-1');
+        if (!sourceInfo) return;
+
+        const badges = sourceInfo.querySelectorAll('.badge.bg-info');
+        badges.forEach(badge => {
+            if (badge.textContent.includes(acte.nom)) {
+                const parts = badge.textContent.split(':');
+                if (parts.length === 2) {
+                    badge.textContent = `${parts[0].trim()}: ${nouvelleQuantite.toFixed(1)}`;
+                }
+            }
+        });
+    },
+
+    calculerTotal() {
+        let total = 0;
+        document.querySelectorAll('#actes-inclus-container .impact-acte').forEach(el => {
+            const value = parseFloat(el.textContent.replace(' DA', '')) || 0;
+            total += value;
+        });
+
+        LocationUtils.updateElement('supplementsActesInclus', LocationUtils.formatDA(total));
+        LocationCalculs.calculerTotal();
+    },
+
+    viderEtRecharger() {
+        const section = document.getElementById('actes-inclus-section');
+        const container = document.getElementById('actes-inclus-container');
+        
+        if (container) container.innerHTML = '';
+        if (section) section.style.display = 'none';
+        
+        this.calculerTotal();
+    }
+};
+</script>
+
+<!-- 5. Gestionnaire des actes supplémentaires -->
+<script>
+window.LocationActesSupplementaires = {
+    ajouter() {
+        const container = document.getElementById('actes-supplementaires-container');
+        const template = document.getElementById('acte-supplementaire-template');
+        
+        if (!template || !container) return null;
+
+        const element = LocationUtils.createElement(template, {
+            index: LocationCounters.acteSupp
+        });
+        
+        element.dataset.index = LocationCounters.acteSupp;
+        container.appendChild(element);
+        this.initElement(element);
+        LocationCounters.acteSupp++;
+        
+        return element;
+    },
+
+    initElement(element) {
+        const select = element.querySelector('.acte-supp-select');
+        const quantiteInput = element.querySelector('.quantite-acte-supp');
+        const prixInput = element.querySelector('.prix-acte-supp');
+        const removeBtn = element.querySelector('.remove-acte-supp');
+
+        if (select) {
+            select.addEventListener('change', () => {
+                const option = select.options[select.selectedIndex];
+                if (option?.value && prixInput) {
+                    prixInput.value = LocationUtils.toNumber(option.dataset.prix, 0).toFixed(2);
+                    this.chargerProduitsActe(option.value, element);
+                } else if (prixInput) {
+                    prixInput.value = '';
+                    this.supprimerProduitsActe(element);
+                }
+                this.calculerTotalElement(element);
+            });
+        }
+
+        if (quantiteInput) {
+            quantiteInput.addEventListener('input', () => {
+                this.calculerTotalElement(element);
+                this.mettreAJourQuantitesProduitsActe(element);
+            });
+        }
+
+        if (removeBtn) {
+            removeBtn.addEventListener('click', () => {
+                this.supprimerProduitsActe(element);
+                element.remove();
+                this.calculerTotal();
+            });
+        }
+    },
+
+    async chargerProduitsActe(acteId, acteElement) {
+        if (!acteId) return;
+
+        const acteData = await LocationDataManager.loadActeDetails(acteId);
+        if (!acteData?.produits_inclus?.length) {
+            console.log(`Aucun produit trouvé pour l'acte ${acteId}`);
+            return;
+        }
+
+        acteElement.dataset.acteId = acteId;
+        acteElement.dataset.produitsCharges = 'true';
+
+        const quantiteActe = LocationUtils.toNumber(acteElement.querySelector('.quantite-acte-supp')?.value, 1);
+
+        acteData.produits_inclus.forEach(produitActe => {
+            this.ajouterProduitActeSupplementaire(produitActe, acteData, quantiteActe, acteElement);
+        });
+
+        console.log(`${acteData.produits_inclus.length} produits ajoutés pour l'acte ${acteData.nom}`);
+    },
+
+    ajouterProduitActeSupplementaire(produitActe, acteData, quantiteActe, acteElement) {
+        const container = document.getElementById('produits-supplementaires-container');
+        const template = document.getElementById('produit-supplementaire-template');
+        
+        if (!template || !container) return;
+
+        const quantiteProduit = LocationUtils.toNumber(produitActe.quantite_defaut, 0) * quantiteActe;
+
+        const optionsHtml = LocationCache.produitsSupp.map(p => 
+            `<option value="${p.id}" data-prix="${LocationUtils.toNumber(p.prix, 0)}" ${p.id == produitActe.id ? 'selected' : ''}>
+                ${p.code ? p.code + ' - ' : ''}${p.nom} (${LocationUtils.toNumber(p.prix, 0).toFixed(2)} DA)
+            </option>`
+        ).join('');
+
+        const element = LocationUtils.createElement(template, {
+            index: LocationCounters.produitSupp,
+            options_produits: optionsHtml
+        });
+        
+        element.classList.add('produit-from-acte-supp');
+        element.dataset.sourceActeId = acteData.id;
+        element.dataset.sourceActeElement = acteElement.dataset.index || LocationCounters.acteSupp - 1;
+        element.dataset.quantiteUnitaire = produitActe.quantite_defaut || 0;
+
+        const cardBody = element.querySelector('.card-body');
+        if (cardBody) {
+            const badge = document.createElement('div');
+            badge.className = 'mb-2';
+            badge.innerHTML = `<span class="badge bg-info"><i class="bi bi-link me-1"></i>Via acte: ${acteData.nom}</span>`;
+            cardBody.insertBefore(badge, cardBody.firstChild);
+        }
+
+        container.appendChild(element);
+        
+        const quantiteInput = element.querySelector('.quantite-produit-supp');
+        const prixInput = element.querySelector('.prix-produit-supp');
+        
+        if (quantiteInput) {
+            quantiteInput.value = quantiteProduit.toFixed(1);
+        }
+        
+        if (prixInput) {
+            prixInput.value = LocationUtils.toNumber(produitActe.prix_unitaire, 0).toFixed(2);
+        }
+
+        LocationProduitsSupplementaires.initElement(element);
+        LocationProduitsSupplementaires.calculerTotalElement(element);
+        
+        LocationCounters.produitSupp++;
+    },
+
+    supprimerProduitsActe(acteElement) {
+        const acteId = acteElement.dataset.acteId;
+        const acteIndex = acteElement.dataset.index;
+        
+        if (!acteId && !acteIndex) return;
+
+        const produitsASupprimer = document.querySelectorAll(
+            `.produit-from-acte-supp[data-source-acte-id="${acteId}"], ` +
+            `.produit-from-acte-supp[data-source-acte-element="${acteIndex}"]`
+        );
+
+        produitsASupprimer.forEach(produit => {
+            produit.remove();
+        });
+
+        delete acteElement.dataset.produitsCharges;
+        delete acteElement.dataset.acteId;
+
+        LocationProduitsSupplementaires.calculerTotal();
+    },
+
+    mettreAJourQuantitesProduitsActe(acteElement) {
+        const acteId = acteElement.dataset.acteId;
+        const acteIndex = acteElement.dataset.index;
+        const nouvelleQuantiteActe = LocationUtils.toNumber(acteElement.querySelector('.quantite-acte-supp')?.value, 1);
+        
+        if (!acteId && !acteIndex) return;
+
+        const produitsAssocies = document.querySelectorAll(
+            `.produit-from-acte-supp[data-source-acte-id="${acteId}"], ` +
+            `.produit-from-acte-supp[data-source-acte-element="${acteIndex}"]`
+        );
+
+        produitsAssocies.forEach(produitElement => {
+            const quantiteUnitaire = LocationUtils.toNumber(produitElement.dataset.quantiteUnitaire, 0);
+            const nouvelleQuantiteProduit = quantiteUnitaire * nouvelleQuantiteActe;
+            
+            const quantiteInput = produitElement.querySelector('.quantite-produit-supp');
+            if (quantiteInput) {
+                quantiteInput.value = nouvelleQuantiteProduit.toFixed(1);
+                LocationProduitsSupplementaires.calculerTotalElement(produitElement);
+            }
+        });
+    },
+
+    calculerTotalElement(element) {
+        const prix = LocationUtils.toNumber(element.querySelector('.prix-acte-supp')?.value, 0);
+        const quantite = LocationUtils.toNumber(element.querySelector('.quantite-acte-supp')?.value, 0);
+        const total = prix * quantite;
+
+        const totalEl = element.querySelector('.total-acte-supp');
+        if (totalEl) totalEl.textContent = total.toFixed(2) + ' DA';
+
+        this.calculerTotal();
+    },
+
+    calculerTotal() {
+        let total = 0;
+        document.querySelectorAll('#actes-supplementaires-container .total-acte-supp').forEach(el => {
+            const value = parseFloat(el.textContent.replace(' DA', '')) || 0;
+            total += value;
+        });
+
+        LocationUtils.updateElement('totalActesSupp', LocationUtils.formatDA(total));
+        LocationCalculs.calculerTotal();
+    }
+};
+</script>
+
+<!-- 6. Gestionnaire des produits inclus -->
+<script>
+window.LocationProduitsInclus = {
+    async charger(id, type) {
+        if (!id) return;
+
+        const section = document.getElementById('produits-inclus-section');
+        const container = document.getElementById('produits-inclus-container');
+        
+        if (!section || !container) return;
+
+        container.innerHTML = '';
+
+        let data = type === 'bloc' ? LocationCache.blocs[id] : LocationCache.forfaits[id];
+
+        if (!data) {
+            try {
+                const url = (type === 'bloc' ? LocationConfig.AJAX_URLS.bloc_detail : LocationConfig.AJAX_URLS.forfait_detail)
+                    .replace('0', id);
+                const response = await fetch(url);
+                const result = await response.json();
+                
+                if (result.success) {
+                    data = { 
+                        produits_inclus: result.produits || [],
+                        actes_inclus: result.actes_inclus || result.actes || []
+                    };
+                    if (type === 'bloc') LocationCache.blocs[id] = data;
+                    else LocationCache.forfaits[id] = data;
+                }
+            } catch (error) {
+                console.error('Erreur lors du chargement des produits:', error);
+            }
+        }
+
+        let produitsInclus = [...(data?.produits_inclus || [])];
+
+        if (type === 'forfait') {
+            const actesInclus = data?.actes_inclus || [];
+            
+            console.log(`Forfait ${id}: ${actesInclus.length} actes inclus trouvés`);
+
+            for (const acte of actesInclus) {
+                console.log(`Acte: ${acte.nom}, Produits: ${acte.produits_inclus?.length || 0}`);
+                await this.ajouterProduitsActe(acte, produitsInclus);
+            }
+
+            console.log(`Total produits après consolidation: ${produitsInclus.length}`);
+        }
+
+        if (!produitsInclus.length) {
+            section.style.display = 'none';
+            return;
+        }
+
+        produitsInclus.sort((a, b) => {
+            const sourceOrder = { 'direct': 1, 'acte_inclus': 2, 'mixte': 3 };
+            return (sourceOrder[a.source] || 4) - (sourceOrder[b.source] || 4);
+        });
+
+        produitsInclus.forEach((produit, index) => {
+            this.ajouterProduitInclus(produit, index);
+        });
+
+        section.style.display = 'block';
+        this.calculerTotal();
+    },
+
+    async ajouterProduitsActe(acte, produitsExistants) {
+        let produitsActe = acte.produits_inclus || [];
+
+        if (!produitsActe.length) {
+            let acteData = LocationCache.actes.find(a => a.id === acte.id);
+            
+            if (!acteData?.produits_inclus) {
+                try {
+                    const url = LocationConfig.AJAX_URLS.acte_detail.replace('0', acte.id);
+                    const response = await fetch(url);
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        if (acteData) {
+                            acteData.produits_inclus = result.produits || [];
+                        } else {
+                            acteData = {
+                                id: acte.id,
+                                nom: acte.nom,
+                                produits_inclus: result.produits || []
+                            };
+                            LocationCache.actes.push(acteData);
+                        }
+                        produitsActe = acteData.produits_inclus;
+                    }
+                } catch (error) {
+                    console.error(`Erreur lors du chargement des produits de l'acte ${acte.id}:`, error);
+                    return;
+                }
+            } else {
+                produitsActe = acteData.produits_inclus;
+            }
+        }
+
+        produitsActe.forEach(produitActe => {
+            const quantiteUnitaire = LocationUtils.toNumber(produitActe.quantite_defaut, 0);
+            const quantiteTotale = quantiteUnitaire * LocationUtils.toNumber(acte.quantite_incluse, 0);
+            
+            const existant = produitsExistants.find(p => p.id === produitActe.id);
+            if (existant) {
+                const ancienneQuantite = LocationUtils.toNumber(existant.quantite_defaut, 0);
+                existant.quantite_defaut = ancienneQuantite + quantiteTotale;
+                
+                if (existant.source === 'direct') {
+                    existant.source = 'mixte';
+                    existant.sources_detaillees = [
+                        { type: 'direct', quantite: ancienneQuantite },
+                        { type: 'acte', nom: acte.nom, acte_id: acte.id, quantite: quantiteTotale, quantite_unitaire: quantiteUnitaire }
+                    ];
+                } else if (existant.source === 'acte_inclus') {
+                    existant.source = 'multiple_actes';
+                    if (!existant.sources_detaillees) {
+                        existant.sources_detaillees = [
+                            { type: 'acte', nom: existant.acte_source, quantite: ancienneQuantite }
+                        ];
+                    }
+                    existant.sources_detaillees.push({
+                        type: 'acte',
+                        nom: acte.nom,
+                        acte_id: acte.id,
+                        quantite: quantiteTotale,
+                        quantite_unitaire: quantiteUnitaire
+                    });
+                } else if (existant.source === 'mixte' || existant.source === 'multiple_actes') {
+                    if (!existant.sources_detaillees) existant.sources_detaillees = [];
+                    existant.sources_detaillees.push({
+                        type: 'acte',
+                        nom: acte.nom,
+                        acte_id: acte.id,
+                        quantite: quantiteTotale,
+                        quantite_unitaire: quantiteUnitaire
+                    });
+                }
+            } else {
+                produitsExistants.push({
+                    ...produitActe,
+                    quantite_defaut: quantiteTotale,
+                    source: 'acte_inclus',
+                    acte_source: acte.nom,
+                    acte_source_id: acte.id,
+                    quantite_unitaire_acte: quantiteUnitaire,
+                    sources_detaillees: [{
+                        type: 'acte',
+                        nom: acte.nom,
+                        acte_id: acte.id,
+                        quantite: quantiteTotale,
+                        quantite_unitaire: quantiteUnitaire
+                    }]
+                });
+            }
+        });
+    },
+
+    ajouterProduitInclus(produit, index) {
+        const container = document.getElementById('produits-inclus-container');
+        const template = document.getElementById('produit-inclus-template');
+        
+        if (!template || !container) return;
+
+        const source = produit.source || 'direct';
+        let sourceInfo = '';
+        let badgeColor = 'bg-primary';
+        
+        switch (source) {
+            case 'direct':
+                sourceInfo = 'Inclus directement';
+                badgeColor = 'bg-primary';
+                break;
+            case 'acte_inclus':
+                sourceInfo = `Via acte: ${produit.acte_source}`;
+                badgeColor = 'bg-info';
+                break;
+            case 'mixte':
+                sourceInfo = 'Direct + Actes';
+                badgeColor = 'bg-warning text-dark';
+                break;
+            case 'multiple_actes':
+                const nombreActes = produit.sources_detaillees?.filter(s => s.type === 'acte').length || 0;
+                sourceInfo = `Via ${nombreActes} acte(s)`;
+                badgeColor = 'bg-info';
+                break;
+            default:
+                sourceInfo = 'Source inconnue';
+                badgeColor = 'bg-secondary';
+        }
+
+        let detailSources = '';
+        if (produit.sources_detaillees && produit.sources_detaillees.length > 1) {
+            detailSources = '<div class="mt-1">';
+            produit.sources_detaillees.forEach(detail => {
+                if (detail.type === 'direct') {
+                    detailSources += `<span class="badge bg-primary me-1">Direct: ${detail.quantite}</span>`;
+                } else if (detail.type === 'acte') {
+                    detailSources += `<span class="badge bg-info me-1">${detail.nom}: ${detail.quantite}</span>`;
+                }
+            });
+            detailSources += '</div>';
+        }
+
+        const element = LocationUtils.createElement(template, {
+            produit_id: produit.id,
+            index: index,
+            nom_produit: produit.nom,
+            quantite_incluse: produit.quantite_defaut || 0,
+            prix_unitaire: (produit.prix_unitaire || 0).toFixed(2),
+            source_info: `<span class="badge ${badgeColor}">${sourceInfo}</span>${detailSources}`
+        });
+        
+        element.classList.add(`source-${source}`);
+        
+        if (produit.sources_detaillees) {
+            const actesIds = produit.sources_detaillees
+                .filter(s => s.type === 'acte' && s.acte_id)
+                .map(s => s.acte_id)
+                .join(',');
+            if (actesIds) {
+                element.dataset.actesSourceIds = actesIds;
+            }
+        } else if (produit.acte_source_id) {
+            element.dataset.actesSourceIds = produit.acte_source_id.toString();
+        }
+
+        container.appendChild(element);
+        
+        const quantiteInput = element.querySelector('.quantite-produit-inclus');
+        const resetBtn = element.querySelector('.reset-produit-inclus');
+        
+        if (quantiteInput) {
+            quantiteInput.addEventListener('input', () => this.onQuantiteChange(element));
+        }
+        
+        if (resetBtn) {
+            resetBtn.addEventListener('click', () => this.resetQuantite(element));
+        }
+    },
+
+    onQuantiteChange(element) {
+        const quantiteInput = element.querySelector('.quantite-produit-inclus');
+        const quantiteUtilisee = LocationUtils.toNumber(quantiteInput.value, 0);
+        const quantiteIncluse = LocationUtils.toNumber(element.querySelector('[name="produits_inclus[quantite_incluse][]"]').value, 0);
+        const prixUnitaire = LocationUtils.toNumber(element.querySelector('[name="produits_inclus[prix_unitaire][]"]').value, 0);
+
+        const ecart = quantiteUtilisee - quantiteIncluse;
+        const impact = Math.max(0, ecart) * prixUnitaire;
+
+        const ecartEl = element.querySelector('.ecart-produit');
+        const impactEl = element.querySelector('.impact-produit');
+
+        if (ecartEl) {
+            ecartEl.textContent = ecart.toFixed(1);
+            ecartEl.className = 'ecart-produit badge ' + 
+                (ecart > 0 ? 'bg-danger' : (ecart < 0 ? 'bg-success' : 'bg-secondary'));
+        }
+        
+        if (impactEl) {
+            impactEl.textContent = impact.toFixed(2) + ' DA';
+            impactEl.className = 'text-end fw-bold small impact-produit ' + 
+                (impact > 0 ? 'text-danger' : 'text-dark');
+        }
+
+        const resetBtn = element.querySelector('.reset-produit-inclus');
+        if (resetBtn) {
+            if (ecart !== 0) {
+                resetBtn.classList.remove('btn-outline-secondary');
+                resetBtn.classList.add('btn-warning');
+                resetBtn.title = `Écart: ${ecart.toFixed(1)} - Reset vers ${quantiteIncluse}`;
+            } else {
+                resetBtn.classList.remove('btn-warning');
+                resetBtn.classList.add('btn-outline-secondary');
+                resetBtn.title = 'Quantité correcte';
+            }
+        }
+
+        this.calculerTotal();
+    },
+
+    resetQuantite(element) {
+        const resetBtn = element.querySelector('.reset-produit-inclus');
+        const quantiteInput = element.querySelector('.quantite-produit-inclus');
+        const quantiteOriginale = LocationUtils.toNumber(resetBtn.dataset.original, 0);
+        
+        if (quantiteInput) {
+            quantiteInput.value = quantiteOriginale;
+            this.onQuantiteChange(element);
+        }
+    },
+
+    calculerTotal() {
+        let supplements = 0;
+        
+        document.querySelectorAll('#produits-inclus-container .impact-produit').forEach(el => {
+            const value = parseFloat(el.textContent.replace(' DA', '')) || 0;
+            if (value > 0) supplements += value;
+        });
+
+        LocationUtils.updateElement('supplementsProduitsInclus', LocationUtils.formatDA(supplements));
+        LocationCalculs.calculerTotal();
+    },
+
+    viderEtRecharger() {
+        const section = document.getElementById('produits-inclus-section');
+        const container = document.getElementById('produits-inclus-container');
+        
+        if (container) container.innerHTML = '';
+        if (section) section.style.display = 'none';
+        
+        this.calculerTotal();
+    }
+};
+</script>
+
+<!-- 7. Gestionnaire des produits supplémentaires -->
+<script>
+window.LocationProduitsSupplementaires = {
+    ajouter() {
+        const container = document.getElementById('produits-supplementaires-container');
+        const template = document.getElementById('produit-supplementaire-template');
+        
+        if (!template || !container) return;
+
+        const optionsHtml = LocationCache.produitsSupp.map(p => 
+            `<option value="${p.id}" data-prix="${LocationUtils.toNumber(p.prix, 0)}">
+                ${p.code ? p.code + ' - ' : ''}${p.nom} (${LocationUtils.toNumber(p.prix, 0).toFixed(2)} DA)
+            </option>`
+        ).join('');
+
+        const element = LocationUtils.createElement(template, {
+            index: LocationCounters.produitSupp,
+            options_produits: optionsHtml
+        });
+        
+        container.appendChild(element);
+        this.initElement(element);
+        LocationCounters.produitSupp++;
+    },
+
+    initElement(element) {
+        const select = element.querySelector('.produit-supp-select');
+        const quantiteInput = element.querySelector('.quantite-produit-supp');
+        const prixInput = element.querySelector('.prix-produit-supp');
+        const removeBtn = element.querySelector('.remove-produit-supp');
+
+        if (select) {
+            select.addEventListener('change', () => {
+                const option = select.options[select.selectedIndex];
+                if (option?.value && prixInput) {
+                    prixInput.value = LocationUtils.toNumber(option.dataset.prix, 0).toFixed(2);
+                } else if (prixInput) {
+                    prixInput.value = '';
+                }
+                this.calculerTotalElement(element);
+            });
+        }
+
+        if (quantiteInput) {
+            quantiteInput.addEventListener('input', () => this.calculerTotalElement(element));
+        }
+
+        if (removeBtn) {
+            removeBtn.addEventListener('click', () => {
+                element.remove();
+                this.calculerTotal();
+            });
+        }
+    },
+
+    calculerTotalElement(element) {
+        const prix = LocationUtils.toNumber(element.querySelector('.prix-produit-supp')?.value, 0);
+        const quantite = LocationUtils.toNumber(element.querySelector('.quantite-produit-supp')?.value, 0);
+        const total = prix * quantite;
+
+        const totalEl = element.querySelector('.total-produit-supp');
+        if (totalEl) totalEl.textContent = total.toFixed(2) + ' DA';
+
+        this.calculerTotal();
+    },
+
+    calculerTotal() {
+        let total = 0;
+        document.querySelectorAll('#produits-supplementaires-container .total-produit-supp').forEach(el => {
+            const value = parseFloat(el.textContent.replace(' DA', '')) || 0;
+            total += value;
+        });
+
+        LocationUtils.updateElement('totalProduitsSupp', LocationUtils.formatDA(total));
+        LocationCalculs.calculerTotal();
+    }
+};
+</script>
+
+<!-- 8. Gestionnaire des calculs -->
+<script>
+window.LocationCalculs = {
+    calculerPrixBloc() {
+        const blocSelected = document.querySelector('input[name="bloc"]:checked');
+        const dureeInput = document.getElementById('dureeReelle');
+        const typeTarif = document.querySelector('input[name="type_tarification"]:checked')?.value;
+
+        if (!blocSelected || !dureeInput?.value) {
+            LocationUtils.updateElement('prixBloc', '0.00');
+            return 0;
+        }
+
+        const blocId = blocSelected.value;
+        const duree = LocationUtils.toNumber(dureeInput.value, 0);
+        const bloc = LocationCache.blocs[blocId];
+        
+        if (!bloc) {
+            LocationUtils.updateElement('prixBloc', '0.00');
+            return 0;
+        }
+
+        let prix = 0;
+        if (typeTarif === 'FORFAIT') {
+            const forfaitSelected = document.querySelector('input[name="forfait"]:checked');
+            if (forfaitSelected) {
+                const forfaitId = forfaitSelected.value;
+                const forfait = LocationCache.forfaits[forfaitId];
+                if (forfait) {
+                    prix = LocationUtils.toNumber(forfait.prix, 0);
+                    if (duree > LocationUtils.toNumber(forfait.duree, 0)) {
+                        const minutesSupp = duree - LocationUtils.toNumber(forfait.duree, 0);
+                        const tranches = Math.ceil(minutesSupp / 30);
+                        prix += tranches * LocationUtils.toNumber(bloc.prix_supplement_30min, 0);
+                    }
+                }
+            }
+        } else {
+            prix = LocationUtils.toNumber(bloc.prix_base, 0);
+            if (duree > 90) {
+                const minutesSupp = duree - 90;
+                const tranches = Math.ceil(minutesSupp / 30);
+                prix += tranches * LocationUtils.toNumber(bloc.prix_supplement_30min, 0);
+            }
+        }
+
+        LocationUtils.updateElement('prixBloc', prix.toFixed(2));
+        return prix;
+    },
+
+    calculerTotal() {
+        const prixBloc = this.calculerPrixBloc();
+        
+        const supplementsActesInclus = parseFloat((document.getElementById('supplementsActesInclus')?.textContent || '0 DA').replace(' DA', '')) || 0;
+        const totalActesSupp = parseFloat((document.getElementById('totalActesSupp')?.textContent || '0 DA').replace(' DA', '')) || 0;
+        const totalActes = supplementsActesInclus + totalActesSupp;
+        
+        const supplementsProduitsInclus = parseFloat((document.getElementById('supplementsProduitsInclus')?.textContent || '0 DA').replace(' DA', '')) || 0;
+        const totalProduitsSupp = parseFloat((document.getElementById('totalProduitsSupp')?.textContent || '0 DA').replace(' DA', '')) || 0;
+        const totalProduits = supplementsProduitsInclus + totalProduitsSupp;
+
+        LocationUtils.updateElement('totalActesGlobal', LocationUtils.formatDA(totalActes));
+        LocationUtils.updateElement('totalProduitsGlobal', LocationUtils.formatDA(totalProduits));
+        LocationUtils.updateElement('recapActes', totalActes.toFixed(2));
+        LocationUtils.updateElement('recapProduits', totalProduits.toFixed(2));
+
+        const totalGeneral = prixBloc + totalActes + totalProduits;
+        LocationUtils.updateElement('totalGeneral', totalGeneral.toFixed(2));
+
+        this.calculerStatutPaiement(totalGeneral);
+    },
+
+    calculerStatutPaiement(montantFacture) {
+        const montantPaye = LocationUtils.toNumber(document.getElementById('montantPayeCaisse')?.value, 0);
+        const difference = montantPaye - montantFacture;
+
+        const analysePaiement = document.getElementById('analysePaiement');
+        const cardStatut = document.getElementById('cardStatut');
+        const statutFinancier = document.getElementById('libelle-statut');
+        const montantAction = document.getElementById('montant-action');
+
+        if (montantPaye > 0 || montantFacture > 0) {
+            analysePaiement.style.display = 'block';
+
+            LocationUtils.updateElement('montantFacture', LocationUtils.formatDA(montantFacture));
+            LocationUtils.updateElement('montantPaye', LocationUtils.formatDA(montantPaye));
+
+            if (montantPaye === 0) {
+                cardStatut.className = 'card border-secondary';
+                statutFinancier.textContent = 'Aucun paiement';
+                statutFinancier.className = 'fs-4 fw-bold text-secondary';
+                montantAction.style.display = 'none';
+            } else if (difference > 0) {
+                cardStatut.className = 'card border-success';
+                statutFinancier.textContent = 'Surplus';
+                statutFinancier.className = 'fs-4 fw-bold text-success';
+                montantAction.style.display = 'block';
+                document.getElementById('action-text').textContent = 'À verser au médecin :';
+                document.getElementById('montant-action-value').textContent = LocationUtils.formatDA(difference);
+            } else if (difference < 0) {
+                cardStatut.className = 'card border-warning';
+                statutFinancier.textContent = 'Complément requis';
+                statutFinancier.className = 'fs-4 fw-bold text-warning';
+                montantAction.style.display = 'block';
+                document.getElementById('action-text').textContent = 'Dû par le médecin :';
+                document.getElementById('montant-action-value').textContent = LocationUtils.formatDA(Math.abs(difference));
+            } else {
+                cardStatut.className = 'card border-primary';
+                statutFinancier.textContent = 'Équilibré';
+                statutFinancier.className = 'fs-4 fw-bold text-primary';
+                montantAction.style.display = 'none';
+            }
+        } else {
+            analysePaiement.style.display = 'none';
+            statutFinancier.textContent = 'En attente';
+            statutFinancier.className = 'fs-4 fw-bold text-muted';
+            montantAction.style.display = 'none';
+        }
+    }
+};
+</script>
+
+<!-- 9. Gestionnaire principal -->
+<script>
+window.LocationManager = {
+    async init() {
+        const dataLoaded = await LocationDataManager.loadAll();
+        if (!dataLoaded) return;
+
+        this.initializeInterface();
+        this.initializeFlatpickr();
+        this.attachEventListeners();
+    },
+
+    initializeInterface() {
+        const currentType = document.querySelector('[name="type_tarification"]:checked')?.value || 'DUREE';
+        this.chooseTarif(currentType);
+
+        const blocChecked = document.querySelector('[name="bloc"]:checked');
+        if (blocChecked && currentType === 'DUREE') {
+            LocationProduitsInclus.charger(blocChecked.value, 'bloc');
+        }
+
+        if (currentType === 'FORFAIT') {
+            const forfaitChecked = document.querySelector('[name="forfait"]:checked');
+            if (forfaitChecked) {
+                LocationActesInclus.charger(forfaitChecked.value);
+                LocationProduitsInclus.charger(forfaitChecked.value, 'forfait');
+            }
+        }
+
+        LocationCalculs.calculerTotal();
+    },
+
+    initializeFlatpickr() {
+        flatpickr("#datetimepicker", {
+            enableTime: true,
+            dateFormat: "Y-m-d H:i",
+            time_24hr: true,
+            locale: { firstDayOfWeek: 7 },
+            defaultDate: document.getElementById("date_operation").value + " " + 
+                       (document.getElementById("heure_operation").value || "00:00"),
+            onChange: function(selectedDates, dateStr) {
+                const [date, time] = dateStr.split(" ");
+                document.getElementById("date_operation").value = date;
+                document.getElementById("heure_operation").value = time;
+            }
+        });
+    },
+
+    attachEventListeners() {
+        document.getElementById('add-acte')?.addEventListener('click', () => {
+            LocationActesSupplementaires.ajouter();
+        });
+
+        document.getElementById('add-produit-supp')?.addEventListener('click', () => 
+            LocationProduitsSupplementaires.ajouter()
+        );
+
+        document.getElementById('dureeReelle')?.addEventListener('input', () => {
+            LocationCalculs.calculerTotal();
+        });
+
+        document.getElementById('montantPayeCaisse')?.addEventListener('input', () => {
+            LocationCalculs.calculerTotal();
+        });
+
+        document.getElementById('prestationBlocForm')?.addEventListener('submit', this.validateForm);
+    },
+
+    selectBloc(element, inputId) {
+        document.querySelectorAll('.card.pricing-card').forEach(card => {
+            if (card.querySelector('[name="bloc"]')) {
+                card.classList.remove('border-primary');
+            }
+        });
+        
+        if (element) {
+            element.classList.add('border-primary');
+        }
+
+        const input = document.getElementById(inputId);
+        if (input) input.checked = true;
+
+        const blocId = input?.value;
+        const currentType = document.querySelector('[name="type_tarification"]:checked')?.value || 'DUREE';
+
+        LocationActesInclus.viderEtRecharger();
+        LocationProduitsInclus.viderEtRecharger();
+
+        if (blocId && currentType === 'DUREE') {
+            LocationProduitsInclus.charger(blocId, 'bloc');
+        }
+
+        LocationCalculs.calculerTotal();
+    },
+
+    selectForfait(element, inputId) {
+        document.querySelectorAll('#forfait-selection .pricing-card').forEach(card => {
+            card.classList.remove('border-primary');
+        });
+        
+        if (element) {
+            element.classList.add('border-primary');
+        }
+
+        const input = document.getElementById(inputId);
+        if (input) input.checked = true;
+
+        const forfaitId = element?.dataset?.forfaitId || input?.value;
+        
+        LocationActesInclus.viderEtRecharger();
+        LocationProduitsInclus.viderEtRecharger();
+        
+        if (forfaitId) {
+            LocationActesInclus.charger(forfaitId);
+            LocationProduitsInclus.charger(forfaitId, 'forfait');
+        }
+
+        LocationCalculs.calculerTotal();
+    },
+
+    chooseTarif(type) {
+        document.querySelectorAll('[name="type_tarification"]').forEach(input => {
+            const card = input.closest('.pricing-card');
+            if (card) {
+                if (input.value === type) {
+                    card.classList.add('border-primary');
+                } else {
+                    card.classList.remove('border-primary');
+                }
+            }
+        });
+
+        const forfaitSelection = document.getElementById('forfait-selection');
+
+        LocationActesInclus.viderEtRecharger();
+        LocationProduitsInclus.viderEtRecharger();
+
+        if (type === 'FORFAIT') {
+            forfaitSelection?.classList.remove('d-none');
+
+            const forfaitChecked = document.querySelector('[name="forfait"]:checked');
+            if (forfaitChecked) {
+                LocationActesInclus.charger(forfaitChecked.value);
+                LocationProduitsInclus.charger(forfaitChecked.value, 'forfait');
+            }
+        } else {
+            forfaitSelection?.classList.add('d-none');
+
+            const blocChecked = document.querySelector('[name="bloc"]:checked');
+            if (blocChecked) {
+                LocationProduitsInclus.charger(blocChecked.value, 'bloc');
+            }
+        }
+
+        const radio = document.getElementById('tarif_' + type.toLowerCase());
+        if (radio) radio.checked = true;
+
+        LocationCalculs.calculerTotal();
+    },
+
+    validateForm(e) {
+        const typeTarif = document.querySelector('[name="type_tarification"]:checked')?.value;
+        const nomActeInput = document.getElementById('nomActe');
+        const dureeReelle = document.getElementById('dureeReelle');
+
+        if (!dureeReelle?.value || LocationUtils.toNumber(dureeReelle.value, 0) <= 0) {
+            e.preventDefault();
+            alert('La durée réelle est obligatoire et doit être positive.');
+            return false;
+        }
+
+        if (!nomActeInput?.value?.trim()) {
+            e.preventDefault();
+            alert('Le nom de l\'intervention est obligatoire.');
+            return false;
+        }
+
+        if (typeTarif === 'FORFAIT') {
+            const forfait = document.querySelector('[name="forfait"]:checked');
+            if (!forfait) {
+                e.preventDefault();
+                alert('Veuillez sélectionner un forfait pour la tarification forfaitaire.');
+                return false;
+            }
+        }
+
+        return true;
+    }
+};
+</script>
+
+<!-- 10. Initialisation -->
+<script>
 document.addEventListener('DOMContentLoaded', function() {
     // Initialiser Choices.js pour les selects
     if (typeof Choices !== 'undefined') {
@@ -1947,188 +1850,500 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <style>
-/* Styles minimaux nécessaires en plus de Bootstrap 5 */
+/* Styles améliorés pour l'interface simplifiée */
 .pricing-card {
     transition: all 0.3s ease;
+    cursor: pointer;
 }
 
 .pricing-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.1);
 }
 
 .pricing-card.border-primary {
     background: linear-gradient(135deg, #f0f7ff, white);
     box-shadow: 0 5px 15px rgba(13, 110, 253, 0.2);
+    border-width: 2px !important;
 }
 
-/* Amélioration des tables */
-.table-sm td, .table-sm th {
-    padding: 0.5rem;
+/* Cartes des sections unifiées */
+.card-header.bg-info {
+    background: linear-gradient(135deg, #0dcaf0, #31d2f2) !important;
 }
 
-/* Animation fade-in */
-@keyframes fadeIn {
-    from { 
-        opacity: 0; 
-        transform: translateY(10px); 
-    }
-    to { 
-        opacity: 1; 
-        transform: translateY(0); 
-    }
+.card-header.bg-warning {
+    background: linear-gradient(135deg, #ffc107, #ffcd39) !important;
 }
 
-.fade-in {
-    animation: fadeIn 0.3s ease;
+/* Styles pour les éléments des actes inclus */
+.acte-inclus-item {
+    border-left: 4px solid #0dcaf0;
 }
 
-/* Amélioration des badges */
-.badge {
-    padding: 0.375rem 0.75rem;
+.acte-inclus-item .card-body {
+    background-color: #f8fcff;
 }
 
-/* Cards hover effect */
-.card {
-    transition: all 0.2s ease;
+/* Styles pour les éléments des produits inclus */
+.produit-inclus-item {
+    border-left: 4px solid #198754;
 }
 
-.card:hover {
-    box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+.produit-inclus-item .card-body {
+    background-color: #f8fff9;
 }
 
-/* Styles spécifiques pour les actes inclus */
-#actesInclusCard .table th {
-    background-color: #e7f3ff;
-}
-
-#actesInclusCard .badge.bg-warning {
-    animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-    0% { opacity: 1; }
-    50% { opacity: 0.7; }
-    100% { opacity: 1; }
-}
-
-/* Styles pour les produits des actes */
-.produits-acte-row {
-    background-color: #f8f9fa;
-}
-
-.produits-acte-row .table {
-    margin-bottom: 0;
-}
-
-.produits-acte-row .table-bordered {
-    border: 2px solid #dee2e6;
-}
-
-.produits-acte-row .table-secondary th {
-    background-color: #6c757d !important;
-    color: white;
-    font-weight: 600;
-}
-
-/* Amélioration de l'affichage des en-têtes de produits */
-.produits-acte-row .bg-light {
+/* Styles pour les différentes sources de produits */
+.source-direct {
     border-left: 4px solid #0d6efd;
 }
 
-.produits-acte-row .badge {
-    font-size: 0.75rem;
+.source-acte_inclus {
+    border-left: 4px solid #0dcaf0;
 }
 
-/* Styles pour les boutons reset */
-.reset-to-included, .reset-produit-acte-forfait {
+.source-mixte {
+    border-left: 4px solid #ffc107;
+}
+
+.source-multiple_actes {
+    border-left: 4px solid #6f42c1;
+}
+
+.source-direct .card-body {
+    background-color: #f0f7ff;
+}
+
+.source-acte_inclus .card-body {
+    background-color: #e7f9ff;
+}
+
+.source-mixte .card-body {
+    background-color: #fff8e1;
+}
+
+.source-multiple_actes .card-body {
+    background-color: #f3f0ff;
+}
+
+/* Styles pour les produits d'actes supplémentaires */
+.produit-from-acte-supp {
+    border-left: 4px solid #0dcaf0;
+    background-color: #f0f9ff;
+}
+
+.produit-from-acte-supp .badge.bg-info {
+    animation: fadeInLeft 0.3s ease;
+}
+
+@keyframes fadeInLeft {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Badges d'écart améliorés */
+.badge {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.badge:hover {
+    transform: scale(1.05);
+}
+
+.badge.bg-danger {
+    background-color: #dc3545 !important;
+    animation: pulse-danger 2s infinite;
+}
+
+.badge.bg-success {
+    background-color: #198754 !important;
+}
+
+.badge.bg-secondary {
+    background-color: #6c757d !important;
+}
+
+.badge.bg-info {
+    background-color: #0dcaf0 !important;
+}
+
+.badge.bg-warning.text-dark {
+    background-color: #ffc107 !important;
+    color: #000 !important;
+}
+
+@keyframes pulse-danger {
+    0% { opacity: 1; }
+    50% { opacity: 0.8; }
+    100% { opacity: 1; }
+}
+
+/* Boutons reset améliorés */
+.reset-produit-inclus {
     transition: all 0.3s ease;
     border-left: none !important;
+    position: relative;
 }
 
-.reset-to-included:hover, .reset-produit-acte-forfait:hover {
+.reset-produit-inclus:hover {
     transform: rotate(180deg);
+    background-color: #ffc107 !important;
+    border-color: #ffc107 !important;
 }
 
-.reset-to-included.btn-warning, .reset-produit-acte-forfait.btn-warning {
-    animation: pulse-warning 1s infinite;
+.reset-produit-inclus.btn-warning {
+    animation: pulse-warning 2s infinite;
 }
 
 @keyframes pulse-warning {
-    0% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.7); }
-    70% { box-shadow: 0 0 0 10px rgba(255, 193, 7, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0); }
+    0% { 
+        box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.7); 
+    }
+    70% { 
+        box-shadow: 0 0 0 6px rgba(255, 193, 7, 0); 
+    }
+    100% { 
+        box-shadow: 0 0 0 0 rgba(255, 193, 7, 0); 
+    }
 }
 
-.reset-to-included.btn-success, .reset-produit-acte-forfait.btn-success {
-    animation: pulse-success 0.5s ease;
-}
-
-@keyframes pulse-success {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.1); }
-    100% { transform: scale(1); }
-}
-
-/* Couleurs des montants selon l'impact */
-.montant-value.text-danger {
-    font-weight: bold;
+/* Amélioration des couleurs d'impact */
+.text-danger {
     color: #dc3545 !important;
+    font-weight: 600;
 }
 
-.montant-value.text-success {
-    font-weight: bold;
+.text-success {
     color: #198754 !important;
+    font-weight: 600;
 }
 
-/* Amélioration des badges d'écart */
-.ecart-value {
-    font-size: 0.8rem;
-    min-width: 40px;
-    display: inline-block;
-    text-align: center;
+.text-info {
+    color: #0dcaf0 !important;
+    font-weight: 600;
 }
 
-/* Animation des changements de couleur */
-.montant-value {
+.text-warning {
+    color: #ffc107 !important;
+    font-weight: 600;
+}
+
+/* Animation des changements */
+.impact-acte, .impact-produit {
     transition: color 0.3s ease;
 }
 
-.ecart-value {
+.ecart-acte, .ecart-produit {
     transition: all 0.3s ease;
+}
+
+/* Totaux en bas des sections */
+.bg-light {
+    background-color: #f8f9fa !important;
+    border: 1px solid #e9ecef;
+    border-radius: 0.375rem;
+}
+
+/* Tables responsives améliorées */
+.table-responsive {
+    border-radius: 0.375rem;
+    overflow: hidden;
+}
+
+.table {
+    margin-bottom: 0;
+}
+
+.table td, .table th {
+    vertical-align: middle;
+    padding: 0.75rem 0.5rem;
+}
+
+.table-borderless td {
+    border: none;
+    padding: 0.5rem 0;
+}
+
+.table-borderless tr:last-child td {
+    border-top: 2px solid #198754;
+    padding-top: 1rem;
+    font-size: 1.1rem;
+}
+
+/* Amélioration des formulaires */
+.form-control:focus, .form-select:focus {
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.form-control-sm, .form-select-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+/* Cartes d'analyse de paiement */
+#analysePaiement .card {
+    transition: all 0.3s ease;
+}
+
+#analysePaiement .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+/* Amélioration des alertes */
+.alert {
+    border-radius: 0.5rem;
+    border: none;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.alert-info {
+    background-color: #cff4fc;
+    color: #055160;
+}
+
+.alert-warning {
+    background-color: #fff3cd;
+    color: #664d03;
+}
+
+/* Animation d'apparition */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.acte-inclus-item, .produit-inclus-item, .acte-supp-item, .produit-supp-item {
+    animation: fadeInUp 0.3s ease;
+}
+
+/* Styles pour les actes et produits supplémentaires */
+.acte-supp-item {
+    border-left: 4px solid #0d6efd;
+}
+
+.acte-supp-item:hover {
+    background-color: #f0f7ff;
+}
+
+.produit-supp-item {
+    border-left: 4px solid #ffc107;
+}
+
+.produit-supp-item:hover {
+    background-color: #fffbf0;
+}
+
+/* Styles pour les totaux */
+.fw-bold {
+    font-weight: 600 !important;
+}
+
+.fs-5 {
+    font-size: 1.25rem !important;
+}
+
+/* Amélioration des icônes */
+.bi {
+    font-size: 1rem;
+}
+
+.card-header .bi {
+    font-size: 1.1rem;
+}
+
+.fs-2 .bi {
+    font-size: 2rem !important;
+}
+
+/* Status cards styling */
+.border-success {
+    border-color: #198754 !important;
+}
+
+.border-warning {
+    border-color: #ffc107 !important;
+}
+
+.border-primary {
+    border-color: #0d6efd !important;
+}
+
+.border-secondary {
+    border-color: #6c757d !important;
+}
+
+/* Amélioration de l'affichage des sources multiples */
+.mt-1 .badge {
+    font-size: 0.65rem;
+    margin-bottom: 0.2rem;
 }
 
 /* Responsive improvements */
 @media (max-width: 768px) {
-    .pricing-card {
-        margin-bottom: 1rem;
+    .col-md-1, .col-md-2, .col-md-3, .col-md-4 {
+        margin-bottom: 0.5rem;
     }
     
-    .table-responsive {
-        font-size: 0.875rem;
+    .card-body .row .col-md-1:last-child,
+    .card-body .row .col-md-2:last-child,
+    .card-body .row .col-md-3:last-child {
+        text-align: center !important;
+    }
+    
+    .btn-sm {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
     }
     
     .fs-5 {
         font-size: 1rem !important;
     }
-
+    
+    .fs-4 {
+        font-size: 1.1rem !important;
+    }
+    
     .badge {
         font-size: 0.7rem;
-        padding: 0.25rem 0.5rem;
+        padding: 0.3rem 0.5rem;
+    }
+    
+    /* Stack cards on mobile */
+    .pricing-card {
+        margin-bottom: 1rem;
     }
 }
 
-/* États des cartes */
-.card.border-primary .card-header {
-    background: linear-gradient(135deg, #0d6efd, #0b5ed7) !important;
+/* Améliorations visuelles supplémentaires */
+.card {
+    transition: all 0.3s ease;
 }
 
-.card.border-success .card-header {
-    background: linear-gradient(135deg, #198754, #157347) !important;
+.card:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
 }
 
-.card.border-info .card-header {
-    background: linear-gradient(135deg, #0dcaf0, #31d2f2) !important;
+/* Loading states */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.loading::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #3498db;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Amélioration des tooltips */
+[title] {
+    cursor: help;
+}
+
+/* Focus states améliorés */
+.btn:focus,
+.form-control:focus,
+.form-select:focus {
+    outline: none;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+/* États de validation */
+.is-valid {
+    border-color: #198754;
+}
+
+.is-invalid {
+    border-color: #dc3545;
+}
+
+.valid-feedback {
+    color: #198754;
+}
+
+.invalid-feedback {
+    color: #dc3545;
+}
+
+/* Améliorations des transitions */
+* {
+    box-sizing: border-box;
+}
+
+.fade-in {
+    animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.slide-in {
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Print styles */
+@media print {
+    .btn, .alert, .card-header {
+        display: none !important;
+    }
+    
+    .card {
+        border: 1px solid #000 !important;
+        break-inside: avoid;
+    }
+    
+    .table {
+        border-collapse: collapse;
+    }
+    
+    .table td, .table th {
+        border: 1px solid #000;
+        padding: 8px;
+    }
 }
 </style>
 

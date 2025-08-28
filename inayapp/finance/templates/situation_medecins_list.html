@@ -1,124 +1,85 @@
 <!-- situation_medecins_list.html -->
 {% extends "layout.html" %}
+{% load humanize %}
+{% load permissions_tags %}
 {% block content %}
-<style>
-  .detail-table {
-    background: #f8f9fa;
-    border-radius: 8px;
-    overflow: hidden;
-  }
-
-  .detail-table table {
-    margin: 0;
-  }
-
-  .collapse-row td {
-    padding: 0 !important;
-    border: none !important;
-  }
-</style>
 <div class="container-fluid py-5">
   <div class="row justify-content-center">
-    <div class="col-lg-12">
+    <div class="col-lg-10">
       <div class="card shadow-sm">
-        <div class="card-header bg-primary text-white">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
           <h2 class="mb-0">Situation des Médecins</h2>
+          <span class="badge bg-light text-primary">{{ medecins.count }} médecins</span>
         </div>
         <div class="card-body">
           <div class="table-responsive">
-            <table class="table table-hover align-middle">
+            <table class="table table-hover align-middle" id="situationTable">
               <thead class="table-light">
                 <tr>
                   <th>Médecin</th>
-                  <th>Honoraires</th>
-                  <th>Décharges</th>
-                  <th>Paiements</th>
                   <th>Reste (Payé)</th>
                   <th>Reste (Décharge)</th>
-                  <th>Décharges impayées</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {% for med in medecins %}
                 <tr>
-                  <td><i class="bi bi-person-badge text-primary"></i> {{ med.nom_complet }} 
-                    {% if med.count_non_regle > 0 %}
-                    <span class="badge bg-warning bg-opacity-10 text-warning ms-2">
-                      {{ med.count_non_regle }} impayé(s)
-                    </span>
-                    {% endif %}
+                  <td>
+                    <div class="d-flex align-items-center">
+                      <i class="bi bi-person-badge text-primary me-2"></i>
+                      <div>
+                        <div>{{ med.nom_complet }}</div>
+                        {% if med.count_non_regle > 0 %}
+                        <small class="badge bg-warning bg-opacity-10 text-warning">
+                          {{ med.count_non_regle }} impayé(s)
+                        </small>
+                        {% endif %}
+                      </div>
+                    </div>
                   </td>
-                  <td>{{ med.total_honoraires|floatformat:2 }} DA</td>
-                  <td>{{ med.total_decharges|floatformat:2 }} DA</td>
-                  <td>{{ med.total_paiements|floatformat:2 }} DA</td>
-                  <td class="{% if med.reste_avec_decharge > 0 %}text-danger{% else %}text-success{% endif %}">
-                    {{ med.reste_avec_decharge|floatformat:2 }} DA
+                  <td class="{% if med.reste_avec_decharge > 0 %}text-danger fw-bold{% else %}text-success{% endif %}">
+                    {{ med.reste_avec_decharge|floatformat:2|intcomma }} DA
                   </td>
-                  <td class="{% if med.reste_sans_decharge > 0 %}text-danger{% else %}text-success{% endif %}">
-                    {{ med.reste_sans_decharge|floatformat:2 }} DA
+                  <td class="{% if med.reste_sans_decharge > 0 %}text-danger fw-bold{% else %}text-success{% endif %}">
+                    {{ med.reste_sans_decharge|floatformat:2|intcomma }} DA
                   </td>
                   <td>
-                    <button class="btn btn-sm {% if med.count_non_regle > 0 %}btn-warning{% else %}btn-secondary{% endif %}"
-                            type="button"
-                            data-bs-toggle="collapse"
-                            data-bs-target="#details{{ med.id }}">
-                      ({{ med.total_non_regle|floatformat:2 }} DA)
-                    </button>
-                  </td>
-                  <td>
-                    <a href="{% url 'situation_medecin' med.id %}" class="btn btn-sm btn-info">
-                      <i class="fas fa-eye"></i>
-                    </a>
-                                        <a
-                      href="{% url 'create_decharge' med.id %}"
-                      class="btn btn-primary btn-sm"
-                    >
-                      <i class="bi bi-file-earmark-plus"></i> Créer Décharge
-                    </a>
+                    <div class="btn-group btn-group-sm" role="group">
+{% has_permission user 'finance.view_situation_medecins' as can_view_situation %}
+{% if can_view_situation %}
+<a href="{% url 'situation_medecin' med.id %}" class="btn btn-info" title="Détails">
+    <i class="fas fa-eye"></i>
+</a>
+{% endif %}
+
+<!-- Autour du bouton "Créer décharge" -->
+{% has_permission user 'finance.create_decharge_multiple' as can_create_decharge %}
+{% if can_create_decharge %}
+<a href="{% url 'create_decharge' med.id %}" class="btn btn-primary" title="Créer décharge">
+    <i class="bi bi-file-earmark-plus"></i>
+</a>
+{% endif %}
+                    </div>
                   </td>
                 </tr>
-                <tr class="collapse" id="details{{ med.id }}">
-                  <td colspan="8">
-                    <div class="ps-5 pe-5">
-                      <table class="table table-sm table-bordered">
-                        <thead>
-                          <tr>
-                            <th>Date Décharge</th>
-                            <th>Montant Initial</th>
-                            <th>Paiements</th>
-                            <th>Reste</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {% for d in med.decharges_non_reglees %}
-                          <tr>
-                            <td>{{ d.date|date:"d/m/Y" }}</td>
-                            <td>{{ d.amount|floatformat:2 }} DA</td>
-                            <td>{{ d.total_paie|floatformat:2 }} DA</td>
-                            <td class="text-danger">{{ d.solde|floatformat:2 }} DA</td>
-                          </tr>
-                          {% empty %}
-                          <tr>
-                            <td colspan="5" class="text-center">Aucune décharge impayée</td>
-                          </tr>
-                          {% endfor %}
-                        </tbody>
-                      </table>
-                    </div>
+                {% empty %}
+                <tr>
+                  <td colspan="4" class="text-center py-4">
+                    <div class="text-muted">Aucun médecin trouvé</div>
                   </td>
                 </tr>
                 {% endfor %}
               </tbody>
               <tfoot class="table-group-divider">
-                <tr>
+                <tr class="table-active">
                   <th>Total Général</th>
-                  <th>{{ global_honoraires|floatformat:2 }} DA</th>
-                  <th>{{ global_decharges|floatformat:2 }} DA</th>
-                  <th>{{ global_paiements|floatformat:2 }} DA</th>
-                  <th>{{ global_reste_avec|floatformat:2 }} DA</th>
-                  <th>{{ global_reste_sans|floatformat:2 }} DA</th>
-                  <th class="text-danger">{{ global_non_regle|floatformat:2 }} DA</th>
+                  <th class="{% if global_reste_avec > 0 %}text-danger{% endif %}">
+                    {{ global_reste_avec|floatformat:2|intcomma }} DA
+                  </th>
+                  <th class="{% if global_reste_sans > 0 %}text-danger{% endif %}">
+                    {{ global_reste_sans|floatformat:2|intcomma }} DA
+                  </th>
                   <th></th>
                 </tr>
               </tfoot>
@@ -129,4 +90,112 @@
     </div>
   </div>
 </div>
+
+
+
+<!-- Option 2: Sans DataTables - Tri simple avec JavaScript natif -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const table = document.getElementById('situationTable');
+  if (table) {
+    // Ajouter une zone de recherche simple
+    const searchContainer = document.createElement('div');
+    searchContainer.className = 'mb-3';
+    searchContainer.innerHTML = `
+      <div class="row">
+        <div class="col-md-6">
+          <input type="text" class="form-control" id="searchInput" placeholder="Rechercher un médecin...">
+        </div>
+      </div>
+    `;
+    table.parentNode.insertBefore(searchContainer, table);
+
+    // Fonction de recherche
+    const searchInput = document.getElementById('searchInput');
+    searchInput.addEventListener('keyup', function() {
+      const filter = this.value.toLowerCase();
+      const tbody = table.querySelector('tbody');
+      const rows = tbody.querySelectorAll('tr:not(.no-results)');
+      let visibleCount = 0;
+
+      rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        if (text.includes(filter)) {
+          row.style.display = '';
+          visibleCount++;
+        } else {
+          row.style.display = 'none';
+        }
+      });
+
+      // Gérer le message "aucun résultat"
+      let noResultsRow = tbody.querySelector('.no-results');
+      if (visibleCount === 0 && filter !== '') {
+        if (!noResultsRow) {
+          noResultsRow = document.createElement('tr');
+          noResultsRow.className = 'no-results';
+          noResultsRow.innerHTML = '<td colspan="4" class="text-center py-4"><div class="text-muted">Aucun médecin trouvé</div></td>';
+          tbody.appendChild(noResultsRow);
+        }
+        noResultsRow.style.display = '';
+      } else if (noResultsRow) {
+        noResultsRow.style.display = 'none';
+      }
+    });
+
+    // Tri simple sur les colonnes
+    const headers = table.querySelectorAll('thead th');
+    headers.forEach((header, index) => {
+      if (index < 3) { // Seulement pour les 3 premières colonnes
+        header.style.cursor = 'pointer';
+        header.innerHTML += ' <i class="bi bi-chevron-expand text-muted"></i>';
+
+        header.addEventListener('click', function() {
+          const tbody = table.querySelector('tbody');
+          const rows = Array.from(tbody.querySelectorAll('tr:not(.no-results)'));
+          const isAsc = header.classList.contains('sort-asc');
+
+          // Reset tous les headers
+          headers.forEach(h => {
+            h.classList.remove('sort-asc', 'sort-desc');
+            const icon = h.querySelector('i');
+            if (icon) {
+              icon.className = 'bi bi-chevron-expand text-muted';
+            }
+          });
+
+          // Tri
+          rows.sort((a, b) => {
+            let aValue = a.children[index].textContent.trim();
+            let bValue = b.children[index].textContent.trim();
+
+            // Pour les montants, extraire la valeur numérique
+            if (index > 0 && index < 3) {
+              aValue = parseFloat(aValue.replace(/[^\d.-]/g, '')) || 0;
+              bValue = parseFloat(bValue.replace(/[^\d.-]/g, '')) || 0;
+              return isAsc ? bValue - aValue : aValue - bValue;
+            }
+
+            // Pour le texte
+            return isAsc ? bValue.localeCompare(aValue) : aValue.localeCompare(bValue);
+          });
+
+          // Appliquer le tri
+          rows.forEach(row => tbody.appendChild(row));
+
+          // Mettre à jour l'icône
+          const icon = header.querySelector('i');
+          if (isAsc) {
+            header.classList.add('sort-desc');
+            icon.className = 'bi bi-chevron-down text-primary';
+          } else {
+            header.classList.add('sort-asc');
+            icon.className = 'bi bi-chevron-up text-primary';
+          }
+        });
+      }
+    });
+  }
+});
+</script>
 {% endblock %}

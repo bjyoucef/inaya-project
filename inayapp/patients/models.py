@@ -2,7 +2,7 @@
 from django.db import models
 from django.utils import timezone
 from django.contrib.auth import get_user_model
-from hospitalisations.models import Admission, StayHistory, TransferHistory
+from hospitalisations.models import Admission, StayHistory
 from django.core.validators import MinValueValidator, MaxValueValidator
 from decimal import Decimal
 import math
@@ -15,7 +15,7 @@ class PatientManager(models.Manager):
 
     def actifs(self):
         """Retourne seulement les patients actifs"""
-        return self.filter(is_active=True)
+        return self.filter(est_active=True)
 
     def avec_admissions_actives(self):
         """Patients ayant des admissions en cours"""
@@ -94,7 +94,7 @@ class Patient(models.Model):
         null=True,
     )
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Mis à jour le")
-    is_active = models.BooleanField(default=True, verbose_name="Actif")
+    est_active = models.BooleanField(default=True, verbose_name="Actif")
 
     # Manager personnalisé
     objects = PatientManager()
@@ -127,14 +127,14 @@ class Patient(models.Model):
     def is_currently_hospitalized(self):
         """Vérifie si le patient est actuellement hospitalisé"""
         return self.admissions.filter(
-            is_active=True, discharge_date__isnull=True
+            est_active=True, discharge_date__isnull=True
         ).exists()
 
     @property
     def current_admission(self):
         """Retourne l'admission actuelle s'il y en a une"""
         return self.admissions.filter(
-            is_active=True, discharge_date__isnull=True, is_current_bed=True
+            est_active=True, discharge_date__isnull=True, is_current_bed=True
         ).first()
 
     @property
@@ -175,12 +175,12 @@ class Patient(models.Model):
         indexes = [
             models.Index(fields=["last_name", "first_name"]),
             models.Index(fields=["social_security_number"]),
-            models.Index(fields=["is_active"]),
+            models.Index(fields=["est_active"]),
         ]
 
     def delete(self, using=None, keep_parents=False):
         """Soft delete - marque comme inactif au lieu de supprimer"""
-        self.is_active = False
+        self.est_active = False
         self.save()
 
 
@@ -443,7 +443,7 @@ class DossierMedical(models.Model):
         stats = {
             "total_admissions": admissions.count(),
             "active_admissions": admissions.filter(
-                is_active=True, discharge_date__isnull=True
+                est_active=True, discharge_date__isnull=True
             ).count(),
             "total_days": 0,
             "total_cost": Decimal("0.00"),

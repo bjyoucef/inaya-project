@@ -78,6 +78,7 @@
                                 <th>Patient</th>
                                 <th>Convention</th>
                                 <th>Accord</th>
+                                <th>Dossier</th>
                                 <th class="text-end">Honoraire</th>
                                 <th class="text-end">Supplément</th>
                                 <th class="text-end">Total</th>
@@ -123,18 +124,42 @@
                                     <span class="badge bg-danger">
                                         {{ prestation.convention.nom }}
                                     </span>
-
+                                    {% else %}
+                                    <span class="text-muted small">-</span>
                                     {% endif %}
                                 </td>
                                 <td>
-                                    {% if prestation.convention and prestation.convention_accordee %}
+                                    {% if prestation.convention %}
+                                        {% if prestation.convention_accordee %}
                                         <span class="badge bg-success">
-                                            Accordé
+                                                <i class="fas fa-check me-1"></i>Accordé
                                         </span>
-                                    {% elif prestation.convention and not prestation.convention_accordee %}
+                                        {% elif prestation.convention_accordee == False %}
                                         <span class="badge bg-danger">
-                                            Non Accordé
+                                                <i class="fas fa-times me-1"></i>Refusé
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-warning">
+                                                <i class="fas fa-clock me-1"></i>En attente
                                         </span>
+                                    {% endif %}
+                                    {% else %}
+                                        <span class="text-muted small">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if prestation.convention %}
+                                        {% if prestation.dossier_convention_complet %}
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-folder-open me-1"></i>Complet
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-warning">
+                                                <i class="fas fa-folder me-1"></i>Incomplet
+                                            </span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted small">-</span>
                                     {% endif %}
                                 </td>
                                 <td class="text-end">
@@ -157,7 +182,7 @@
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="9" class="text-center py-5 bg-light">
+                                <td colspan="10" class="text-center py-5 bg-light">
                                     <i class="fas fa-inbox fa-2x text-muted mb-3"></i>
                                     <div class="text-muted">Aucune prestation disponible</div>
                                 </td>
@@ -314,6 +339,16 @@
     .total-card:hover {
         transform: translateY(-2px);
         box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.05);
+    }
+
+    /* Styles pour les badges de statut */
+    .badge {
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    .badge i {
+        font-size: 0.7rem;
     }
 </style>
 {% endblock %}

@@ -167,7 +167,7 @@ def nouvelle_demande_interne(request):
     # GET - Afficher le formulaire
     services = Service.objects.all().order_by("name")
     pharmacies = Service.objects.filter(est_pharmacies=True).order_by("name")
-    produits = Produit.objects.filter(est_actif=True).order_by("nom")
+    produits = Produit.objects.filter(est_active=True).order_by("nom")
 
     context = {
         "services": services,
@@ -340,7 +340,7 @@ def api_recherche_produits(request):
         return JsonResponse({"produits": []})
 
     produits = Produit.objects.filter(
-        Q(nom__icontains=query) | Q(code_produit__icontains=query), est_actif=True
+        Q(nom__icontains=query) | Q(code_produit__icontains=query), est_active=True
     ).order_by("nom")[:20]
 
     produits_data = []

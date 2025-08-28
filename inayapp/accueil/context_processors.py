@@ -64,15 +64,9 @@ def navbar_context(request):
     user_perms = (
         request.user.get_all_permissions() if request.user.is_authenticated else set()
     )
-    navbar_items = [
-        nb
-        for nb in qs
-        if (not nb.permission or nb.permission in user_perms)
-        and (not active_item.permission or active_item.permission in user_perms)
-    ]
+
 
     return {
-        "navbar_items": navbar_items,
         "active_menu_item": active_item,
         "current_url_name": current_url_name,
     }

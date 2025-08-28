@@ -118,8 +118,8 @@
                     {{ search_form.type_produit }}
                 </div>
                 <div class="col-md-2">
-                    {{ search_form.est_actif.label_tag }}
-                    {{ search_form.est_actif }}
+                    {{ search_form.est_active.label_tag }}
+                    {{ search_form.est_active }}
                 </div>
                 <div class="col-md-1">
                     {{ search_form.prix_min.label_tag }}
@@ -205,9 +205,9 @@
                             {% endif %}
                         </td>
                         <td class="text-center">
-                            <span class="badge bg-{% if produit.est_actif %}success{% else %}danger{% endif %}">
-                                <i class="bi bi-{% if produit.est_actif %}check-circle{% else %}x-circle{% endif %} me-1"></i>
-                                {{ produit.est_actif|yesno:"Actif,Inactif" }}
+                            <span class="badge bg-{% if produit.est_active %}success{% else %}danger{% endif %}">
+                                <i class="bi bi-{% if produit.est_active %}check-circle{% else %}x-circle{% endif %} me-1"></i>
+                                {{ produit.est_active|yesno:"Actif,Inactif" }}
                             </span>
                         </td>
                         <td class="text-center">

@@ -1,0 +1,589 @@
+<!-- templates/permissions/group_permissions_detail.html -->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Permissions - Groupe {{ group.name }}</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="{% load static %}{% static 'css/custom_jazzmin.css' %}" rel="stylesheet">
+    <style>
+        .permission-section {
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+        .permission-header {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-bottom: 1px solid #dee2e6;
+            cursor: pointer;
+        }
+        .permission-body {
+            padding: 1rem;
+        }
+        .permission-item {
+            padding: 0.5rem;
+            border-bottom: 1px solid #f8f9fa;
+        }
+        .permission-item:last-child {
+            border-bottom: none;
+        }
+        .group-info-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 10px;
+        }
+        .collapse-toggle {
+            transition: transform 0.3s;
+        }
+        .collapsed .collapse-toggle {
+            transform: rotate(-90deg);
+        }
+        .permission-checkbox {
+            transform: scale(1.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid py-4">
+                <div class="row mb-4">
+
+            <div class="col text-end">
+                <a href="/permissions/dashboard/" class="btn btn-primary">
+                    <i class="fas fa-arrow-left"></i> Retour à Dashboard
+                </a>
+            </div>
+            <div class="col text-end">
+                <a href="/admin/" class="btn btn-primary">
+                    <i class="fas fa-arrow-left"></i> Retour à l'administration
+                </a>
+            </div>
+        </div>
+                                    <!-- Boutons d'action -->
+                            <div class="d-flex justify-content-between">
+                                <a href="{% url 'group_permissions_list' %}" class="btn btn-secondary">
+                                    <i class="fas fa-arrow-left"></i> Retour
+                                </a>
+                                <div>
+                                    <button type="button" class="btn btn-outline-primary" onclick="previewChanges()">
+                                        <i class="fas fa-eye"></i> Aperçu des modifications
+                                    </button>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save"></i> Enregistrer les permissions
+                                    </button>
+                                </div>
+                            </div>
+        <!-- Navigation -->
+        <nav class="mb-4">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item">
+                    <a href="{% url 'group_permissions_list' %}">
+                        <i class="fas fa-layer-group"></i> Groupes
+                    </a>
+                </li>
+                <li class="breadcrumb-item active">{{ group.name }}</li>
+            </ol>
+        </nav>
+
+        <div class="row">
+            <!-- Informations du groupe -->
+            <div class="col-lg-4 mb-4">
+                <div class="card group-info-card">
+                    <div class="card-body text-center">
+                        <div class="avatar bg-white text-primary rounded-circle d-inline-flex align-items-center justify-content-center mb-3" 
+                             style="width: 80px; height: 80px; font-size: 2rem;">
+                            <i class="fas fa-layer-group"></i>
+                        </div>
+                        <h4 class="card-title mb-2">{{ group.name }}</h4>
+                        <p class="card-text">Groupe d'utilisateurs</p>
+                        
+                        <div class="row text-center mt-4">
+                            <div class="col-6">
+                                <div class="border-end border-light">
+                                    <h5>{{ group.permissions.count }}</h5>
+                                    <small>Permissions</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <h5>{{ group.user_set.count }}</h5>
+                                <small>Utilisateurs</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Utilisateurs du groupe -->
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-users"></i> 
+                            Utilisateurs du groupe ({{ group.user_set.count }})
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        {% for user in group.user_set.all %}
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="avatar bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2" 
+                                     style="width: 30px; height: 30px; font-size: 0.8rem;">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <strong>{{ user.get_full_name|default:user.username }}</strong>
+                                    <br><small class="text-muted">{{ user.username }}</small>
+                                </div>
+                                <a href="{% url 'user_permissions_detail' user.id %}" 
+                                   class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-cog"></i>
+                                </a>
+                            </div>
+                        {% empty %}
+                            <span class="text-muted">Aucun utilisateur dans ce groupe</span>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Permissions actuelles résumé -->
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-shield-alt"></i> 
+                            Résumé des permissions
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        {% if group.permissions.exists %}
+                            <div class="small">
+                                {% regroup group.permissions.all by content_type.app_label as permissions_by_app %}
+                                {% for app in permissions_by_app %}
+                                    <div class="mb-2">
+                                        <strong>{{ app.grouper|title }}:</strong>
+                                        <span class="badge bg-info">{{ app.list|length }}</span>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <span class="text-muted">Aucune permission assignée</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Formulaire de permissions -->
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-shield-alt"></i> 
+                            Configuration des permissions du groupe
+                        </h5>
+                        <div class="btn-group" role="group">
+                            <button type="button" class="btn btn-outline-primary btn-sm" onclick="expandAll()">
+                                <i class="fas fa-expand-alt"></i> Tout développer
+                            </button>
+                            <button type="button" class="btn btn-outline-primary btn-sm" onclick="collapseAll()">
+                                <i class="fas fa-compress-alt"></i> Tout réduire
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <!-- Messages -->
+                        {% if messages %}
+                            {% for message in messages %}
+                                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+
+                        <form method="post">
+                            {% csrf_token %}
+                            
+                            <!-- Actions rapides -->
+                            <div class="card mb-4">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Actions rapides</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6 mb-2">
+                                            <button type="button" class="btn btn-outline-success btn-sm w-100" onclick="selectAllPermissions()">
+                                                <i class="fas fa-check-square"></i> Tout sélectionner
+                                            </button>
+                                        </div>
+                                        <div class="col-md-6 mb-2">
+                                            <button type="button" class="btn btn-outline-danger btn-sm w-100" onclick="deselectAllPermissions()">
+                                                <i class="fas fa-square"></i> Tout désélectionner
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="row mt-2">
+                                        <div class="col-md-4 mb-2">
+                                            <button type="button" class="btn btn-outline-info btn-sm w-100" onclick="selectByType('add')">
+                                                <i class="fas fa-plus"></i> Toutes les "add"
+                                            </button>
+                                        </div>
+                                        <div class="col-md-4 mb-2">
+                                            <button type="button" class="btn btn-outline-warning btn-sm w-100" onclick="selectByType('change')">
+                                                <i class="fas fa-edit"></i> Toutes les "change"
+                                            </button>
+                                        </div>
+                                        <div class="col-md-4 mb-2">
+                                            <button type="button" class="btn btn-outline-danger btn-sm w-100" onclick="selectByType('delete')">
+                                                <i class="fas fa-trash"></i> Toutes les "delete"
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Permissions par modèle -->
+                            <div class="card mb-4">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Permissions par modèle</h6>
+                                </div>
+                                <div class="card-body">
+                                    {% for model_key, model_data in permissions_by_model.items %}
+                                    <div class="permission-section">
+                                        <div class="permission-header" 
+                                             data-bs-toggle="collapse" 
+                                             data-bs-target="#collapse_{{ model_key|slugify }}"
+                                             aria-expanded="false">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <strong>{{ model_data.app_label|title }} - {{ model_data.model_name }}</strong>
+                                                    <span class="badge bg-secondary ms-2">{{ model_data.permissions|length }} permissions</span>
+                                                    <span class="badge bg-success ms-1" id="selected_{{ model_key|slugify }}">0 sélectionnées</span>
+                                                </div>
+                                                <div class="d-flex align-items-center">
+                                                    <button type="button" 
+                                                            class="btn btn-outline-primary btn-sm me-2" 
+                                                            onclick="toggleAllInModel('{{ model_key|slugify }}')">
+                                                        <i class="fas fa-check"></i> Basculer tout
+                                                    </button>
+                                                    <i class="fas fa-chevron-down collapse-toggle"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="collapse" id="collapse_{{ model_key|slugify }}">
+                                            <div class="permission-body">
+                                                <div class="row">
+                                                    {% for permission in model_data.permissions %}
+                                                    <div class="col-md-6 col-lg-4 mb-2">
+                                                        <div class="permission-item">
+                                                            <div class="form-check">
+                                                                <input class="form-check-input permission-checkbox model-{{ model_key|slugify }}" 
+                                                                       type="checkbox" 
+                                                                       name="permissions" 
+                                                                       value="{{ permission.id }}"
+                                                                       id="perm_{{ permission.id }}"
+                                                                       data-model="{{ model_key|slugify }}"
+                                                                       data-action="{{ permission.codename|slice:':3' }}"
+                                                                       onchange="updateModelCounter('{{ model_key|slugify }}')"
+                                                                       {% if permission.id in group_permission_ids %}checked{% endif %}>
+                                                                <label class="form-check-label" for="perm_{{ permission.id }}">
+                                                                    <strong>{{ permission.codename }}</strong><br>
+                                                                    <small class="text-muted">{{ permission.name }}</small>
+                                                                </label>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% empty %}
+                                    <div class="text-center text-muted">
+                                        <i class="fas fa-info-circle fa-2x mb-3"></i>
+                                        <p>Aucune permission disponible</p>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            <!-- Résumé des sélections -->
+                            <div class="card mb-4" id="selectionSummary" style="display: none;">
+                                <div class="card-header">
+                                    <h6 class="mb-0">
+                                        <i class="fas fa-list-check"></i> Résumé de la sélection
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-3 text-center">
+                                            <h4 class="text-primary" id="totalSelected">0</h4>
+                                            <small>Total sélectionnées</small>
+                                        </div>
+                                        <div class="col-md-3 text-center">
+                                            <h4 class="text-success" id="addSelected">0</h4>
+                                            <small>Ajout</small>
+                                        </div>
+                                        <div class="col-md-3 text-center">
+                                            <h4 class="text-warning" id="changeSelected">0</h4>
+                                            <small>Modification</small>
+                                        </div>
+                                        <div class="col-md-3 text-center">
+                                            <h4 class="text-danger" id="deleteSelected">0</h4>
+                                            <small>Suppression</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Boutons d'action -->
+                            <div class="d-flex justify-content-between">
+                                <a href="{% url 'group_permissions_list' %}" class="btn btn-secondary">
+                                    <i class="fas fa-arrow-left"></i> Retour
+                                </a>
+                                <div>
+                                    <button type="button" class="btn btn-outline-primary" onclick="previewChanges()">
+                                        <i class="fas fa-eye"></i> Aperçu des modifications
+                                    </button>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save"></i> Enregistrer les permissions
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal pour l'aperçu -->
+    <div class="modal fade" id="previewModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Aperçu des modifications - {{ group.name }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="previewContent"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Fonctions pour gérer les accordéons
+        function expandAll() {
+            document.querySelectorAll('.collapse').forEach(collapse => {
+                new bootstrap.Collapse(collapse, {show: true});
+            });
+        }
+
+        function collapseAll() {
+            document.querySelectorAll('.collapse.show').forEach(collapse => {
+                new bootstrap.Collapse(collapse, {hide: true});
+            });
+        }
+
+        // Fonctions pour sélectionner/désélectionner
+        function selectAllPermissions() {
+            document.querySelectorAll('input[name="permissions"]').forEach(checkbox => {
+                checkbox.checked = true;
+            });
+            updateAllCounters();
+        }
+
+        function deselectAllPermissions() {
+            document.querySelectorAll('input[name="permissions"]').forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            updateAllCounters();
+        }
+
+        function selectByType(actionType) {
+            document.querySelectorAll(`input[name="permissions"][data-action="${actionType}"]`).forEach(checkbox => {
+                checkbox.checked = true;
+            });
+            updateAllCounters();
+        }
+
+        function toggleAllInModel(modelKey) {
+            const checkboxes = document.querySelectorAll(`.model-${modelKey}`);
+            const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+            
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = !allChecked;
+            });
+            updateModelCounter(modelKey);
+            updateGlobalSummary();
+        }
+
+        function updateModelCounter(modelKey) {
+            const checkboxes = document.querySelectorAll(`.model-${modelKey}`);
+            const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+            const counterElement = document.getElementById(`selected_${modelKey}`);
+            if (counterElement) {
+                counterElement.textContent = `${checkedCount} sélectionnées`;
+            }
+            updateGlobalSummary();
+        }
+
+        function updateAllCounters() {
+            // Mettre à jour tous les compteurs de modèles
+            document.querySelectorAll('[id^="selected_"]').forEach(counter => {
+                const modelKey = counter.id.replace('selected_', '');
+                updateModelCounter(modelKey);
+            });
+        }
+
+        function updateGlobalSummary() {
+            const allCheckboxes = document.querySelectorAll('input[name="permissions"]');
+            const checkedCheckboxes = document.querySelectorAll('input[name="permissions"]:checked');
+            
+            const total = checkedCheckboxes.length;
+            const addCount = Array.from(checkedCheckboxes).filter(cb => cb.dataset.action === 'add').length;
+            const changeCount = Array.from(checkedCheckboxes).filter(cb => cb.dataset.action === 'cha').length;
+            const deleteCount = Array.from(checkedCheckboxes).filter(cb => cb.dataset.action === 'del').length;
+            
+            document.getElementById('totalSelected').textContent = total;
+            document.getElementById('addSelected').textContent = addCount;
+            document.getElementById('changeSelected').textContent = changeCount;
+            document.getElementById('deleteSelected').textContent = deleteCount;
+            
+            // Afficher/masquer le résumé
+            const summaryCard = document.getElementById('selectionSummary');
+            summaryCard.style.display = total > 0 ? 'block' : 'none';
+        }
+
+        function previewChanges() {
+            const selectedPermissions = [];
+            
+            document.querySelectorAll('input[name="permissions"]:checked').forEach(checkbox => {
+                const label = document.querySelector(`label[for="${checkbox.id}"] strong`).textContent;
+                const description = document.querySelector(`label[for="${checkbox.id}"] small`).textContent;
+                selectedPermissions.push({
+                    codename: label,
+                    name: description,
+                    action: checkbox.dataset.action
+                });
+            });
+
+            // Grouper par type d'action
+            const byAction = {
+                add: selectedPermissions.filter(p => p.action === 'add'),
+                change: selectedPermissions.filter(p => p.action === 'cha'),
+                delete: selectedPermissions.filter(p => p.action === 'del'),
+                other: selectedPermissions.filter(p => !['add', 'cha', 'del'].includes(p.action))
+            };
+
+            let content = `<div class="row mb-3">
+                <div class="col-12">
+                    <div class="alert alert-info">
+                        <strong>Groupe:</strong> {{ group.name }}<br>
+                        <strong>Total des permissions sélectionnées:</strong> ${selectedPermissions.length}
+                    </div>
+                </div>
+            </div>`;
+
+            if (selectedPermissions.length > 0) {
+                content += '<div class="row">';
+                
+                // Permissions d'ajout
+                if (byAction.add.length > 0) {
+                    content += `<div class="col-md-6 mb-3">
+                        <h6 class="text-success"><i class="fas fa-plus"></i> Ajout (${byAction.add.length})</h6>
+                        <div style="max-height: 200px; overflow-y: auto;">`;
+                    byAction.add.forEach(perm => {
+                        content += `<small class="d-block"><strong>${perm.codename}</strong><br>${perm.name}</small>`;
+                    });
+                    content += '</div></div>';
+                }
+
+                // Permissions de modification
+                if (byAction.change.length > 0) {
+                    content += `<div class="col-md-6 mb-3">
+                        <h6 class="text-warning"><i class="fas fa-edit"></i> Modification (${byAction.change.length})</h6>
+                        <div style="max-height: 200px; overflow-y: auto;">`;
+                    byAction.change.forEach(perm => {
+                        content += `<small class="d-block"><strong>${perm.codename}</strong><br>${perm.name}</small>`;
+                    });
+                    content += '</div></div>';
+                }
+
+                // Permissions de suppression
+                if (byAction.delete.length > 0) {
+                    content += `<div class="col-md-6 mb-3">
+                        <h6 class="text-danger"><i class="fas fa-trash"></i> Suppression (${byAction.delete.length})</h6>
+                        <div style="max-height: 200px; overflow-y: auto;">`;
+                    byAction.delete.forEach(perm => {
+                        content += `<small class="d-block"><strong>${perm.codename}</strong><br>${perm.name}</small>`;
+                    });
+                    content += '</div></div>';
+                }
+
+                // Autres permissions
+                if (byAction.other.length > 0) {
+                    content += `<div class="col-md-6 mb-3">
+                        <h6 class="text-info"><i class="fas fa-cog"></i> Autres (${byAction.other.length})</h6>
+                        <div style="max-height: 200px; overflow-y: auto;">`;
+                    byAction.other.forEach(perm => {
+                        content += `<small class="d-block"><strong>${perm.codename}</strong><br>${perm.name}</small>`;
+                    });
+                    content += '</div></div>';
+                }
+
+                content += '</div>';
+            } else {
+                content += '<div class="alert alert-warning">Aucune permission sélectionnée.</div>';
+            }
+
+            document.getElementById('previewContent').innerHTML = content;
+            new bootstrap.Modal(document.getElementById('previewModal')).show();
+        }
+
+        // Initialisation
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialiser les compteurs
+            updateAllCounters();
+
+            // Gestion des toggles d'accordéon
+            document.querySelectorAll('[data-bs-toggle="collapse"]').forEach(toggle => {
+                toggle.addEventListener('click', function() {
+                    const icon = this.querySelector('.collapse-toggle');
+                    setTimeout(() => {
+                        const target = document.querySelector(this.getAttribute('data-bs-target'));
+                        if (target.classList.contains('show')) {
+                            icon.style.transform = 'rotate(0deg)';
+                        } else {
+                            icon.style.transform = 'rotate(-90deg)';
+                        }
+                    }, 10);
+                });
+            });
+
+            // Écouter les changements sur toutes les checkboxes
+            document.querySelectorAll('input[name="permissions"]').forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    updateModelCounter(this.dataset.model);
+                });
+            });
+
+            // Confirmation avant soumission
+            document.querySelector('form').addEventListener('submit', function(e) {
+                const selectedCount = document.querySelectorAll('input[name="permissions"]:checked').length;
+                if (selectedCount === 0) {
+                    if (!confirm('Vous allez supprimer toutes les permissions de ce groupe. Êtes-vous sûr ?')) {
+                        e.preventDefault();
+                    }
+                } else if (selectedCount > 50) {
+                    if (!confirm(`Vous allez assigner ${selectedCount} permissions à ce groupe. Êtes-vous sûr ?`)) {
+                        e.preventDefault();
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>

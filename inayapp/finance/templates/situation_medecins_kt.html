@@ -1,0 +1,435 @@
+<!-- situation_medecins_kt.html -->
+{% extends "layout.html" %}
+{% load humanize %}
+{% load permissions_tags %}
+{% block content %}
+<div class="container-fluid px-4">
+    <!-- En-tête -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Tableau de bord - {{ medecin }}</h1>
+        <div class="d-flex gap-2">
+{% has_permission user 'finance.export_decharge_pdf' as can_export %}
+{% if can_export %}
+<!-- Bouton export existant -->
+<button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#exportModal">
+    <i class="fas fa-download me-2"></i>Exporter
+</button>
+{% else %}
+<div class="alert alert-info">
+    <i class="fas fa-info-circle me-2"></i>
+    Vous n'avez pas les permissions pour exporter les données.
+</div>
+{% endif %}
+        </div>
+    </div>
+    <!-- Filtres améliorés -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center">
+            <h6 class="m-0 fw-bold text-primary">Filtres avancés</h6>
+            <button class="btn btn-link" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse">
+                <i class="fas fa-sliders-h"></i>
+            </button>
+        </div>
+        <div class="collapse show" id="filterCollapse">
+            <div class="card-body">
+                <form method="get" class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Date de début</label>
+                        <input type="date" name="date_debut" class="form-control flatpickr" value="{{ date_debut }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Date de fin</label>
+                        <input type="date" name="date_fin" class="form-control flatpickr" value="{{ date_fin }}">
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-filter me-2"></i>Appliquer
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <!-- Cartes de synthèse -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-start-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="me-3">
+                            <i class="fas fa-euro-sign fa-2x text-primary"></i>
+                        </div>
+                        <div>
+                            <div class="text-xs fw-bold text-primary text-uppercase">Total Honoraires</div>
+                            <div class="h5 mb-0 fw-bold text-gray-800">{{ stats.total_honoraires|floatformat:2|intcomma }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-start-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="me-3">
+                            <i class="fas fa-plus-circle fa-2x text-success"></i>
+                        </div>
+                        <div>
+                            <div class="text-xs fw-bold text-success text-uppercase">Frais Supplémentaires</div>
+                            <div class="h5 mb-0 fw-bold text-gray-800">{{ stats.total_prix_supplementaire|floatformat:2|intcomma }} DA</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-start-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="me-3">
+                            <i class="fas fa-calculator fa-2x text-info"></i>
+                        </div>
+                        <div>
+                            <div class="text-xs fw-bold text-info text-uppercase">Total Honoraires</div>
+                            <div class="h5 mb-0 fw-bold text-gray-800">{{ stats.total_honoraires|floatformat:2|intcomma }} DA</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-start-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="me-3">
+                            <i class="fas fa-user-injured fa-2x text-warning"></i>
+                        </div>
+                        <div>
+                            <div class="text-xs fw-bold text-warning text-uppercase">Patients</div>
+                            <div class="h5 mb-0 fw-bold text-gray-800">{{ stats.total_patients|intcomma }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section Graphiques -->
+    <div class="row mb-4">
+        <!-- Répartition par convention -->
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow h-100">
+                <div class="card-header">
+                    <h6 class="m-0 fw-bold text-primary">Répartition par convention</h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="conventionChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top 10 des actes -->
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow h-100">
+                <div class="card-header">
+                    <h6 class="m-0 fw-bold text-primary">Top 10 des actes</h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="actesChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+        <!-- Évolution temporelle -->
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow h-100">
+                <div class="card-header">
+                    <h6 class="m-0 fw-bold text-primary">Évolution des honoraires</h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="evolutionChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tableau patients -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center">
+            <h6 class="m-0 fw-bold text-primary">Détail par patient</h6>
+            <div class="d-flex gap-2">
+                <input type="text" class="form-control form-control-sm" placeholder="Rechercher..." id="searchInput">
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover table-striped" id="patientsTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Patient</th>
+                            <th class="text-end">Actes</th>
+                            <th class="text-end">Honoraires Actes</th>
+                            <th class="text-end">Frais Supplémentaires</th>
+                            <th class="text-end">Total</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in patients %}
+                        <tr>
+                            <td class="fw-bold">{{ p.prestation__patient__last_name }} {{ p.prestation__patient__first_name }}</td>
+                            <td class="text-end">{{ p.nombre_actes }}</td>
+                            <td class="text-end">{{ p.total_honoraires_actes|floatformat:2|intcomma }} DA</td>
+                            <td class="text-end {% if p.total_prix_supplementaire > 0 %}text-success{% endif %}">
+                                {{ p.total_prix_supplementaire|floatformat:2|intcomma }} DA
+                            </td>
+                            <td class="text-end fw-bold">{{ p.total_honoraires|floatformat:2|intcomma }} DA</td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-outline-primary toggle-details" data-bs-toggle="collapse"
+                                        data-bs-target="#patient{{ forloop.counter }}">
+                                    <i class="fas fa-chevron-down"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        <tr class="detail-row">
+                            <td colspan="6" class="p-0 border-0">
+                                <div class="collapse" id="patient{{ forloop.counter }}">
+                                    <div class="p-3 bg-light">
+                                        <h6 class="mb-3 fw-bold">Détail des actes</h6>
+                                        <div class="table-responsive">
+                                            <table class="table table-sm table-borderless">
+                                                <thead>
+                                                    <tr class="text-uppercase text-muted small">
+                                                        <th>Date</th>
+                                                        <th>Type</th>
+                                                        <th>Détail</th>
+                                                        <th>Convention</th>
+                                                        <th class="text-end">Montant</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for acte in actes_details %}
+                                                        {% if acte.prestation__patient_id == p.prestation__patient_id %}
+                                                        <tr>
+                                                            <td>{{ acte.prestation__date_prestation|date:"d/m/Y" }}</td>
+                                                        <td><span class="badge bg-primary">Acte</span></td>
+                                                            <td>{{ acte.acte__libelle }}</td>
+                                                            <td>{{ acte.convention__nom|default:"-" }}</td>
+                                                        <td class="text-end">{{ acte.honoraire_medecin|floatformat:2 }}
+                                                            DA</td>
+                                                    </tr>
+                                                    {% endif %}
+                                                    {% endfor %}
+                                                    {% for prestation in prestations_supplementaires %}
+                                                    {% if prestation.patient_id == p.prestation__patient_id %}
+                                                    <tr>
+                                                        <td>{{ prestation.date_prestation|date:"d/m/Y" }}</td>
+                                                        <td><span class="badge bg-success">Supplément</span></td>
+                                                        <td>Frais supplémentaires</td>
+                                                        <td>-</td>
+                                                        <td class="text-end">{{ prestation.prix_supplementaire_medecin|floatformat:2 }} DA
+                                                        </td>
+                                                        </tr>
+                                                        {% endif %}
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .chart-responsive {
+        position: relative;
+        min-height: 300px;
+    }
+    
+    .card {
+        border-radius: 0.5rem;
+        transition: transform 0.3s ease;
+    }
+    
+    .card:hover {
+        transform: translateY(-2px);
+    }
+    
+    .toggle-details[aria-expanded="true"] i {
+        transform: rotate(180deg);
+    }
+    
+    .toggle-details i {
+        transition: transform 0.3s ease;
+    }
+    
+    .detail-row .table {
+        background-color: rgba(248, 249, 250, 0.5);
+        border-radius: 0.5rem;
+    }
+
+    .border-start-primary {
+        border-left: 0.25rem solid #4e73df !important;
+    }
+
+    .border-start-success {
+        border-left: 0.25rem solid #1cc88a !important;
+    }
+
+    .border-start-info {
+        border-left: 0.25rem solid #36b9cc !important;
+    }
+
+    .border-start-warning {
+        border-left: 0.25rem solid #f6c23e !important;
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Recherche en temps réel
+    document.getElementById('searchInput').addEventListener('input', function(e) {
+        const value = e.target.value.toLowerCase();
+        document.querySelectorAll('#patientsTable tbody tr').forEach(row => {
+            if (row.classList.contains('detail-row')) return;
+            const text = row.textContent.toLowerCase();
+            row.style.display = text.includes(value) ? '' : 'none';
+        });
+    });
+
+    // Animation des boutons de détail
+    document.querySelectorAll('.toggle-details').forEach(btn => {
+        btn.addEventListener('click', function() {
+            this.querySelector('i').classList.toggle('fa-chevron-up');
+        });
+    });
+});
+</script>
+
+<!-- Scripts Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Couleurs personnalisées
+        const chartColors = {
+            primary: '#4e73df',
+            success: '#1cc88a',
+            info: '#36b9cc',
+            warning: '#f6c23e',
+            danger: '#e74a3b',
+            secondary: '#858796',
+            dark: '#5a5c69'
+        };
+
+        // Répartition par convention (Doughnut)
+        new Chart(document.getElementById('conventionChart'), {
+            type: 'doughnut',
+            data: {
+                labels: {{ convention_labels| safe }},
+        datasets: [{
+            data: {{ convention_values| safe }},
+        backgroundColor: [
+            chartColors.primary,
+            chartColors.success,
+            chartColors.info,
+            chartColors.warning,
+            chartColors.danger,
+            chartColors.secondary
+        ],
+        borderWidth: 1
+            }]
+        },
+        options: {
+        plugins: {
+            tooltip: {
+                callbacks: {
+                    label: (context) => `${context.label}: ${context.raw.toFixed(2)} DA (${context.formattedValue}%)`
+                }
+            }
+        }
+    }
+    });
+
+    // Top 10 des actes (Bar chart)
+    new Chart(document.getElementById('actesChart'), {
+        type: 'bar',
+        data: {
+            labels: {{ acte_labels| safe }},
+        datasets: [{
+            label: 'Honoraires (DA)',
+            data: {{ acte_values| safe }},
+        backgroundColor: chartColors.primary,
+        borderColor: chartColors.primary,
+        borderWidth: 1
+            }]
+        },
+        options: {
+        indexAxis: 'y',
+        responsive: true,
+        plugins: {
+            legend: { display: false }
+        },
+        scales: {
+            x: {
+                ticks: { callback: (value) => value.toFixed(2) + ' DA' }
+            }
+        }
+    }
+    });
+
+    // Évolution temporelle (Line chart)
+    const evolutionData = {
+        labels: {{ evolution_dates| safe }},
+    datasets: [{
+        label: 'Honoraires journaliers',
+        data: {{ evolution_totals| safe }},
+        fill: false,
+        borderColor: chartColors.success,
+        tension: 0.4,
+        pointRadius: 3
+        }]
+    };
+
+    new Chart(document.getElementById('evolutionChart'), {
+        type: 'line',
+        data: evolutionData,
+        options: {
+            responsive: true,
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: (context) => ` ${context.dataset.label}: €${context.raw.toFixed(2)}`
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    ticks: { callback: (value) => '€' + value.toFixed(2) }
+                }
+            }
+        }
+    });
+});
+</script>
+
+<style>
+    .chart-card {
+        min-height: 400px;
+    }
+
+    canvas {
+        max-height: 350px;
+        width: 100% !important;
+    }
+</style>
+{% endblock %}

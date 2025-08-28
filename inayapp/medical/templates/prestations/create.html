@@ -18,7 +18,27 @@
     padding: 15px;
     margin-bottom: 15px;
   }
-  /* Ajoutez ceci dans votre balise <style> */
+  /* NOUVEAU : Styles pour les statuts de convention */
+  .convention-status {
+    font-size: 0.875rem;
+  }
+  .convention-status .badge {
+    margin-right: 0.25rem;
+  }
+  .dossier-complet-section {
+    background-color: #f8f9fa;
+    border-left: 4px solid #198754;
+    padding: 0.5rem;
+    margin-top: 0.5rem;
+    border-radius: 0 0.375rem 0.375rem 0;
+  }
+  .dossier-incomplet-section {
+    background-color: #fff3cd;
+    border-left: 4px solid #ffc107;
+    padding: 0.5rem;
+    margin-top: 0.5rem;
+    border-radius: 0 0.375rem 0.375rem 0;
+  }
 #history-content .list-group-item {
   border-left: 3px solid var(--bs-primary);
   transition: all 0.2s;
@@ -33,6 +53,27 @@
   padding: 0.25rem 0.5rem;
   font-size: 0.875rem;
 }
+  .actes-table-header {
+    font-size: 0.75rem; /* petit texte pour les entêtes */
+    font-weight: 600;
+    color: #495057;
+  }
+  .actes-table-cell {
+    font-size: 0.8rem; /* texte un peu plus petit que normal */
+  }
+
+  /* Empêcher les retours à la ligne dans les options Choices.js */
+.choices__inner,
+.choices__item,
+.choices__list--single,
+.choices__list--dropdown .choices__item {
+    white-space: nowrap !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+
+
 </style>
 
 <link rel="stylesheet" href="{% static 'css/choices.min.css' %}" />
@@ -55,7 +96,7 @@
     </a>
     </div>
 
-  <div class="row g-4">  <!-- Nouvelle ligne principale -->
+  <div class="row g-4">
     <!-- Colonne formulaire (8 colonnes) -->
     <div class="col-lg-9">
       {% if errors %}
@@ -169,23 +210,18 @@
       <div class="card-header bg-primary text-white">Actes Médicaux</div>
       <div class="card-body">
         <div id="actes-container">
-          <div class="row g-3 mb-2 text-muted small fw-bold">
-            <div class="col-md-4">Acte</div>
-            <div class="col-md-3">Convention</div>
-            <div class="col-md-2">Statut</div>
-            <div class="col-md-2">Tarif</div>
-            <div class="col-md-1"></div>
-          </div>
+<div id="actes-table-header" class="row g-3 mb-2 actes-table-header"></div>
+
           <template id="acte-row-tpl">
-            <div class="acte-row row g-3" data-index="{index}">
-              <div class="col-md-4">
+            <div class="acte-row row g-3 actes-table-cell" data-index="{index}">
+                  <div class="col-md-3">
                 <select
                   name="actes[]"
                   class="form-select acte-select"
                   required
                 ></select>
               </div>
-              <div class="col-md-3">
+                  <div class="col-md-2">
                 <select
                   name="conventions[]"
                   class="form-select convention-select"
@@ -193,10 +229,18 @@
               </div>
               <div class="col-md-2 statut-convention" style="display: none">
                 <select name="convention_accordee[]" class="form-select">
-                  <option value="oui">Oui</option>
-                  <option value="non" selected>Non</option>
+                  <option value="oui" selected>Oui</option>
+                  <option value="non">Non</option>
                 </select>
               </div>
+                  <!-- NOUVEAU : Section dossier de convention -->
+                  <div class="col-md-2 dossier-convention" style="display: none">
+                    <select name="dossier_convention_complet[]" class="form-select">
+                      
+                      <option value="oui" selected>Oui</option>
+                      <option value="non">Non</option>
+                    </select>
+                  </div>
               <div class="col-md-2">
                 <div class="input-group">
                   <input
@@ -212,6 +256,13 @@
                   <i class="bi bi-trash"></i>
                 </button>
               </div>
+                  <!-- NOUVEAU : Affichage du statut de convention -->
+                  <div class="col-12 convention-status-display" style="display: none">
+                    <div class="convention-status">
+                      <i class="bi bi-info-circle text-muted me-1"></i>
+                      <span class="status-text">Statut de la convention</span>
+                    </div>
+                  </div>
               <div class="col-12 produit-container">
                 <div class="produit-header">Produits</div>
                 <div class="produit-list"></div>
@@ -266,7 +317,7 @@
           id="add-acte"
           class="btn btn-outline-primary w-100"
         >
-          Ajouter
+              Ajouter un acte
         </button>
         <div class="mt-3 text-end">Total: <span id="total">0.00</span> DA</div>
       </div>
@@ -378,8 +429,6 @@ function loadPatientHistory() {
 
 // Charger l'historique au démarrage si patient pré-sélectionné
 document.addEventListener('DOMContentLoaded', () => {
-  // ... (le reste de votre code JS) ...
-  
   // Charger l'historique si un patient est déjà sélectionné
   if (document.getElementById('patientSelect').value) {
     loadPatientHistory();
@@ -392,7 +441,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const produitsGlobal = {{ all_produits_json|safe }};
   const actesData     = {{ actes_json|safe }};
 
-  // Met à jour le total (tarifs d’actes + impact produits)
+  // Met à jour le total (tarifs d'actes + impact produits)
   function updateTotal() {
     let sum = 0;
     const fraisSuppl = parseFloat(document.getElementById('prixSupplementaireInput').value) || 0;
@@ -409,6 +458,76 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('total').textContent = sum.toFixed(2);
   }
   document.getElementById('prixSupplementaireInput').addEventListener('input', updateTotal);
+
+  // NOUVELLE FONCTION : Met à jour l'affichage du statut de convention
+  function updateConventionStatus(row) {
+    const conventionSelect = row.querySelector('.convention-select');
+    const statutConvention = row.querySelector('.statut-convention');
+    const dossierConvention = row.querySelector('.dossier-convention');
+    const statusDisplay = row.querySelector('.convention-status-display');
+    const statusText = row.querySelector('.status-text');
+    const hasConvention = row.querySelector('.convention-select').value !== '';
+     let visibleCols = ["acte", "convention", "tarif", "actions"];
+    // Afficher/masquer les champs selon la présence d'une convention
+    statutConvention.style.display = hasConvention ? 'block' : 'none';
+    dossierConvention.style.display = hasConvention ? 'block' : 'none';
+    statusDisplay.style.display = hasConvention ? 'block' : 'none';
+
+    // Mettre le champ required
+    statutConvention.querySelector('select').required = hasConvention;
+
+    if (hasConvention) {
+      visibleCols.splice(2, 0, "accordee", "dossier"); 
+      updateConventionStatusText(row);
+    }
+      renderActesHeader(visibleCols);
+  }
+
+  // NOUVELLE FONCTION : Met à jour le texte du statut
+  function updateConventionStatusText(row) {
+    const conventionSelect = row.querySelector('.convention-select');
+    const accordeeSelect = row.querySelector('.statut-convention select');
+    const dossierSelect = row.querySelector('.dossier-convention select');
+    const statusText = row.querySelector('.status-text');
+    const statusDisplay = row.querySelector('.convention-status-display');
+
+    const conventionName = conventionSelect.selectedOptions[0]?.text || '';
+    const accordee = accordeeSelect.value === 'oui';
+    const dossierComplet = dossierSelect.value === 'oui';
+
+    let badges = [];
+    let sectionClass = '';
+
+    // Badge pour l'accord de convention
+    if (accordee) {
+      badges.push('<span class="badge bg-success">Accordée</span>');
+    } else {
+      badges.push('<span class="badge bg-warning">En attente</span>');
+    }
+
+    // Badge pour le dossier
+    if (dossierComplet) {
+      badges.push('<span class="badge bg-success">Dossier complet</span>');
+      sectionClass = 'dossier-complet-section';
+    } else {
+      badges.push('<span class="badge bg-warning">Dossier incomplet</span>');
+      sectionClass = 'dossier-incomplet-section';
+    }
+
+    // Classe selon la possibilité de facturation
+    if (accordee && dossierComplet) {
+      statusDisplay.className = statusDisplay.className.replace(/dossier-\w+-section/g, '') + ' ' + sectionClass;
+      badges.push('<span class="badge bg-primary">Facturable en convention</span>');
+    } else {
+      statusDisplay.className = statusDisplay.className.replace(/dossier-\w+-section/g, '') + ' ' + sectionClass;
+    }
+
+    statusText.innerHTML = `
+      <strong>${conventionName}</strong><br>
+      ${badges.join(' ')}
+    `;
+  }
+
   // Charge les produits par défaut pour un acte sélectionné
   function loadProduits(acteId, row) {
     fetch(`/medical/get-acte-produits/${acteId}/`)
@@ -448,7 +567,7 @@ document.addEventListener('DOMContentLoaded', () => {
         `</option>`
       ).join('');
 
-    // Lorsque l’on change de produit
+    // Lorsque l'on change de produit
     select.onchange = () => {
       const opt = select.selectedOptions[0];
       row.dataset.defaultQty = opt.dataset.defaultQty;
@@ -457,7 +576,7 @@ document.addEventListener('DOMContentLoaded', () => {
       updateProduitImpact(row);
     };
 
-    // Lorsque l’on change la quantité réelle
+    // Lorsque l'on change la quantité réelle
     row.querySelector('.quantite-input').oninput = () => {
         if (parseFloat(row.querySelector('.quantite-input').value) <= 0) {
     // neutraliser pour que ça ne remonte pas
@@ -469,7 +588,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // ré-activer normalement
     row.querySelectorAll('select, input').forEach(el => {
       el.disabled = false;
-      // **attention** : vous devez éventuellement restaurer le `name` manuellement
     });
   }
       updateProduitImpact(row);
@@ -486,7 +604,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 
-  // Calcule l’écart et le montant pour un produit
+  // Calcule l'écart et le montant pour un produit
   function updateProduitImpact(row) {
     const defaultQty = parseFloat(row.dataset.defaultQty) || 0;
     const unitPrice  = parseFloat(row.dataset.unitPrice)  || 0;
@@ -504,11 +622,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const a  = row.querySelector('.acte-select');
     const c  = row.querySelector('.convention-select');
     const t  = row.querySelector('.tarif-input');
-    const sC = row.querySelector('.statut-convention');
-    const s  = sC.querySelector('select');
 
     if (!a.value) {
-      sC.style.display = 'none';
       t.value = '';
       updateTotal();
       return;
@@ -519,19 +634,22 @@ document.addEventListener('DOMContentLoaded', () => {
       .then(r => r.json())
       .then(j => {
         t.value = parseFloat(j.tarif).toFixed(2);
-        sC.style.display = c.value ? 'block' : 'none';
-        s.required = !!c.value;
         updateTotal();
       });
   }
 
-  // Initialise une ligne acte : select d’acte, conventions, produits, handlers
+  // Initialise une ligne acte : select d'acte, conventions, produits, handlers
   function initRow(row, idx) {
     row.dataset.index = idx;
 
     const a = row.querySelector('.acte-select');
     const c = row.querySelector('.convention-select');
     const rm = row.querySelector('.remove-acte');
+
+    // NOUVEAU : Sélecteurs pour les nouveaux champs
+    const accordeeSelect = row.querySelector('.statut-convention select');
+    const dossierSelect = row.querySelector('.dossier-convention select');
+
     // Choices pour acte et convention
     [a, c].forEach(el => {
       if (el._choices) el._choices.destroy();
@@ -584,19 +702,27 @@ document.addEventListener('DOMContentLoaded', () => {
       );
 
       updateTarif(row);
+      updateConventionStatus(row); // NOUVEAU
       loadProduits(a.value, row);
     };
 
     // Quand on choisit une convention
-    c.onchange = () => updateTarif(row);
+    c.onchange = () => {
+      updateTarif(row);
+      updateConventionStatus(row); // NOUVEAU
+    };
 
-    // Supprimer l’acte
+    // NOUVEAU : Handlers pour les nouveaux champs
+    accordeeSelect.onchange = () => updateConventionStatusText(row);
+    dossierSelect.onchange = () => updateConventionStatusText(row);
+
+    // Supprimer l'acte
     rm.onclick = () => {
       row.remove();
       updateTotal();
     };
 
-    // Bouton « Ajouter un produit »
+    // Bouton « Ajouter un produit »
     const contProd = row.querySelector('.produit-list');
     const addBtn  = document.createElement('button');
     addBtn.type   = 'button';
@@ -625,7 +751,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const cont = document.getElementById('actes-container');
 
-    // Bouton « Ajouter un acte »
+    // Bouton « Ajouter un acte »
     document.getElementById('add-acte').onclick = () => {
       const idx = cont.querySelectorAll('.acte-row').length;
       const tpl = document.getElementById('acte-row-tpl').innerHTML
@@ -647,6 +773,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
     updateTotal();
   });
+
+  // Colonnes disponibles (label + classe correspondante dans acte-row)
+const columnsConfig = [
+  { key: "acte",        label: "Acte",        class: "col-md-3" },
+  { key: "convention",  label: "Convention",  class: "col-md-2" },
+  { key: "accordee",    label: "Accordée",    class: "col-md-2" },
+  { key: "dossier",     label: "Dossier",     class: "col-md-2" },
+  { key: "tarif",       label: "Tarif",       class: "col-md-2" },
+  { key: "actions",     label: "",            class: "col-md-1" } // icône poubelle
+];
+
+// Fonction qui construit l'entête en fonction des colonnes visibles
+function renderActesHeader(visibleCols) {
+  const header = document.getElementById("actes-table-header");
+  header.innerHTML = ""; // reset
+  visibleCols.forEach(col => {
+    const cfg = columnsConfig.find(c => c.key === col);
+    if (cfg) {
+      const div = document.createElement("div");
+      div.className = cfg.class;
+      div.textContent = cfg.label;
+      // si c'est la colonne actions -> icône
+      if (col === "actions") {
+        div.innerHTML = '<i class="bi bi-trash"></i>';
+      }
+      header.appendChild(div);
+    }
+  });
+}
+
 </script>
 
 {% endblock %}

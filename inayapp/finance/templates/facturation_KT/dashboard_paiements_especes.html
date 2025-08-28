@@ -1,0 +1,455 @@
+{% extends "layout.html" %}
+{% load static custom_filters_medical %}
+{% load permissions_tags %}
+
+{% block content %}
+
+{% has_permission user 'medical.view_dashboard_especes' as can_view_dashboard %}
+{% if not can_view_dashboard %}
+<div class="alert alert-danger">
+    <i class="fas fa-lock me-2"></i>
+    Vous n'avez pas les permissions pour voir le dashboard des paiements espèces.
+</div>
+{% else %}
+<style>
+    :root{
+      --ft-bg-start: rgba(237,0,0,0.9);
+      --ft-bg-end: rgba(16,0,61,0.8);
+      --ft-radius: 16px;
+      --soft-pad: .5rem .9rem;
+    }
+
+    .factu-toolbar {
+      position: sticky;
+      top: .75rem;
+      z-index: 1050;
+      backdrop-filter: saturate(140%) blur(6px);
+      background: linear-gradient(180deg, var(--ft-bg-start), var(--ft-bg-end));
+      color: #fff;
+      border-radius: var(--ft-radius);
+      padding: .65rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 6px 30px rgba(2,6,23,.12), 0 2px 6px rgba(2,6,23,.06);
+      border: 1px solid rgba(255,255,255,.04);
+    }
+
+    /* Header section */
+    .factu-toolbar .title {
+      display: flex;
+      gap: .6rem;
+      align-items: center;
+      font-weight: 700;
+      font-size: clamp(1rem, 1.2vw + .6rem, 1.25rem);
+    }
+
+    .factu-toolbar .title .badge-count {
+      background: rgba(255,255,255,.12);
+      padding: .15rem .45rem;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: .8rem;
+    }
+
+    /* Soft buttons */
+    .factu-toolbar .btn-soft {
+      --btn-bg: rgba(255,255,255,.06);
+      color: rgba(255,255,255,.95);
+      background: var(--btn-bg);
+      border: 1px solid rgba(255,255,255,.06);
+      border-radius: 999px;
+      padding: var(--soft-pad);
+      font-weight: 600;
+      display: inline-flex;
+      gap: .5rem;
+      align-items: center;
+      transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+    }
+    .factu-toolbar .btn-soft:hover{
+      transform: translateY(-2px);
+      background: rgba(255,255,255,.10);
+      text-decoration: none;
+    }
+
+    /* color variants using CSS utilities when present; fallback rules: */
+    .btn-soft-danger { border-color: rgba(255,80,80,.15); }
+    .btn-soft-success { border-color: rgba(72,187,120,.15); }
+    .btn-soft-info    { border-color: rgba(88,170,255,.15); }
+    .btn-soft-primary { border-color: rgba(120,100,255,.18); }
+
+    /* compact search */
+    .factu-toolbar .search-input {
+      min-width: 180px;
+      max-width: 420px;
+      transition: width .18s ease;
+    }
+    .factu-toolbar .search-input:focus { width: 340px; }
+
+    /* controls layout */
+    .factu-toolbar .controls { gap: .5rem; display:flex; align-items:center; flex-wrap:wrap; }
+
+    /* avatar */
+    .factu-toolbar .avatar {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      display:inline-grid; place-items:center;
+      background: linear-gradient(135deg, rgba(255,255,255,.08), rgba(255,255,255,.04));
+      border: 1px solid rgba(255,255,255,.06);
+      cursor:pointer;
+    }
+
+    /* offcanvas adjustments for mobile */
+    @media (max-width: 767.98px) {
+      .factu-toolbar { padding: .5rem; }
+      .factu-toolbar .search-input { min-width: 120px; }
+    }
+
+    /* dark mode tweaks */
+    @media (prefers-color-scheme: dark) {
+      :root { --ft-bg-start: #6365f1a0; --ft-bg-end: #1f1b3ca0; }
+      .factu-toolbar { border-color: rgba(255,255,255,.06); }
+      .factu-toolbar .btn-soft { background: rgba(255,255,255,.03); }
+    }
+
+    /* small utility */
+    .me-sm-2 { margin-right: .5rem !important; }
+</style>
+
+
+<div class="container-fluid">
+
+    <div class="factu-toolbar">
+        <div class="d-flex align-items-center justify-content-between gap-2">
+            <div class="d-flex align-items-center gap-3 flex-grow-1">
+                <div class="d-flex align-items-center">
+                    <button class="btn btn-sm btn-outline-light d-md-none me-2" type="button" data-bs-toggle="offcanvas"
+                            data-bs-target="#factuOffcanvas" aria-controls="factuOffcanvas" aria-label="Ouvrir le menu">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
+
+                    <div class="title">
+                        <i class="fa-solid fa-money-bill-wave fa-lg" aria-hidden="true"></i>
+                        <div>
+                            <div>Dashboard Paiements Espèces</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Controls -->
+            <div class="controls">
+                <nav class="d-none d-md-inline-flex align-items-center" role="navigation"
+                     aria-label="Actions facturation">
+<a href="{% url 'prestations_especes_en_attente' %}"
+    class="btn btn-soft btn-soft-danger me-1{% if request.resolver_match.view_name == 'prestations_especes_en_attente' %} active{% endif %}"
+    data-bs-toggle="tooltip" title="En attente">
+    <i class="fa-regular fa-clock"></i><span class="d-none d-sm-inline ms-1">En Attente</span>
+</a>
+
+
+                    <a href="{% url 'prestations_especes_payees' %}" class="btn btn-soft btn-soft-success me-1me-1{% if request.resolver_match.view_name == 'prestations_especes_payees' %} active{% endif %}"
+                       data-bs-toggle="tooltip" title="Prestations réglées">
+                        <i class="fa-regular fa-circle-check"></i><span class="d-none d-sm-inline ms-1">Réglées</span>
+                    </a>
+
+<a href="{% url 'dashboard_paiements_especes' %}"
+    class="btn btn-soft btn-soft-info me-1{% if request.resolver_match.view_name == 'dashboard_paiements_especes' %} active{% endif %}"
+    data-bs-toggle="tooltip" title="Dashboard">
+    <i class="fa-solid fa-chart-line"></i><span class="d-none d-sm-inline ms-1">Dashboard</span>
+</a>
+
+<!-- Si la route est namespaced (ex: medical:prestation_list) -->
+<a href="{% url 'medical:prestation_list' %}"
+    class="btn btn-soft btn-soft-primary me-1{% if request.resolver_match.view_name == 'medical:prestation_list' %} active{% endif %}"
+    data-bs-toggle="tooltip" title="Toutes les prestations">
+    <i class="fa-solid fa-arrow-left"></i><span class="d-none d-sm-inline ms-1">Toutes</span>
+</a>
+                </nav>
+            </div>
+        </div>
+    </div>
+
+    <!-- Offcanvas for small screens -->
+    <div class="offcanvas offcanvas-start" tabindex="-1" id="factuOffcanvas" aria-labelledby="factuOffcanvasLabel">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="factuOffcanvasLabel"><i class="fa-solid fa-money-bill-wave"></i> Paiements
+            </h5>
+            <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Fermer"></button>
+        </div>
+        <div class="offcanvas-body">
+            <div class="list-group list-group-flush">
+                <a href="{% url 'prestations_especes_en_attente' %}" class="list-group-item list-group-item-action">En
+                    attente</a>
+                <a href="{% url 'prestations_especes_payees' %}"
+                   class="list-group-item list-group-item-action">Réglées</a>
+                <a href="{% url 'dashboard_paiements_especes' %}" class="list-group-item list-group-item-action">Dashboard</a>
+                <a href="{% url 'medical:prestation_list' %}" class="list-group-item list-group-item-action">Toutes les
+                    prestations</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Formulaire de sélection de dates -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="fas fa-calendar-alt me-2"></i>Filtrer par période
+            </h6>
+        </div>
+        <div class="card-body">
+            <form method="get" class="row align-items-end">
+                <div class="col-md-3">
+                    <label for="start_date" class="form-label small">Date de début</label>
+                    <input type="date" class="form-control" id="start_date" name="start_date"
+                           value="{{ start_date|date:'Y-m-d' }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="end_date" class="form-label small">Date de fin</label>
+                    <input type="date" class="form-control" id="end_date" name="end_date"
+                           value="{{ end_date|date:'Y-m-d' }}">
+                </div>
+                <div class="col-md-3">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search me-2"></i>Appliquer
+                    </button>
+                </div>
+                <div class="col-md-3 text-end">
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="setDateRange(7)">7j
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="setDateRange(30)">30j
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="setDateRange(90)">90j
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="setDateRange(365)">1an
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Cartes de statistiques principales -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                En Attente
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ count_prestations_attente }}</div>
+                            <div class="text-xs text-muted">prestations</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-clock fa-2x text-warning"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Réglées
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ count_prestations_payees }}</div>
+                            <div class="text-xs text-muted">prestations</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-check-circle fa-2x text-success"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                À Encaisser
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_attente|floatformat:0 }}</div>
+                            <div class="text-xs text-muted">DA</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-money-bill-wave fa-2x text-info"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                Encaissé
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_paye|floatformat:0 }}</div>
+                            <div class="text-xs text-muted">DA</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-coins fa-2x text-primary"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Graphique de progression et statistiques détaillées -->
+    <div class="row mb-4">
+        <div class="col-lg-8">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-chart-pie me-2"></i>Répartition des Paiements Espèces
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center mb-4">
+                        <div class="col-md-6">
+                            <div class="border-bottom pb-3 mb-3">
+                                <h4 class="text-warning">{{ total_attente|floatformat:2 }} DA</h4>
+                                <p class="text-muted mb-0">En attente de paiement</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="border-bottom pb-3 mb-3">
+                                <h4 class="text-success">{{ total_paye|floatformat:2 }} DA</h4>
+                                <p class="text-muted mb-0">Déjà encaissé</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Barre de progression -->
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="text-muted small">Taux de recouvrement</span>
+                            <span class="font-weight-bold">{{ pourcentage_paye|floatformat:1 }}%</span>
+                        </div>
+                        <div class="progress" style="height: 10px;">
+                            <div class="progress-bar bg-success" role="progressbar"
+                                 style="width: {{ pourcentage_paye }}%"
+                                 aria-valuenow="{{ pourcentage_paye }}"
+                                 aria-valuemin="0" aria-valuemax="100">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Total général -->
+                    <div class="text-center p-3 bg-light rounded">
+                        <h3 class="text-primary mb-1">{{ total_attente|add:total_paye|floatformat:2 }} DA</h3>
+                        <p class="text-muted mb-0">Total espèces (période sélectionnée)</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistiques complémentaires -->
+        <div class="col-lg-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-info-circle me-2"></i>Statistiques Complémentaires
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-3">
+                        <h5 class="text-info">{{ count_paiements_partiels }}</h5>
+                        <p class="text-muted mb-0 small">Paiements partiels</p>
+                    </div>
+
+                    <div class="text-center mb-3">
+                        <h5 class="text-secondary">{{ moyenne_paiement|floatformat:0 }} DA</h5>
+                        <p class="text-muted mb-0 small">Montant moyen par paiement</p>
+                    </div>
+
+                    {% if evolution_quotidienne %}
+                    <div class="mt-3">
+                        <h6 class="small font-weight-bold text-muted">Évolution récente (DA)</h6>
+                        {% for jour in evolution_quotidienne %}
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="small text-muted">{{ jour.jour }}</span>
+                            <span class="small font-weight-bold">{{ jour.montant|floatformat:0 }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top médecins avec paiements en attente -->
+    {% if top_medecins_attente %}
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="fas fa-user-md me-2"></i>Médecins avec le plus de paiements en attente
+            </h6>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                {% for medecin in top_medecins_attente %}
+                <div class="col-md-6 col-lg-4 mb-3">
+                    <div class="border rounded p-3">
+                        <h6 class="mb-1">Dr. {{ medecin.medecin__first_name }} {{ medecin.medecin__last_name }}</h6>
+                        <span class="badge bg-warning">{{ medecin.count }} prestation{{ medecin.count|pluralize }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+    </div>
+    {% endif %}
+</div>
+
+<!-- Script pour mettre à jour les badges et gérer les dates -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Fonction pour mettre à jour le badge du nombre de prestations en attente
+        function updateBadgeAttente() {
+            fetch('/finance/paiement-especes-kt/?ajax=1')
+                .then(response => response.json())
+                .then(data => {
+                    const badge = document.getElementById('badge-attente');
+                    if (badge && data.count !== undefined) {
+                        badge.textContent = data.count;
+                        badge.style.display = data.count > 0 ? 'inline' : 'none';
+                    }
+                })
+                .catch(error => console.error('Erreur lors de la mise à jour du badge:', error));
+        }
+
+        // Mettre à jour le badge au chargement de la page
+        updateBadgeAttente();
+
+        // Optionnel: Mettre à jour toutes les 5 minutes
+        setInterval(updateBadgeAttente, 5 * 60 * 1000);
+    });
+
+
+    // Fonction pour définir une plage de dates rapide
+    function setDateRange(days) {
+        const today = new Date();
+        const startDate = new Date(today.getTime() - (days * 24 * 60 * 60 * 1000));
+
+        document.getElementById('start_date').value = startDate.toISOString().split('T')[0];
+        document.getElementById('end_date').value = today.toISOString().split('T')[0];
+    }
+</script>
+<!-- Contenu existant du dashboard -->
+{% endif %}
+{% endblock %}

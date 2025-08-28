@@ -29,9 +29,9 @@ def patient_list(request):
         )
 
     if filter_active == "active":
-        patients = patients.filter(is_active=True)
+        patients = patients.filter(est_active=True)
     elif filter_active == "inactive":
-        patients = patients.filter(is_active=False)
+        patients = patients.filter(est_active=False)
 
     # Pagination
     paginator = Paginator(patients.order_by("-created_at"), 10)
@@ -328,10 +328,10 @@ def patient_toggle_status(request, patient_id):
     patient = get_object_or_404(Patient, id=patient_id)
 
     try:
-        patient.is_active = not patient.is_active
+        patient.est_active = not patient.est_active
         patient.save()
 
-        status = "activé" if patient.is_active else "désactivé"
+        status = "activé" if patient.est_active else "désactivé"
         messages.success(
             request, f"Patient {patient.nom_complet} {status} avec succès!"
         )
@@ -351,7 +351,7 @@ def patient_search_api(request):
         Q(first_name__icontains=query)
         | Q(last_name__icontains=query)
         | Q(social_security_number__icontains=query),
-        is_active=True,
+        est_active=True,
     )[:10]
 
     results = []

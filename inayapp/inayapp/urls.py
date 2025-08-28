@@ -1,11 +1,12 @@
+import nested_admin
 from accueil.views import update_theme
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
+from django.contrib.auth import views as auth_views
 from django.shortcuts import render
 from django.urls import include, path
-import nested_admin
-from django.contrib.auth import views as auth_views
+
 
 def custom_permission_denied_view(request, exception=None):
     return render(request, '403.html', status=403)
@@ -14,7 +15,9 @@ handler403 = custom_permission_denied_view
 
 
 urlpatterns = [
-    path(
+path('ckeditor5/', include('django_ckeditor_5.urls')),  # URLs pour CKEditor 5
+path('nested_admin/', include('nested_admin.urls')),
+path(
         "login/",
         auth_views.LoginView.as_view(template_name="registration/login.html"),
         name="login",
@@ -47,16 +50,9 @@ urlpatterns = [
             ("hospitalisations.urls", "hospitalisations"), namespace="hospitalisations"
         ),
     ),
-    
 ]
 
 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
-
-if settings.DEBUG:
-    import debug_toolbar
-
-    urlpatterns = [
-        path("__debug__/", include(debug_toolbar.urls)),  # Version 4.0+
-    ] + urlpatterns
+urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

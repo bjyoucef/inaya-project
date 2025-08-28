@@ -1,0 +1,276 @@
+<!-- templates/permissions/dashboard.html -->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Permissions - INAYA APP</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="{% load static %}{% static 'css/custom_jazzmin.css' %}" rel="stylesheet">
+    <style>
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 10px;
+            transition: transform 0.2s;
+        }
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+        .app-card {
+            transition: transform 0.2s;
+            border-left: 4px solid #667eea;
+        }
+        .app-card:hover {
+            transform: translateX(5px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .header-gradient {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 15px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+        .quick-action-btn {
+            border-radius: 10px;
+            padding: 1rem;
+            transition: all 0.3s;
+        }
+        .quick-action-btn:hover {
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <div class="container-fluid py-4">
+                <!-- Retour vers l'admin -->
+        <div class="row mb-4">
+            <div class="col-12 text-end">
+                <a href="/admin/" class="btn btn-primary">
+                    <i class="fas fa-arrow-left"></i> Retour à l'administration
+                </a>
+            </div>
+        </div>
+        <!-- En-tête -->
+        <div class="header-gradient text-white text-center">
+            <h1 class="display-4 mb-3">
+                <i class="fas fa-shield-alt"></i>
+                Dashboard Permissions
+            </h1>
+            <p class="lead mb-0">Gestion centralisée des utilisateurs, groupes et permissions</p>
+        </div>
+
+        <!-- Statistiques principales -->
+        <div class="row mb-4">
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="card stat-card">
+                    <div class="card-body text-center">
+                        <i class="fas fa-users fa-2x mb-2"></i>
+                        <h3>{{ stats.total_users }}</h3>
+                        <p class="mb-0">Utilisateurs Total</p>
+                        <small>{{ stats.active_users }} actifs</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="card stat-card">
+                    <div class="card-body text-center">
+                        <i class="fas fa-user-tie fa-2x mb-2"></i>
+                        <h3>{{ stats.staff_users }}</h3>
+                        <p class="mb-0">Staff</p>
+                        <small>{{ stats.superusers }} superusers</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="card stat-card">
+                    <div class="card-body text-center">
+                        <i class="fas fa-layer-group fa-2x mb-2"></i>
+                        <h3>{{ stats.total_groups }}</h3>
+                        <p class="mb-0">Groupes</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="card stat-card">
+                    <div class="card-body text-center">
+                        <i class="fas fa-shield-alt fa-2x mb-2"></i>
+                        <h3>{{ stats.total_permissions }}</h3>
+                        <p class="mb-0">Permissions</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions rapides -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-bolt"></i> Actions rapides
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-lg-3 col-md-6 mb-3">
+                                <a href="{% url 'user_permissions_list' %}" class="btn btn-primary quick-action-btn w-100 h-100 d-flex flex-column align-items-center justify-content-center text-decoration-none">
+                                    <i class="fas fa-users fa-2x mb-2"></i>
+                                    <strong>Gérer Utilisateurs</strong>
+                                    <small>Permissions individuelles</small>
+                                </a>
+                            </div>
+                            <div class="col-lg-3 col-md-6 mb-3">
+                                <a href="{% url 'group_permissions_list' %}" class="btn btn-success quick-action-btn w-100 h-100 d-flex flex-column align-items-center justify-content-center text-decoration-none">
+                                    <i class="fas fa-layer-group fa-2x mb-2"></i>
+                                    <strong>Gérer Groupes</strong>
+                                    <small>Permissions par groupe</small>
+                                </a>
+                            </div>
+                            <div class="col-lg-3 col-md-6 mb-3">
+                                <a href="/admin/auth/user/add/" class="btn btn-info quick-action-btn w-100 h-100 d-flex flex-column align-items-center justify-content-center text-decoration-none">
+                                    <i class="fas fa-user-plus fa-2x mb-2"></i>
+                                    <strong>Nouvel Utilisateur</strong>
+                                    <small>Créer un compte</small>
+                                </a>
+                            </div>
+                            <div class="col-lg-3 col-md-6 mb-3">
+                                <a href="/admin/auth/group/add/" class="btn btn-warning quick-action-btn w-100 h-100 d-flex flex-column align-items-center justify-content-center text-decoration-none">
+                                    <i class="fas fa-plus-circle fa-2x mb-2"></i>
+                                    <strong>Nouveau Groupe</strong>
+                                    <small>Créer un groupe</small>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Groupes populaires -->
+            <div class="col-lg-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-star"></i> Groupes les plus utilisés
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        {% for group in popular_groups %}
+                        <div class="d-flex justify-content-between align-items-center mb-3 p-2 border rounded">
+                            <div>
+                                <i class="fas fa-layer-group text-primary me-2"></i>
+                                <strong>{{ group.name }}</strong>
+                            </div>
+                            <div class="text-end">
+                                <span class="badge bg-primary">{{ group.user_count }} utilisateurs</span>
+                                <br>
+                                <small class="text-muted">{{ group.permissions.count }} permissions</small>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <p class="text-muted">Aucun groupe disponible</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Utilisateurs récents -->
+            <div class="col-lg-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-clock"></i> Utilisateurs récents
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        {% for user in recent_users %}
+                        <div class="d-flex justify-content-between align-items-center mb-3 p-2 border rounded">
+                            <div class="d-flex align-items-center">
+                                <div class="avatar bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" 
+                                     style="width: 35px; height: 35px;">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                                <div>
+                                    <strong>{{ user.get_full_name|default:user.username }}</strong>
+                                    <br><small class="text-muted">{{ user.username }}</small>
+                                </div>
+                            </div>
+                            <div class="text-end">
+                                {% if user.is_superuser %}
+                                    <span class="badge bg-danger">Superuser</span>
+                                {% elif user.is_staff %}
+                                    <span class="badge bg-warning">Staff</span>
+                                {% else %}
+                                    <span class="badge bg-info">User</span>
+                                {% endif %}
+                                <br><small class="text-muted">{{ user.date_joined|date:"d/m/Y" }}</small>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <p class="text-muted">Aucun utilisateur récent</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Applications et permissions -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-apps"></i> Permissions par application
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            {% for app_name, app_data in apps_permissions.items %}
+                            <div class="col-lg-4 col-md-6 mb-3">
+                                <div class="card app-card h-100">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0">
+                                            <i class="fas fa-cube text-primary"></i>
+                                            {{ app_data.name }}
+                                        </h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <p class="text-center">
+                                            <span class="h4 text-primary">{{ app_data.total_permissions }}</span>
+                                            <br><small class="text-muted">permissions</small>
+                                        </p>
+                                        <div class="mt-3">
+                                            <small><strong>Modèles :</strong></small>
+                                            {% for model in app_data.models %}
+                                                <div class="d-flex justify-content-between">
+                                                    <small>{{ model.name }}</small>
+                                                    <small class="text-muted">{{ model.permissions_count }}</small>
+                                                </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Retour vers l'admin -->
+        <div class="row mt-4">
+            <div class="col-12 text-center">
+                <a href="/admin/" class="btn btn-outline-primary">
+                    <i class="fas fa-arrow-left"></i> Retour à l'administration
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

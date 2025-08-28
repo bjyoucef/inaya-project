@@ -1,117 +1,1170 @@
 {% extends "layout.html" %}
+{% load static %}
+
 {% block content %}
+<style>
+    .urgence-badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 12px;
+        font-weight: 600;
+    }
+    
+    .urgence-faible { background: linear-gradient(135deg, #10b981, #34d399); color: white; }
+    .urgence-normale { background: linear-gradient(135deg, #f59e0b, #fbbf24); color: white; }
+    .urgence-elevee { background: linear-gradient(135deg, #ef4444, #f87171); color: white; }
+    
+    .contact-badge {
+        font-size: 0.7rem;
+        padding: 0.2rem 0.4rem;
+        border-radius: 8px;
+        background: rgba(102, 126, 234, 0.1);
+        color: #667eea;
+        border: 1px solid rgba(102, 126, 234, 0.2);
+    }
+    
+    .demande-card {
+        transition: all 0.3s ease;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(10px);
+    }
+    
+    .demande-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+    
+    .stats-card {
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+        border: 1px solid rgba(102, 126, 234, 0.2);
+        border-radius: 16px;
+        transition: all 0.3s ease;
+    }
+    
+    .stats-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 24px rgba(102, 126, 234, 0.15);
+    }
+    
+    .type-badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-weight: 600;
+    }
+    
+    .type-it { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
+    .type-tech { background: linear-gradient(135deg, #f093fb, #f5576c); color: white; }
+    .type-appro { background: linear-gradient(135deg, #4facfe, #00f2fe); color: white; }
 
-<!-- Section des demandes -->
-<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-    {% for demande in demandes %}
-    <div class="col">
-        <div class="card shadow-sm {% if demande.time_terminee %}border-success bg-light{% else %}border-info bg-white{% endif %}"
-             data-bs-toggle="modal" data-bs-target="#detailsDemandeModal{{ demande.id }}">
-            <div class="card-header d-flex align-items-center">
-                <i class="fas fa-user me-2"></i>
-                <span>
-                    {% if demande.personnel_nom %}
-                        {{ demande.personnel_nom }} {{ demande.personnel_prenom }}
-                    {% else %}
-                        {{ demande.name }}
-                    {% endif %}
-                </span>
-            </div>
-            <div class="card-body">
-                <p class="card-text">{{ demande.details|truncatechars:100 }}</p>
-            </div>
-            <div class="card-footer d-flex justify-content-between align-items-center">
-                <span class="badge bg-info">
-                    <i class="fas fa-clock me-1"></i> Envoyé le: {{ demande.time_send }}
-                </span>
+    .avatar-sm {
+        width: 32px;
+        height: 32px;
+        font-size: 0.75rem;
+    }
+
+    .table-hover tbody tr:hover {
+        background-color: rgba(102, 126, 234, 0.05);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .demande-row {
+        transition: all 0.2s ease;
+    }
+
+    .btn-group .btn {
+        border-radius: 6px !important;
+        margin-right: 2px;
+    }
+
+    .dropdown-menu {
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+        border: none;
+        border-radius: 12px;
+    }
+
+    .dropdown-item {
+        padding: 0.5rem 1rem;
+        transition: all 0.2s ease;
+    }
+
+    .dropdown-item:hover {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        transform: translateX(4px);
+    }
+
+    /* Animation pour les cartes de stats */
+    .stats-card {
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stats-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+        transition: all 0.6s ease;
+    }
+
+    .stats-card:hover::before {
+        left: 100%;
+    }
+
+    /* Badges personnalisés */
+    .badge {
+        font-weight: 500;
+        letter-spacing: 0.5px;
+    }
+
+    /* Modal amélioré */
+    .modal-content {
+        border: none;
+        border-radius: 16px;
+        overflow: hidden;
+    }
+
+    .modal-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-bottom: none;
+    }
+
+    .modal-body {
+        padding: 2rem;
+    }
+
+    /* Responsive amélioré */
+    @media (max-width: 768px) {
+        .stats-card {
+            margin-bottom: 1rem;
+        }
+        
+        .btn-group {
+            flex-direction: column;
+            width: 100%;
+        }
+        
+        .btn-group .btn {
+            margin-bottom: 2px;
+            border-radius: 6px !important;
+        }
+        
+        .table-responsive {
+            font-size: 0.85rem;
+        }
+        
+        .modal-dialog {
+            margin: 1rem;
+        }
+        
+        .urgence-badge, .type-badge, .contact-badge {
+            font-size: 0.65rem;
+            padding: 0.15rem 0.3rem;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .container-fluid {
+            padding: 1rem;
+        }
+        
+        .card-body {
+            padding: 1rem;
+        }
+        
+        .btn-group .btn {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+        }
+        
+        .stats-card h4 {
+            font-size: 1.5rem;
+        }
+        
+        .table th, .table td {
+            padding: 0.5rem 0.25rem;
+            font-size: 0.8rem;
+        }
+    }
+
+    /* Dark mode support */
+    [data-bs-theme="dark"] .stats-card {
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+        border: 1px solid rgba(102, 126, 234, 0.3);
+    }
+
+    [data-bs-theme="dark"] .table-hover tbody tr:hover {
+        background-color: rgba(102, 126, 234, 0.1);
+    }
+
+    [data-bs-theme="dark"] .demande-card {
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    [data-bs-theme="dark"] .modal-content {
+        background: rgba(30, 41, 59, 0.95);
+        backdrop-filter: blur(20px);
+    }
+
+    [data-bs-theme="dark"] .dropdown-menu {
+        background: rgba(30, 41, 59, 0.95);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    [data-bs-theme="dark"] .contact-badge {
+        background: rgba(102, 126, 234, 0.2);
+        color: #a5b4fc;
+        border: 1px solid rgba(102, 126, 234, 0.3);
+    }
+
+    /* Effet de pulse pour les notifications urgentes */
+    @keyframes pulse-urgent {
+        0% {
+            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+        }
+        70% {
+            box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+        }
+        100% {
+            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+        }
+    }
+
+    .urgence-elevee {
+        animation: pulse-urgent 2s infinite;
+    }
+
+    /* Loading states */
+    .btn.loading {
+        position: relative;
+        pointer-events: none;
+    }
+
+    .btn.loading::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 16px;
+        height: 16px;
+        margin: -8px 0 0 -8px;
+        border: 2px solid transparent;
+        border-top: 2px solid currentColor;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <!-- En-tête avec statistiques -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
                 <div>
-                    {% if demande.file_path %}
-                        <i class="fas fa-paperclip text-success me-2" title="Pièce jointe"></i>
-                    {% endif %}
-                    {% if demande.audio_path %}
-                        <i class="fas fa-volume-up text-warning me-2" title="Audio disponible"></i>
-                    {% endif %}
-                    {% if has_dept_perm %}
-                    <span class="badge bg-secondary">{{ demande.type|escape }}</span>
-                {% endif %}
+                    <h1 class="h3 mb-1 fw-bold">📋 Dashboard Helpdesk</h1>
+                    <p class="text-muted mb-0">Gestion des demandes d'assistance</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-primary" onclick="location.reload()">
+                        <i class="fas fa-sync-alt me-1"></i> Actualiser
+                    </button>
+                    <a href="{% url 'demande_assistance' %}" class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i> Nouvelle demande
+                    </a>
                 </div>
             </div>
-            {% if not demande.time_terminee %}
-            <form action="{% url 'mark_terminee' demande.id %}" method="POST" class="mt-3">
-                {% csrf_token %}
-                <input type="hidden" name="time_terminee" value="true">
-                <button class="btn btn-danger btn-sm w-100" type="submit">Marquer comme terminée</button>
-            </form>
-            {% else %}
-            <div class="mt-3 mb-3 text-center">
-                <span class="badge bg-success">
-                    <i class="fas fa-check-circle me-1"></i> Terminée le: {{ demande.time_terminee }}
-                </span>
-                <span class="badge bg-secondary"><strong>Par:</strong> {{ demande.terminee_par }}</span>
-            </div>
-            {% endif %}
         </div>
     </div>
 
-    <!-- Modal des détails de la demande -->
-    <div class="modal fade" id="detailsDemandeModal{{ demande.id }}" tabindex="-1"
-         aria-labelledby="detailsModalLabel{{ demande.id }}" aria-hidden="true" data-bs-keyboard="false">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title" id="detailsModalLabel{{ demande.id }}">
-                        <i class="fas fa-info-circle me-2"></i> Détails de la demande
+    <!-- Cartes de statistiques -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="stats-card p-3 h-100">
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0">
+                        <div class="bg-primary bg-gradient rounded-circle p-3">
+                            <i class="fas fa-ticket-alt text-white"></i>
+                        </div>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <h6 class="card-title text-muted mb-0">Total</h6>
+                        <h4 class="mb-0 fw-bold">{{ stats.total_demandes }}</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="stats-card p-3 h-100">
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0">
+                        <div class="bg-danger bg-gradient rounded-circle p-3">
+                            <i class="fas fa-exclamation-triangle text-white"></i>
+                        </div>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <h6 class="card-title text-muted mb-0">Urgentes</h6>
+                        <h4 class="mb-0 fw-bold text-danger">{{ stats.demandes_urgentes }}</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="stats-card p-3 h-100">
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0">
+                        <div class="bg-warning bg-gradient rounded-circle p-3">
+                            <i class="fas fa-clock text-white"></i>
+                        </div>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <h6 class="card-title text-muted mb-0">En cours</h6>
+                        <h4 class="mb-0 fw-bold text-warning">{{ stats.demandes_ouvertes }}</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="stats-card p-3 h-100">
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0">
+                        <div class="bg-success bg-gradient rounded-circle p-3">
+                            <i class="fas fa-check-circle text-white"></i>
+                        </div>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <h6 class="card-title text-muted mb-0">Terminées</h6>
+                        <h4 class="mb-0 fw-bold text-success">{{ stats.demandes_terminees }}</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtres -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-2">
+                            <label class="form-label fw-semibold">Type de demande</label>
+                            <select class="form-select" id="filterType">
+                                <option value="">Tous les types</option>
+                                <option value="it">Informatique</option>
+                                <option value="tech">Technique</option>
+                                <option value="appro">Approvisionnement</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label fw-semibold">Statut</label>
+                            <select class="form-select" id="filterStatus">
+                                <option value="">Tous les statuts</option>
+                                <option value="ouvert">En cours</option>
+                                <option value="termine">Terminé</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label fw-semibold">Urgence</label>
+                            <select class="form-select" id="filterUrgence">
+                                <option value="">Toutes urgences</option>
+                                <option value="faible">Faible</option>
+                                <option value="normale">Normale</option>
+                                <option value="elevee">Élevée</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">Recherche</label>
+                            <input type="text" class="form-control" id="searchInput" placeholder="Rechercher dans les demandes...">
+                        </div>
+                        <div class="col-md-3">
+                            <button class="btn btn-outline-secondary w-100" onclick="clearAllFilters()">
+                                <i class="fas fa-times me-1"></i> Effacer filtres
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Liste des demandes -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent border-bottom-0 pb-0">
+                    <h5 class="card-title mb-0 d-flex align-items-center">
+                        <i class="fas fa-list me-2 text-primary"></i>
+                        Liste des demandes
                     </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body">
-                    <ul class="list-group list-group-flush">
-                        <li class="list-group-item"><strong>Nom:</strong>
-                            {% if demande.personnel_nom %}
-                                {{ demande.personnel_nom }} {{ demande.personnel_prenom }}
-                            {% else %}
-                                {{ demande.name }}
-                            {% endif %}
-                        </li>
-                        <li class="list-group-item"><strong>IP:</strong> {{ demande.ip_address }}</li>
-                        {% if has_dept_perm %}
-                        <li class="list-group-item"><strong>Type:</strong> {{ demande.type }}</li>
+                <div class="card-body">
+                    {% if demandes %}
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th scope="col">#</th>
+                                        <th scope="col">Demandeur</th>
+                                        <th scope="col">Type</th>
+                                        <th scope="col">Description</th>
+                                        <th scope="col">Urgence</th>
+                                        <th scope="col">Contact</th>
+                                        <th scope="col">Date</th>
+                                        <th scope="col">Statut</th>
+                                        <th scope="col">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for demande in demandes %}
+                                    <tr class="demande-row" 
+                                        data-type="{{ demande.type }}" 
+                                        data-urgence="{{ demande.urgence_level }}"
+                                        data-status="{% if demande.time_terminee %}termine{% else %}ouvert{% endif %}"
+                                        data-demande-id="{{ demande.id }}">
+                                        <td>
+                                            <span class="badge bg-light text-dark">#{{ demande.id }}</span>
+                                        </td>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="avatar-sm bg-primary rounded-circle me-2 d-flex align-items-center justify-content-center">
+                                                    <i class="fas fa-user text-white"></i>
+                                                </div>
+                                                <div>
+                                                    <div class="fw-semibold">{{ demande.name }}</div>
+                                                    <small class="text-muted">{{ demande.ip_address }}</small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="type-badge type-{{ demande.type }}">
+                                                {% if demande.type == 'it' %}
+                                                    <i class="fas fa-laptop me-1"></i>IT
+                                                {% elif demande.type == 'tech' %}
+                                                    <i class="fas fa-tools me-1"></i>Tech
+                                                {% elif demande.type == 'appro' %}
+                                                    <i class="fas fa-shopping-cart me-1"></i>Appro
+                                                {% endif %}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div class="text-truncate" style="max-width: 300px;" title="{{ demande.details|slice:':200' }}">
+                                                {{ demande.details|slice:':100' }}{% if demande.details|length > 100 %}...{% endif %}
+                                            </div>
+                                            <div class="mt-1">
+                                                {% if demande.files %}
+                                                    <span class="badge bg-info me-1">
+                                                        <i class="fas fa-paperclip me-1"></i>{{ demande.files|length }} fichier{{ demande.files|length|pluralize }}
+                                                    </span>
+                                                {% endif %}
+                                                {% if demande.audio_path %}
+                                                    <span class="badge bg-warning">
+                                                        <i class="fas fa-microphone me-1"></i>Audio
+                                                    </span>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="urgence-badge urgence-{{ demande.urgence_level }}">
+                                                {% if demande.urgence_level == 'faible' %}
+                                                    <i class="fas fa-smile me-1"></i>Faible
+                                                {% elif demande.urgence_level == 'elevee' %}
+                                                    <i class="fas fa-exclamation-triangle me-1"></i>Élevée
+                                                {% else %}
+                                                    <i class="fas fa-meh me-1"></i>Normale
+                                                {% endif %}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="contact-badge">
+                                                {% if demande.contact_pref == 'telephone' %}
+                                                    <i class="fas fa-phone me-1"></i>Téléphone
+                                                {% elif demande.contact_pref == 'sur_place' %}
+                                                    <i class="fas fa-map-marker-alt me-1"></i>Sur place
+                                                {% elif demande.contact_pref == 'remote' %}
+                                                    <i class="fas fa-desktop me-1"></i>À distance
+                                                {% else %}
+                                                    <i class="fas fa-envelope me-1"></i>Email
+                                                {% endif %}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div class="fw-semibold">{{ demande.time_send|date:"d/m/Y" }}</div>
+                                            <small class="text-muted">{{ demande.time_send|date:"H:i" }}</small>
+                                        </td>
+                                        <td>
+                                            {% if demande.time_terminee %}
+                                                <span class="badge bg-success">
+                                                    <i class="fas fa-check-circle me-1"></i>Terminé
+                                                </span>
+                                                <div class="small text-muted mt-1">
+                                                    {{ demande.time_terminee|date:"d/m/Y" }}<br>
+                                                    par {{ demande.terminee_par }}
+                                                </div>
+                                            {% else %}
+                                                <span class="badge bg-warning">
+                                                    <i class="fas fa-clock me-1"></i>En cours
+                                                </span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <button class="btn btn-sm btn-outline-primary" 
+                                                        onclick="viewDemande({{ demande.id }})"
+                                                        data-bs-toggle="tooltip" title="Voir détails">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
+                                                
+                                                {% if has_dept_perm %}
+                                                    {% if not demande.time_terminee %}
+                                                        <button class="btn btn-sm btn-outline-success" 
+                                                                onclick="markTerminee({{ demande.id }})"
+                                                                data-bs-toggle="tooltip" title="Marquer comme terminé">
+                                                            <i class="fas fa-check"></i>
+                                                        </button>
+                                                    {% else %}
+                                                        <button class="btn btn-sm btn-outline-warning" 
+                                                                onclick="reopenDemande({{ demande.id }})"
+                                                                data-bs-toggle="tooltip" title="Rouvrir">
+                                                            <i class="fas fa-redo"></i>
+                                                        </button>
+                                                    {% endif %}
+                                                {% endif %}
+                                                
+                                                {% if demande.files %}
+                                                    <div class="btn-group">
+                                                        <button class="btn btn-sm btn-outline-info dropdown-toggle" 
+                                                                data-bs-toggle="dropdown" aria-expanded="false"
+                                                                data-bs-toggle="tooltip" title="Télécharger fichiers">
+                                                            <i class="fas fa-download"></i>
+                                                        </button>
+                                                        <ul class="dropdown-menu">
+                                                            {% for file in demande.files %}
+                                                                <li>
+                                                                    <a class="dropdown-item" href="{% url 'download_file' file %}">
+                                                                        <i class="fas fa-file me-2"></i>{{ file|slice:"30:" }}
+                                                                    </a>
+                                                                </li>
+                                                            {% endfor %}
+                                                        </ul>
+                                                    </div>
+                                                {% endif %}
+                                                
+                                                {% if demande.audio_path %}
+                                                    <button class="btn btn-sm btn-outline-secondary" 
+                                                            onclick="playAudio('{{ demande.audio_path }}')"
+                                                            data-bs-toggle="tooltip" title="Écouter audio">
+                                                        <i class="fas fa-play"></i>
+                                                    </button>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">Aucune demande trouvée</h5>
+                            <p class="text-muted">Il n'y a actuellement aucune demande d'assistance.</p>
+                            <a href="{% url 'demande_assistance' %}" class="btn btn-primary">
+                                <i class="fas fa-plus me-1"></i>Créer une nouvelle demande
+                            </a>
+                        </div>
                     {% endif %}
-                        <li class="list-group-item"><strong>Détails:</strong> {{ demande.details }}</li>
-                    </ul>
-
-                    {% if demande.files %}
-                    <h6 class="text-primary mt-3"><strong>📎 Pièce jointe:</strong></h6>
-                    <div class="d-flex flex-wrap mt-2">
-                        {% for file in demande.files %}
-                        <a href="{{ MEDIA_URL }}{{ file }}" ...>
-                        <a href="{% url 'download_file' file %}"
-                           class="btn btn-outline-primary btn-sm m-1">
-                            <i class="fas fa-download me-1"></i> Fichier {{ forloop.counter }}
-                        </a>
-                        {% endfor %}
-                    </div>
-                    {% endif %}
-
-                    {% if demande.audio_path %}
-                    <div class="mt-3">
-                        <h6 class="text-primary"><strong>🎤 Enregistrement vocal:</strong></h6>
-                        <audio controls class="w-100 mt-2">
-                            <source src="{{ MEDIA_URL }}{{ demande.audio_path }}" ...>
-                            <source src="{% url 'download_file' demande.audio_path %}"
-                                    type="audio/wav">
-                            Votre navigateur ne prend pas en charge l'audio.
-                        </audio>
-                    </div>
-                    {% endif %}
-                </div>
-                <div class="modal-footer">
-                    <!-- Boutons de fermeture ou actions supplémentaires -->
                 </div>
             </div>
         </div>
     </div>
-    {% endfor %}
 </div>
+
+<!-- Modal pour voir les détails -->
+<div class="modal fade" id="demandeDetailModal" tabindex="-1" aria-labelledby="demandeDetailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="demandeDetailModalLabel">
+                    <i class="fas fa-info-circle me-2"></i>Détails de la demande
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <div class="modal-body" id="demandeDetailContent">
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Chargement...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal audio player -->
+<div class="modal fade" id="audioPlayerModal" tabindex="-1" aria-labelledby="audioPlayerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="audioPlayerModalLabel">
+                    <i class="fas fa-headphones me-2"></i>Enregistrement audio
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <div class="modal-body text-center">
+                <audio controls class="w-100" id="audioPlayer">
+                    Votre navigateur ne supporte pas l'élément audio.
+                </audio>
+                <div class="mt-2 d-flex justify-content-center" id="audioActions">
+                    <!-- bouton download rempli dynamiquement -->
+                    <a id="downloadAudioBtn" class="btn btn-sm btn-outline-primary" href="#" download style="display:none;">
+                        <i class="fas fa-download me-1"></i>Télécharger l'audio
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialiser les tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+
+    // Variables de filtrage
+    const filterState = {
+        type: '',
+        status: '',
+        urgence: '',
+        search: ''
+    };
+
+    // Fonction de recherche avec debounce
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+
+    // Fonction d'application des filtres
+    function applyAllFilters() {
+        const rows = document.querySelectorAll('.demande-row');
+        let visibleCount = 0;
+        
+        rows.forEach(row => {
+            let show = true;
+            
+            // Filtre par type
+            if (filterState.type && row.dataset.type !== filterState.type) {
+                show = false;
+            }
+            
+            // Filtre par statut
+            if (filterState.status && row.dataset.status !== filterState.status) {
+                show = false;
+            }
+            
+            // Filtre par urgence
+            if (filterState.urgence && row.dataset.urgence !== filterState.urgence) {
+                show = false;
+            }
+            
+            // Filtre par recherche
+            if (filterState.search) {
+                const rowText = row.textContent.toLowerCase();
+                if (!rowText.includes(filterState.search.toLowerCase())) {
+                    show = false;
+                }
+            }
+            
+            // Appliquer la visibilité
+            if (show) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+        
+        // Mettre à jour le compteur
+        updateResultCounter(visibleCount, rows.length);
+    }
+
+    // Mettre à jour le compteur de résultats
+    function updateResultCounter(visible, total) {
+        let counter = document.getElementById('resultCounter');
+        if (!counter) {
+            counter = document.createElement('div');
+            counter.id = 'resultCounter';
+            counter.className = 'alert alert-info mt-3';
+            
+            const cardBody = document.querySelector('.table-responsive').parentElement;
+            cardBody.insertBefore(counter, document.querySelector('.table-responsive'));
+        }
+        
+        if (visible === total) {
+            counter.style.display = 'none';
+        } else {
+            counter.style.display = 'block';
+            counter.innerHTML = `
+                <i class="fas fa-filter me-2"></i>
+                <strong>${visible}</strong> demande(s) affichée(s) sur <strong>${total}</strong> au total
+                <button class="btn btn-sm btn-outline-info ms-2" onclick="clearAllFilters()">
+                    <i class="fas fa-times me-1"></i>Effacer tous les filtres
+                </button>
+            `;
+        }
+    }
+
+    // Événements de filtrage
+    document.getElementById('filterType').addEventListener('change', (e) => {
+        filterState.type = e.target.value;
+        applyAllFilters();
+    });
+    
+    document.getElementById('filterStatus').addEventListener('change', (e) => {
+        filterState.status = e.target.value;
+        applyAllFilters();
+    });
+    
+    document.getElementById('filterUrgence').addEventListener('change', (e) => {
+        filterState.urgence = e.target.value;
+        applyAllFilters();
+    });
+    
+    document.getElementById('searchInput').addEventListener('input', debounce((e) => {
+        filterState.search = e.target.value;
+        applyAllFilters();
+    }, 300));
+
+    // Fonction globale pour effacer tous les filtres
+    window.clearAllFilters = function() {
+        filterState.type = '';
+        filterState.status = '';
+        filterState.urgence = '';
+        filterState.search = '';
+        
+        document.getElementById('filterType').value = '';
+        document.getElementById('filterStatus').value = '';
+        document.getElementById('filterUrgence').value = '';
+        document.getElementById('searchInput').value = '';
+        
+        document.querySelectorAll('.demande-row').forEach(row => {
+            row.style.display = '';
+        });
+        
+        const counter = document.getElementById('resultCounter');
+        if (counter) counter.style.display = 'none';
+        
+        showToast('Tous les filtres ont été effacés', 'success');
+    };
+
+    // Animation d'entrée pour les éléments
+    const animateElements = () => {
+        const statsCards = document.querySelectorAll('.stats-card');
+        const tableRows = document.querySelectorAll('.demande-row');
+        
+        // Animation des cartes de stats
+        statsCards.forEach((card, index) => {
+            setTimeout(() => {
+                card.style.opacity = '0';
+                card.style.transform = 'translateY(20px)';
+                card.style.transition = 'all 0.6s ease';
+                
+                setTimeout(() => {
+                    card.style.opacity = '1';
+                    card.style.transform = 'translateY(0)';
+                }, 50);
+            }, index * 100);
+        });
+        
+        // Animation des lignes du tableau
+        tableRows.forEach((row, index) => {
+            setTimeout(() => {
+                row.style.opacity = '0';
+                row.style.transform = 'translateX(-20px)';
+                row.style.transition = 'all 0.4s ease';
+                
+                setTimeout(() => {
+                    row.style.opacity = '1';
+                    row.style.transform = 'translateX(0)';
+                }, 50);
+            }, index * 50);
+        });
+    };
+    
+    // Démarrer les animations après un court délai
+    setTimeout(animateElements, 200);
+});
+
+// Fonction pour voir les détails d'une demande
+async function viewDemande(demandeId) {
+    const modal = new bootstrap.Modal(document.getElementById('demandeDetailModal'));
+    const content = document.getElementById('demandeDetailContent');
+    
+    // Afficher le modal avec loading
+    modal.show();
+    
+    try {
+        const response = await fetch(`/helpdesk/api/demande/${demandeId}/`);
+        const data = await response.json();
+        
+        if (response.ok) {
+            content.innerHTML = `
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">ID</label>
+                        <p class="form-control-plaintext">#${data.id}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Demandeur</label>
+                        <p class="form-control-plaintext">${data.name}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Type</label>
+                        <p class="form-control-plaintext">
+                            <span class="badge type-${data.type}">
+                                ${data.type === 'it' ? 'Informatique' : data.type === 'tech' ? 'Technique' : 'Approvisionnement'}
+                            </span>
+                        </p>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Date d'envoi</label>
+                        <p class="form-control-plaintext">${data.time_send}</p>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">Description complète</label>
+                        <div class="border rounded p-3 bg-light" style="max-height: 300px; overflow-y: auto;">
+                            ${data.details.replace(/\n/g, '<br>')}
+                        </div>
+                    </div>
+                    ${data.files.length > 0 ? `
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">Fichiers joints</label>
+                        <div class="list-group list-group-flush">
+                            ${data.files.map(file => `
+                                <a href="/helpdesk/download/${file}/" class="list-group-item list-group-item-action">
+                                    <i class="fas fa-download me-2"></i>${file.split('/').pop()}
+                                </a>
+                            `).join('')}
+                        </div>
+                    </div>
+                    ` : ''}
+                    ${data.has_audio ? `
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">Enregistrement audio</label>
+                        <div class="audio-controls">
+                            <audio controls class="audio-player" preload="metadata" id="detailAudioPlayer">
+                                <source src="/helpdesk/audio/${encodeURIComponent(data.audio_path)}" type="">
+                                Votre navigateur ne supporte pas l'audio.
+                            </audio>
+                            <div class="mt-2">
+                                <a id="detailDownloadBtn" class="btn btn-sm btn-outline-primary" href="/helpdesk/download/${encodeURIComponent(data.audio_path)}" download>
+                                    <i class="fas fa-download me-1"></i>Télécharger l'audio
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    ` : ''}
+                    ${data.time_terminee ? `
+                    <div class="col-12">
+                        <div class="alert alert-success">
+                            <i class="fas fa-check-circle me-2"></i>
+                            <strong>Demande terminée</strong> le ${data.time_terminee} par ${data.terminee_par}
+                        </div>
+                    </div>
+                    ` : ''}
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">Adresse IP</label>
+                        <p class="form-control-plaintext text-muted">${data.ip_address}</p>
+                    </div>
+                </div>
+            `;
+        } else {
+            content.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Erreur lors du chargement: ${data.error}
+                </div>
+            `;
+        }
+    } catch (error) {
+        content.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                Erreur de connexion: ${error.message}
+            </div>
+        `;
+    }
+}
+
+// Fonction pour marquer comme terminé
+async function markTerminee(demandeId) {
+    if (!confirm('Êtes-vous sûr de vouloir marquer cette demande comme terminée ?')) {
+        return;
+    }
+    
+    const button = document.querySelector(`button[onclick="markTerminee(${demandeId})"]`);
+    if (button) {
+        button.classList.add('loading');
+        button.disabled = true;
+    }
+    
+    try {
+        const formData = new FormData();
+        formData.append('action', 'mark_terminee');
+        formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+        
+        const response = await fetch(`/helpdesk/api/demande/${demandeId}/status/`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            showToast(data.message, 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast(data.error, 'error');
+        }
+    } catch (error) {
+        showToast('Erreur de connexion', 'error');
+    } finally {
+        if (button) {
+            button.classList.remove('loading');
+            button.disabled = false;
+        }
+    }
+}
+
+// Fonction pour rouvrir une demande
+async function reopenDemande(demandeId) {
+    if (!confirm('Êtes-vous sûr de vouloir rouvrir cette demande ?')) {
+        return;
+    }
+    
+    const button = document.querySelector(`button[onclick="reopenDemande(${demandeId})"]`);
+    if (button) {
+        button.classList.add('loading');
+        button.disabled = true;
+    }
+    
+    try {
+        const formData = new FormData();
+        formData.append('action', 'reopen');
+        formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+        
+        const response = await fetch(`/helpdesk/api/demande/${demandeId}/status/`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            showToast(data.message, 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast(data.error, 'error');
+        }
+    } catch (error) {
+        showToast('Erreur de connexion', 'error');
+    } finally {
+        if (button) {
+            button.classList.remove('loading');
+            button.disabled = false;
+        }
+    }
+}
+
+// Fonction pour jouer l'audio
+// Fonction pour jouer l'audio (utilisée depuis les boutons de la table)
+function playAudio(audioPath) {
+    const modalEl = document.getElementById('audioPlayerModal');
+    const modal = new bootstrap.Modal(modalEl);
+    const audioPlayer = document.getElementById('audioPlayer');
+    const downloadBtn = document.getElementById('downloadAudioBtn');
+
+    if (!audioPlayer) return;
+
+    // Construire l'URL qui appelle ta vue serve_audio (encodage obligatoire)
+    const audioUrl = `/helpdesk/audio/${encodeURIComponent(audioPath)}`;
+
+    // Mettre à jour la source du <audio>
+    // supprime les <source> existants si besoin
+    while (audioPlayer.firstChild) audioPlayer.removeChild(audioPlayer.firstChild);
+
+    const ext = (audioPath.split('.').pop() || '').toLowerCase();
+    let mime = '';
+    if (ext === 'mp3') mime = 'audio/mpeg';
+    else if (ext === 'wav') mime = 'audio/wav';
+    else if (ext === 'ogg') mime = 'audio/ogg';
+    // fallback to generic
+    if (!mime) mime = 'audio/*';
+
+    const source = document.createElement('source');
+    source.src = audioUrl;
+    source.type = mime;
+    audioPlayer.appendChild(source);
+
+    // Update download button
+    if (downloadBtn) {
+        downloadBtn.href = `/helpdesk/download/${encodeURIComponent(audioPath)}`;
+        downloadBtn.style.display = 'inline-block';
+    }
+
+    // Charger et jouer (certaines plateformes demandent explicitement load())
+    audioPlayer.load();
+    // play peut échouer si l'utilisateur n'a pas d'activité: on essaye silencieusement
+    audioPlayer.play().catch(err => {
+        // play() peut échouer en auto-play policy — c'est normal, pas bloquant
+        console.debug('Playback prevented (user gesture required):', err);
+    });
+
+    modal.show();
+}
+
+
+// Fonction toast
+function showToast(message, type = 'info') {
+    if (typeof Toastify !== 'undefined') {
+        const colors = {
+            success: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+            error: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+            warning: 'linear-gradient(135deg, #ffd89b 0%, #19547b 100%)',
+            info: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+        };
+        
+        Toastify({
+            text: message,
+            duration: 3000,
+            gravity: 'top',
+            position: 'right',
+            style: {
+                background: colors[type] || colors.info,
+                borderRadius: '12px',
+                fontWeight: '500'
+            },
+            stopOnFocus: true
+        }).showToast();
+    } else {
+        alert(message);
+    }
+}
+
+
+
+
+function downloadFile(content, filename, contentType) {
+    const blob = new Blob([content], { type: contentType });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    showToast(`Export ${filename} terminé avec succès!`, 'success');
+}
+
+
+
+// Actualisation automatique toutes les 5 minutes
+setInterval(() => {
+    if (!document.querySelector('.modal.show')) {
+        console.log('Vérification automatique des mises à jour...');
+        // Ici vous pourriez ajouter une vérification AJAX pour de nouvelles demandes
+    }
+}, 300000); // 5 minutes
+
+// Amélioration de l'accessibilité
+document.querySelectorAll('.demande-row').forEach((row, index) => {
+    row.setAttribute('tabindex', '0');
+    row.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            const viewBtn = row.querySelector('.btn[onclick*="viewDemande"]');
+            if (viewBtn) viewBtn.click();
+        }
+    });
+});
+
+// Gestion des erreurs globales
+window.addEventListener('error', (e) => {
+    console.error('Erreur JavaScript:', e.error);
+    showToast('Une erreur s\'est produite. Veuillez actualiser la page.', 'error');
+});
+
+// Navigation améliorée avec les flèches
+document.addEventListener('keydown', (e) => {
+    if (e.target.matches('.demande-row') || e.target.closest('.demande-row')) {
+        const currentRow = e.target.closest('.demande-row') || e.target;
+        const allRows = Array.from(document.querySelectorAll('.demande-row:not([style*="display: none"])'));
+        const currentIndex = allRows.indexOf(currentRow);
+        
+        if (e.key === 'ArrowDown' && currentIndex < allRows.length - 1) {
+            e.preventDefault();
+            allRows[currentIndex + 1].focus();
+        } else if (e.key === 'ArrowUp' && currentIndex > 0) {
+            e.preventDefault();
+            allRows[currentIndex - 1].focus();
+        }
+    }
+});
+
+// Feedback visuel pour les interactions
+document.querySelectorAll('.stats-card').forEach(card => {
+    card.addEventListener('mouseenter', function() {
+        this.style.transform = 'translateY(-8px)';
+    });
+    
+    card.addEventListener('mouseleave', function() {
+        this.style.transform = 'translateY(-4px)';
+    });
+});
+
+// Auto-focus sur le champ de recherche au chargement (optionnel)
+window.addEventListener('load', () => {
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput && window.innerWidth > 768) {
+        // Focus uniquement sur desktop pour éviter l'ouverture du clavier mobile
+        setTimeout(() => searchInput.focus(), 500);
+    }
+});
+</script>
+
+<!-- Ajouter le token CSRF pour les requêtes AJAX -->
+{% csrf_token %}
 
 {% endblock content %}

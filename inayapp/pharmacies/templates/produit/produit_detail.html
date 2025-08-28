@@ -362,9 +362,9 @@
                         <i class="bi bi-{% if produit.type_produit == 'MED' %}heart-pulse{% else %}box{% endif %} me-2"></i>
                         {{ produit.get_type_produit_display }}
                     </span>
-                    <span class="status-badge {% if produit.est_actif %}active{% else %}inactive{% endif %}">
-                        <i class="bi bi-{% if produit.est_actif %}check-circle{% else %}x-circle{% endif %} me-2"></i>
-                        {{ produit.est_actif|yesno:"Actif,Inactif" }}
+                    <span class="status-badge {% if produit.est_active %}active{% else %}inactive{% endif %}">
+                        <i class="bi bi-{% if produit.est_active %}check-circle{% else %}x-circle{% endif %} me-2"></i>
+                        {{ produit.est_active|yesno:"Actif,Inactif" }}
                     </span>
                 </div>
             </div>
@@ -430,7 +430,7 @@
                     </div>
                 {% endif %}
                 
-                {% if not produit.est_actif %}
+                {% if not produit.est_active %}
                     <div class="recommendation-alert danger">
                         <div class="d-flex align-items-start">
                             <i class="bi bi-x-circle me-3 mt-1"></i>
@@ -466,7 +466,7 @@
                     </div>
                 {% endif %}
                 
-                {% if produit.pourcentage_marge_calculee >= 10 and produit.est_actif and produit.description and not produit.est_rentable %}
+                {% if produit.pourcentage_marge_calculee >= 10 and produit.est_active and produit.description and not produit.est_rentable %}
                     <div class="recommendation-alert success">
                         <div class="d-flex align-items-start">
                             <i class="bi bi-star me-3 mt-1"></i>

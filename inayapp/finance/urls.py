@@ -1,7 +1,6 @@
 from django.urls import path
 from . import views
 
-
 urlpatterns = [
     path(
         "add-decharge-multiple/",
@@ -42,20 +41,87 @@ urlpatterns = [
         views.situation_medecin,
         name="situation_medecin",
     ),
+    #######################################
+    # Facturation
     path(
         "conventions-status/",
-        views.gestion_convention_accorde,
-        name="gestion_convention_accorde",
+        views.gestion_convention_accorde_dossier,
+        name="gestion_convention_accorde_dossier",
     ),
     path(
         "conventions-status/<int:pk>/update/",
         views.update_convention_status,
         name="update_convention_status",
     ),
-    path("paiements/especes/", views.paiements_especes, name="paiements_especes"),
+    # Actes facturés
     path(
-        "paiements/bon/<int:prestation_id>/",
-        views.creer_bon_paiement,
-        name="creer_bon_paiement",
+        "conventions-status/tableau-bord/",
+        views.tableau_bord_facturation,
+        name="tableau_bord_facturation",
+    ),
+    # Gestion des actes
+    path(
+        "conventions-status/facturation/",
+        views.actes_a_facturer,
+        name="actes_a_facturer",
+    ),
+    path(
+        "conventions-status/facturation/actes-factures/",
+        views.actes_factures,
+        name="actes_factures",
+    ),
+    path(
+        "conventions-status/facturation/actes-payes/",
+        views.actes_payes,
+        name="actes_payes",
+    ),
+    path(
+        "conventions-status/facturation/actes-rejetes/",
+        views.actes_rejetes,
+        name="actes_rejetes",
+    ),
+    # Actions sur les actes
+    path(
+        "conventions-status/facturation/facturer-acte/<int:acte_id>/",
+        views.facturer_acte,
+        name="facturer_acte",
+    ),
+    path(
+        "conventions-status/facturation/marquer-paye-acte/<int:acte_id>/",
+        views.marquer_paye_acte,
+        name="marquer_paye_acte",
+    ),
+    path(
+        "conventions-status/facturation/rejeter-acte/<int:acte_id>/",
+        views.rejeter_acte,
+        name="rejeter_acte",
+    ),
+    #################################
+    # URLs pour le suivi des paiements espèces
+    path(
+        "paiement-especes-kt/",
+        views.PrestationsEspecesEnAttenteView.as_view(),
+        name="prestations_especes_en_attente",
+    ),
+    path(
+        "paiement-especes-kt/payees/",
+        views.PrestationsEspecesPayeesView.as_view(),
+        name="prestations_especes_payees",
+    ),
+    path(
+        "paiement-especes-kt/dashboard/",
+        views.DashboardPaiementsEspecesView.as_view(),
+        name="dashboard_paiements_especes",
+    ),
+    # Nouvelles URLs pour la gestion Ajax des paiements
+    path(
+        "paiement-especes-kt/<int:prestation_id>/paiement-especes/",
+        views.GestionPaiementEspecesView.as_view(),
+        name="gestion_paiement_especes",
+    ),
+    path(
+        "paiement-especes-kt/tranches/<int:tranche_id>/",
+        views.SupprimerTranchePaiementView.as_view(),
+        name="supprimer_tranche_paiement",
     ),
 ]

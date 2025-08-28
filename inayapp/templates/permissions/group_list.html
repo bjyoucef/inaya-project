@@ -1,0 +1,291 @@
+<!-- templates/permissions/group_list.html -->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestion des Groupes</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="{% load static %}{% static 'css/custom_jazzmin.css' %}" rel="stylesheet">
+    <style>
+        .group-card {
+            transition: transform 0.2s;
+        }
+        .group-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .header-gradient {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid py-4">
+        <div class="row mb-4">
+
+            <div class="col text-end">
+                <a href="/permissions/dashboard/" class="btn btn-primary">
+                    <i class="fas fa-arrow-left"></i> Retour à Dashboard
+                </a>
+            </div>
+            <div class="col text-end">
+                <a href="/admin/" class="btn btn-primary">
+                    <i class="fas fa-arrow-left"></i> Retour à l'administration
+                </a>
+            </div>
+        </div>
+
+        <!-- En-tête -->
+        <div class="header-gradient text-white">
+            <h1 class="mb-3">
+                <i class="fas fa-layer-group"></i>
+                Gestion des Groupes
+            </h1>
+            <p class="mb-0">Gérez les groupes d'utilisateurs et leurs permissions associées</p>
+        </div>
+
+        <!-- Navigation -->
+        <div class="mb-4">
+            <nav class="nav nav-pills">
+                <a class="nav-link" href="{% url 'user_permissions_list' %}">
+                    <i class="fas fa-users"></i> Utilisateurs
+                </a>
+                <a class="nav-link active" href="{% url 'group_permissions_list' %}">
+                    <i class="fas fa-layer-group"></i> Groupes
+                </a>
+            </nav>
+        </div>
+
+        <!-- Messages -->
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <!-- Liste des groupes -->
+        <div class="row">
+            {% for group in groups %}
+            <div class="col-lg-4 col-md-6 mb-4">
+                <div class="card group-card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <div class="avatar bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" 
+                                 style="width: 40px; height: 40px;">
+                                <i class="fas fa-layer-group"></i>
+                            </div>
+                            <h6 class="mb-0">{{ group.name }}</h6>
+                        </div>
+                        <span class="badge bg-info">{{ group.permissions.count }} permissions</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <strong>Utilisateurs dans ce groupe:</strong>
+                            <span class="badge bg-secondary">{{ group.user_set.count }}</span>
+                        </div>
+                        
+                        {% if group.permissions.exists %}
+                        <div class="mb-3">
+                            <strong>Quelques permissions:</strong>
+                            <div class="mt-2">
+                                {% for permission in group.permissions.all|slice:":3" %}
+                                    <span class="badge bg-success mb-1 d-block text-start">
+                                        {{ permission.content_type.app_label }}.{{ permission.codename }}
+                                    </span>
+                                {% endfor %}
+                                {% if group.permissions.count > 3 %}
+                                    <small class="text-muted">... et {{ group.permissions.count|add:"-3" }} autres</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="mb-3">
+                            <span class="text-muted">Aucune permission assignée</span>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="mb-2">
+                            <strong>Utilisateurs membres:</strong>
+                            {% if group.user_set.exists %}
+                                <div class="mt-2">
+                                    {% for user in group.user_set.all|slice:":3" %}
+                                        <span class="badge bg-primary me-1">{{ user.username }}</span>
+                                    {% endfor %}
+                                    {% if group.user_set.count > 3 %}
+                                        <br><small class="text-muted">... et {{ group.user_set.count|add:"-3" }} autres</small>
+                                    {% endif %}
+                                </div>
+                            {% else %}
+                                <span class="text-muted d-block">Aucun utilisateur</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <a href="{% url 'group_permissions_detail' group.id %}" 
+                           class="btn btn-primary btn-sm w-100">
+                            <i class="fas fa-cog"></i> Gérer les permissions
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-12">
+                <div class="alert alert-info text-center">
+                    <i class="fas fa-info-circle fa-2x mb-3"></i>
+                    <h4>Aucun groupe trouvé</h4>
+                    <p>Aucun groupe n'a été créé pour le moment.</p>
+                    <a href="/admin/auth/group/add/" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Créer un nouveau groupe
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Actions globales -->
+        {% if groups %}
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-tools"></i> Actions globales
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4 mb-2">
+                                <a href="/admin/auth/group/add/" class="btn btn-success w-100">
+                                    <i class="fas fa-plus"></i> Nouveau groupe
+                                </a>
+                            </div>
+                            <div class="col-md-4 mb-2">
+                                <button type="button" class="btn btn-info w-100" onclick="showGroupStats()">
+                                    <i class="fas fa-chart-bar"></i> Statistiques
+                                </button>
+                            </div>
+                            <div class="col-md-4 mb-2">
+                                <button type="button" class="btn btn-warning w-100" onclick="exportGroups()">
+                                    <i class="fas fa-download"></i> Exporter
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Modal pour les statistiques -->
+    <div class="modal fade" id="statsModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-chart-bar"></i> Statistiques des groupes
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-body text-center">
+                                    <h3 class="text-primary">{{ groups|length }}</h3>
+                                    <p class="mb-0">Groupes totaux</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-body text-center">
+                                    <h3 class="text-success">
+                                        {% for group in groups %}{{ group.permissions.count }}{% if not forloop.last %}+{% endif %}{% endfor %}
+                                    </h3>
+                                    <p class="mb-0">Permissions assignées</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <h6>Détail par groupe:</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Groupe</th>
+                                    <th>Utilisateurs</th>
+                                    <th>Permissions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for group in groups %}
+                                <tr>
+                                    <td>{{ group.name }}</td>
+                                    <td>{{ group.user_set.count }}</td>
+                                    <td>{{ group.permissions.count }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function showGroupStats() {
+            new bootstrap.Modal(document.getElementById('statsModal')).show();
+        }
+
+        function exportGroups() {
+            // Créer les données d'export
+            const groups = [
+                {% for group in groups %}
+                {
+                    name: "{{ group.name }}",
+                    users: {{ group.user_set.count }},
+                    permissions: {{ group.permissions.count }},
+                    permissionList: [
+                        {% for perm in group.permissions.all %}
+                        "{{ perm.content_type.app_label }}.{{ perm.codename }}"{% if not forloop.last %},{% endif %}
+                        {% endfor %}
+                    ]
+                }{% if not forloop.last %},{% endif %}
+                {% endfor %}
+            ];
+
+            // Créer le CSV
+            let csv = "Groupe,Utilisateurs,Permissions,Liste des permissions\n";
+            groups.forEach(group => {
+                csv += `"${group.name}",${group.users},${group.permissions},"${group.permissionList.join('; ')}"\n`;
+            });
+
+            // Télécharger le fichier
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'groupes_permissions.csv';
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>

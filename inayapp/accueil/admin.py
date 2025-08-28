@@ -3,7 +3,6 @@ from django.urls import reverse
 from django.utils.html import format_html
 from .models import MenuGroup, MenuItem, NavbarItem
 
-
 class NavbarItemInline(admin.TabularInline):
     model = NavbarItem
     extra = 0
@@ -97,24 +96,10 @@ class MenuItemAdmin(admin.ModelAdmin):
 
 @admin.register(NavbarItem)
 class NavbarItemAdmin(admin.ModelAdmin):
-    list_display = (
-        "label",
-        "type",
-        "icon_preview",
-        "menu_item",
-        "url_name",
-        "order",
-        "permission",
-    )
-    list_editable = ("order", "type")
+    list_display = ("label", "type", "menu_item", "url_name", "order", "permission")
+    list_editable = ("order",)
     list_filter = ("type", "menu_item")
     search_fields = ("label", "url_name", "permission")
     autocomplete_fields = ("menu_item",)
     ordering = ("order",)
 
-    def icon_preview(self, obj):
-        if obj.icon:
-            return format_html('<i class="{}"></i> {}', obj.icon, obj.icon)
-        return "-"
-
-    icon_preview.short_description = "Icône"

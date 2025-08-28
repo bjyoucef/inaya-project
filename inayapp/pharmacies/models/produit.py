@@ -41,7 +41,7 @@ class ProduitManager(models.Manager):
 
     def actifs(self):
         """Retourne tous les produits actifs"""
-        return self.filter(est_actif=True)
+        return self.filter(est_active=True)
 
     def medicaments(self):
         """Retourne tous les médicaments"""
@@ -118,7 +118,7 @@ class Produit(models.Model):
     prix_vente = models.DecimalField(
         max_digits=10, decimal_places=2, validators=[MinValueValidator(Decimal("0.00"))]
     )
-    est_actif = models.BooleanField(default=True)
+    est_active = models.BooleanField(default=True)
     
 
     objects = ProduitManager()

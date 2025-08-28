@@ -1,66 +1,545 @@
 {% extends "layout.html" %}
-{% load static %}
+{% load static custom_filters_medical %}
 
 {% block content %}
+<style>
+    :root {
+        --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        --warning-gradient: linear-gradient(135deg, #ffd89b 0%, #19547b 100%);
+        --glassmorphism: rgba(255, 255, 255, 0.15);
+        --glassmorphism-border: rgba(255, 255, 255, 0.2);
+        --shadow-soft: 0 8px 32px rgba(31, 38, 135, 0.15);
+        --shadow-hover: 0 15px 45px rgba(31, 38, 135, 0.2);
+        --border-radius: 20px;
+        --transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+    }
 
-<div class="services" id="services">
+    [data-bs-theme="dark"] {
+        --glassmorphism: rgba(255, 255, 255, 0.05);
+        --glassmorphism-border: rgba(255, 255, 255, 0.1);
+        --shadow-soft: 0 8px 32px rgba(0, 0, 0, 0.3);
+        --shadow-hover: 0 15px 45px rgba(0, 0, 0, 0.4);
+    }
+
+    /* Hero Section */
+    .hero-section {
+        background: var(--primary-gradient);
+        padding: 4rem 0 6rem;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .hero-section::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+        opacity: 0.3;
+    }
+
+    .hero-content {
+        position: relative;
+        z-index: 2;
+        text-align: center;
+        color: white;
+    }
+
+    .hero-title {
+        font-size: 3.5rem;
+        font-weight: 700;
+        margin-bottom: 1.5rem;
+        text-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        animation: fadeInUp 1s ease-out;
+    }
+
+    .hero-subtitle {
+        font-size: 1.25rem;
+        margin-bottom: 2rem;
+        opacity: 0.9;
+        animation: fadeInUp 1s ease-out 0.2s both;
+    }
+
+    /* Services Grid */
+    .services-section {
+        padding: 4rem 0;
+        background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%);
+        position: relative;
+        margin-top: -3rem;
+    }
+
+    [data-bs-theme="dark"] .services-section {
+        background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+    }
+
+    .service-card {
+        background: var(--glassmorphism);
+        backdrop-filter: blur(20px);
+        border: 1px solid var(--glassmorphism-border);
+        border-radius: var(--border-radius);
+        padding: 2.5rem;
+        height: 100%;
+        transition: var(--transition);
+        box-shadow: var(--shadow-soft);
+        position: relative;
+        overflow: hidden;
+        cursor: pointer;
+    }
+
+    .service-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: var(--primary-gradient);
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: var(--transition);
+    }
+
+    .service-card:hover::before {
+        transform: scaleX(1);
+    }
+
+    .service-card:hover {
+        transform: translateY(-10px);
+        box-shadow: var(--shadow-hover);
+        background: rgba(255, 255, 255, 0.25);
+    }
+
+    [data-bs-theme="dark"] .service-card:hover {
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    .service-icon {
+        width: 80px;
+        height: 80px;
+        margin: 0 auto 1.5rem;
+        background: var(--primary-gradient);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3);
+        transition: var(--transition);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .service-icon::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+        transform: rotate(45deg);
+        transition: var(--transition);
+        opacity: 0;
+    }
+
+    .service-card:hover .service-icon::before {
+        animation: shimmer 1.5s ease-in-out;
+    }
+
+    .service-icon img,
+    .service-icon i {
+        width: 40px;
+        height: 40px;
+        color: white;
+        font-size: 2rem;
+        filter: brightness(0) invert(1);
+    }
+
+    .service-card:hover .service-icon {
+        transform: scale(1.1) rotate(5deg);
+        box-shadow: 0 12px 32px rgba(102, 126, 234, 0.4);
+    }
+
+    .service-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        color: var(--bs-body-color);
+        text-align: center;
+    }
+
+    .service-description {
+        color: var(--bs-secondary-color);
+        text-align: center;
+        line-height: 1.6;
+        margin-bottom: 2rem;
+    }
+
+    .service-button {
+        background: var(--primary-gradient);
+        border: none;
+        border-radius: 50px;
+        padding: 0.75rem 2rem;
+        color: white;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        transition: var(--transition);
+        width: 100%;
+        box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);
+    }
+
+    .service-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
+        color: white;
+    }
+
+    .service-button i {
+        transition: var(--transition);
+    }
+
+    .service-button:hover i {
+        transform: translateX(4px);
+    }
+
+    /* Modal Enhancements */
+    .modal-content {
+        border: none;
+        border-radius: var(--border-radius);
+        background: var(--glassmorphism);
+        backdrop-filter: blur(20px);
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+
+    .modal-header {
+        border-bottom: 1px solid var(--glassmorphism-border);
+        background: var(--primary-gradient);
+        color: white;
+        border-radius: var(--border-radius) var(--border-radius) 0 0;
+        padding: 1.5rem 2rem;
+    }
+
+    .modal-title {
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .modal-title::before {
+        content: '🚀';
+        font-size: 1.5rem;
+    }
+
+    .btn-close {
+        filter: brightness(0) invert(1);
+        opacity: 0.8;
+    }
+
+    .modal-body {
+        padding: 2rem;
+    }
+
+    .form-control {
+        border: 2px solid var(--glassmorphism-border);
+        border-radius: 12px;
+        padding: 0.75rem 1rem;
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(10px);
+        transition: var(--transition);
+        font-size: 0.95rem;
+    }
+
+    .form-control:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    .form-label {
+        font-weight: 600;
+        color: var(--bs-body-color);
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    /* Audio Recording Button */
+    .record-btn {
+        background: var(--secondary-gradient);
+        border: none;
+        border-radius: 50px;
+        padding: 0.75rem 1.5rem;
+        color: white;
+        font-weight: 600;
+        transition: var(--transition);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        box-shadow: 0 4px 16px rgba(240, 147, 251, 0.3);
+    }
+
+    .record-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(240, 147, 251, 0.4);
+        color: white;
+    }
+
+    .record-btn.recording {
+        background: var(--warning-gradient);
+        animation: pulse 2s infinite;
+    }
+
+    /* File Upload Styling */
+    .file-upload-wrapper {
+        position: relative;
+        display: inline-block;
+        width: 100%;
+    }
+
+    .file-upload-input {
+        position: absolute;
+        opacity: 0;
+        width: 100%;
+        height: 100%;
+        cursor: pointer;
+    }
+
+    .file-upload-label {
+        display: block;
+        padding: 1rem;
+        border: 2px dashed var(--glassmorphism-border);
+        border-radius: 12px;
+        text-align: center;
+        background: rgba(255, 255, 255, 0.05);
+        transition: var(--transition);
+        cursor: pointer;
+    }
+
+    .file-upload-label:hover {
+        border-color: #667eea;
+        background: rgba(102, 126, 234, 0.1);
+    }
+
+    .file-upload-icon {
+        font-size: 2rem;
+        color: #667eea;
+        margin-bottom: 0.5rem;
+    }
+
+    /* Submit Button */
+    .submit-btn {
+        background: var(--success-gradient);
+        border: none;
+        border-radius: 50px;
+        padding: 1rem 2rem;
+        color: white;
+        font-weight: 600;
+        font-size: 1.1rem;
+        transition: var(--transition);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.75rem;
+        width: 100%;
+        box-shadow: 0 4px 16px rgba(79, 172, 254, 0.3);
+    }
+
+    .submit-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(79, 172, 254, 0.4);
+        color: white;
+    }
+
+    /* Animations */
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes shimmer {
+        0% { opacity: 0; transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+        50% { opacity: 1; }
+        100% { opacity: 0; transform: translateX(100%) translateY(100%) rotate(45deg); }
+    }
+
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+    }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+        .hero-title {
+            font-size: 2.5rem;
+        }
+
+        .service-card {
+            padding: 2rem;
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+        }
+    }
+
+    /* Loading Animation */
+    .loading {
+        position: relative;
+        overflow: hidden;
+    }
+
+    .loading::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+        animation: loading-shimmer 1.5s infinite;
+    }
+
+    @keyframes loading-shimmer {
+        0% { left: -100%; }
+        100% { left: 100%; }
+    }
+</style>
+
+<!-- Hero Section -->
+<section class="hero-section">
+    <div class="container">
+        <div class="hero-content">
+            <h1 class="hero-title">Services & Assistance</h1>
+            <p class="hero-subtitle">Bénéficiez d'un support complet pour tous vos besoins techniques et administratifs</p>
+        </div>
+    </div>
+</section>
+
+<!-- Services Section -->
+<section class="services-section">
   <div class="container">
-    <div class="row">
+        <div class="row g-4">
       {% for service in services_list %}
-      <div class="col-lg-4 col-md-6">
-        <div class="service-item">
-          <div class="icon">
+            <div class="col-lg-4 col-md-6" data-aos="fade-up" data-aos-delay="{{ forloop.counter0|mul:100 }}">
+                <div class="service-card">
+                    <div class="service-icon">
+                        {% if service.icon %}
             <img src="{% static service.icon %}" alt="{{ service.title }}">
-          </div>
-          <div class="main-content">
-            <h4>{{ service.title }}</h4>
-            <p>{{ service.description }}</p>
-            <div class="main-button">
-              <a href="#" class="btn btn-primary w-100" data-bs-toggle="modal" data-bs-target="#{{ service.modal }}">
-                {{ service.title }}
-              </a>
+                        {% else %}
+                            <i class="fas fa-cog"></i>
+                        {% endif %}
             </div>
-          </div>
+                    <h4 class="service-title">{{ service.title }}</h4>
+                    <p class="service-description">{{ service.description }}</p>
+                    <button class="service-button" data-bs-toggle="modal" data-bs-target="#{{ service.modal }}">
+                        <span>Demander une assistance</span>
+                        <i class="fas fa-arrow-right"></i>
+                    </button>
         </div>
       </div>
       {% endfor %}
     </div>
   </div>
-</div>
+</section>
 
 <!-- Modal Assistance Informatique -->
 <div class="modal fade" id="assistanceInformatiqueModal" tabindex="-1" aria-labelledby="assistanceInformatiqueModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-  <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="assistanceInformatiqueModalLabel">Demande d'Assistance Informatique</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <h5 class="modal-title" id="assistanceInformatiqueModalLabel">Assistance Informatique</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
       </div>
       <div class="modal-body">
-        <form method="post" enctype="multipart/form-data" action="{% url 'envoyer_demandeIt' %}">
+                <form method="post" enctype="multipart/form-data" action="{% url 'envoyer_demandeIt' %}" id="formIT">
           {% csrf_token %}
-          <div class="mb-3">
+
+                    <!-- Nom utilisateur -->
+                    <div class="mb-4">
             {% if user.is_authenticated %}
               <input type="hidden" name="name" value="{{ user.username }}">
+                            <div class="alert alert-info d-flex align-items-center">
+                                <i class="fas fa-user me-2"></i>
+                                <span>Connecté en tant que <strong>{{ user.get_full_name|default:user.username }}</strong></span>
+                            </div>
             {% else %}
-              <input id="nameN" class="form-control" type="text" name="name" placeholder="Nom">
+                            <label for="nameIT" class="form-label">
+                                <i class="fas fa-user"></i>
+                                Nom complet
+                            </label>
+                            <input id="nameIT" class="form-control" type="text" name="name" placeholder="Entrez votre nom complet" required>
             {% endif %}
           </div>
-          <div class="mb-3">
-            <textarea id="demande_details" class="form-control" name="demande_details" placeholder="Décrivez les détails de la demande..." rows="7"></textarea>
+
+                    <!-- Description de la demande -->
+                    <div class="mb-4">
+                        <label for="demande_detailsIT" class="form-label">
+                            <i class="fas fa-edit"></i>
+                            Description détaillée
+                        </label>
+                        <textarea id="demande_detailsIT" class="form-control" name="demande_details" placeholder="Décrivez votre problème informatique en détail..." rows="6" required></textarea>
+                        <div class="form-text">Plus votre description est précise, plus notre équipe pourra vous aider efficacement.</div>
+                    </div>
+
+                    <!-- Upload de fichiers -->
+                    <div class="mb-4">
+                        <label class="form-label">
+                            <i class="fas fa-paperclip"></i>
+                            Fichiers joints (optionnel)
+                        </label>
+                        <div class="file-upload-wrapper">
+                            <input type="file" class="file-upload-input" id="fileIT" name="file_upload" multiple onchange="validateFileCount(this)" accept="image/*,.pdf,.doc,.docx,.txt">
+                            <label for="fileIT" class="file-upload-label">
+                                <div class="file-upload-icon">
+                                    <i class="fas fa-cloud-upload-alt"></i>
+                                </div>
+                                <div>
+                                    <strong>Cliquez pour sélectionner des fichiers</strong><br>
+                                    <small class="text-muted">Jusqu'à 10 fichiers (images, PDF, documents)</small>
+                                </div>
+                            </label>
           </div>
-          <div class="mb-3">
-            <input type="file" class="form-control shadow-sm" id="fileIt" name="file_upload" multiple onchange="validateFileCount(this)">
-            <small class="text-muted">Vous pouvez télécharger jusqu'à 10 fichiers.</small>
+                        <div id="fileListIT" class="mt-2"></div>
+                    </div>
+
+                    <!-- Enregistrement vocal -->
+                    <div class="mb-4">
+                        <label class="form-label">
+                            <i class="fas fa-microphone"></i>
+                            Enregistrement vocal (optionnel)
+                        </label>
+                        <div class="d-flex gap-2 align-items-center">
+                            <button type="button" class="record-btn" id="recordAudio1">
+                                <i class="fas fa-microphone"></i>
+                                <span>Enregistrer</span>
+                            </button>
+                            <div id="recordingStatus1" class="text-muted"></div>
           </div>
-          <div class="mb-3">
-            <label class="form-label">Enregistrement vocal</label>
-            <button type="button" class="btn btn-secondary shadow-sm" id="recordAudio1">🎤 Enregistrer</button>
-            <audio controls id="audioPlayback1" style="display:none;" class="mt-2 w-100"></audio>
+                        <audio controls id="audioPlayback1" style="display:none;" class="mt-3 w-100"></audio>
             <input type="hidden" id="audioData1" name="audioData">
           </div>
-          <div>
-            <button class="btn btn-primary d-block w-100" type="submit">📨 Soumettre</button>
+
+                    <!-- Bouton de soumission -->
+                    <div class="text-center">
+                        <button class="submit-btn" type="submit">
+                            <i class="fas fa-paper-plane"></i>
+                            <span>Envoyer la demande</span>
+                        </button>
           </div>
         </form>
       </div>
@@ -70,37 +549,87 @@
 
 <!-- Modal Assistance Technique -->
 <div class="modal fade" id="assistanceTechniqueModal" tabindex="-1" aria-labelledby="assistanceTechniqueModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-  <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="assistanceTechniqueModalLabel">Demande d'Assistance Technique</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <h5 class="modal-title" id="assistanceTechniqueModalLabel">Assistance Technique</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
       </div>
       <div class="modal-body">
-        <form method="post" enctype="multipart/form-data" action="{% url 'envoyer_demandeTech' %}">
+                <form method="post" enctype="multipart/form-data" action="{% url 'envoyer_demandeTech' %}" id="formTech">
           {% csrf_token %}
-          <div class="mb-3">
+
+                    <!-- Nom utilisateur -->
+                    <div class="mb-4">
             {% if user.is_authenticated %}
               <input type="hidden" name="name" value="{{ user.username }}">
+                            <div class="alert alert-info d-flex align-items-center">
+                                <i class="fas fa-user me-2"></i>
+                                <span>Connecté en tant que <strong>{{ user.get_full_name|default:user.username }}</strong></span>
+                            </div>
             {% else %}
-              <input id="nameN" class="form-control" type="text" name="name" placeholder="Nom">
+                            <label for="nameTech" class="form-label">
+                                <i class="fas fa-user"></i>
+                                Nom complet
+                            </label>
+                            <input id="nameTech" class="form-control" type="text" name="name" placeholder="Entrez votre nom complet" required>
             {% endif %}
           </div>
-          <div class="mb-3">
-            <textarea id="demande_details" class="form-control" name="demande_details" placeholder="Décrivez les détails de la demande..." rows="7"></textarea>
+
+                    <!-- Description de la demande -->
+                    <div class="mb-4">
+                        <label for="demande_detailsTech" class="form-label">
+                            <i class="fas fa-tools"></i>
+                            Description du problème technique
+                        </label>
+                        <textarea id="demande_detailsTech" class="form-control" name="demande_details" placeholder="Décrivez votre problème technique en détail..." rows="6" required></textarea>
+                        <div class="form-text">Incluez les messages d'erreur, les étapes qui ont causé le problème, etc.</div>
+                    </div>
+
+                    <!-- Upload de fichiers -->
+                    <div class="mb-4">
+                        <label class="form-label">
+                            <i class="fas fa-paperclip"></i>
+                            Fichiers joints (optionnel)
+                        </label>
+                        <div class="file-upload-wrapper">
+                            <input type="file" class="file-upload-input" id="fileTech" name="file_upload" multiple onchange="validateFileCount(this)" accept="image/*,.pdf,.doc,.docx,.txt">
+                            <label for="fileTech" class="file-upload-label">
+                                <div class="file-upload-icon">
+                                    <i class="fas fa-cloud-upload-alt"></i>
+                                </div>
+                                <div>
+                                    <strong>Cliquez pour sélectionner des fichiers</strong><br>
+                                    <small class="text-muted">Jusqu'à 10 fichiers (captures d'écran, logs, etc.)</small>
+                                </div>
+                            </label>
+                        </div>
+                        <div id="fileListTech" class="mt-2"></div>
           </div>
-          <div class="mb-3">
-            <input type="file" class="form-control shadow-sm" id="fileTech" name="file_upload" multiple onchange="validateFileCount(this)">
-            <small class="text-muted">Vous pouvez télécharger jusqu'à 10 fichiers.</small>
+
+                    <!-- Enregistrement vocal -->
+                    <div class="mb-4">
+                        <label class="form-label">
+                            <i class="fas fa-microphone"></i>
+                            Enregistrement vocal (optionnel)
+                        </label>
+                        <div class="d-flex gap-2 align-items-center">
+                            <button type="button" class="record-btn" id="recordAudio2">
+                                <i class="fas fa-microphone"></i>
+                                <span>Enregistrer</span>
+                            </button>
+                            <div id="recordingStatus2" class="text-muted"></div>
           </div>
-          <div class="mb-3">
-            <label class="form-label">Enregistrement vocal</label>
-            <button type="button" class="btn btn-secondary shadow-sm" id="recordAudio2">🎤 Enregistrer</button>
-            <audio controls id="audioPlayback2" style="display:none;" class="mt-2 w-100"></audio>
+                        <audio controls id="audioPlayback2" style="display:none;" class="mt-3 w-100"></audio>
             <input type="hidden" id="audioData2" name="audioData">
           </div>
-          <div>
-            <button class="btn btn-primary d-block w-100" type="submit">📨 Soumettre</button>
+
+                    <!-- Bouton de soumission -->
+                    <div class="text-center">
+                        <button class="submit-btn" type="submit">
+                            <i class="fas fa-paper-plane"></i>
+                            <span>Envoyer la demande</span>
+                        </button>
           </div>
         </form>
       </div>
@@ -110,37 +639,87 @@
 
 <!-- Modal Demande d'Approvisionnement -->
 <div class="modal fade" id="demandeApprovisionnementModal" tabindex="-1" aria-labelledby="demandeApprovisionnementModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-  <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="demandeApprovisionnementModalLabel">Demande d'Approvisionnement</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
       </div>
       <div class="modal-body">
-        <form method="post" enctype="multipart/form-data" action="{% url 'envoyer_demandeAppro' %}">
+                <form method="post" enctype="multipart/form-data" action="{% url 'envoyer_demandeAppro' %}" id="formAppro">
           {% csrf_token %}
-          <div class="mb-3">
+
+                    <!-- Nom utilisateur -->
+                    <div class="mb-4">
             {% if user.is_authenticated %}
               <input type="hidden" name="name" value="{{ user.username }}">
+                            <div class="alert alert-info d-flex align-items-center">
+                                <i class="fas fa-user me-2"></i>
+                                <span>Connecté en tant que <strong>{{ user.get_full_name|default:user.username }}</strong></span>
+                            </div>
             {% else %}
-              <input id="nameN" class="form-control" type="text" name="name" placeholder="Nom">
+                            <label for="nameAppro" class="form-label">
+                                <i class="fas fa-user"></i>
+                                Nom complet
+                            </label>
+                            <input id="nameAppro" class="form-control" type="text" name="name" placeholder="Entrez votre nom complet" required>
             {% endif %}
           </div>
-          <div class="mb-3">
-            <textarea id="demande_details" class="form-control" name="demande_details" placeholder="Décrivez les détails de la demande..." rows="7"></textarea>
+
+                    <!-- Description de la demande -->
+                    <div class="mb-4">
+                        <label for="demande_detailsAppro" class="form-label">
+                            <i class="fas fa-shopping-cart"></i>
+                            Détails de l'approvisionnement
+                        </label>
+                        <textarea id="demande_detailsAppro" class="form-control" name="demande_details" placeholder="Décrivez les articles ou services nécessaires..." rows="6" required></textarea>
+                        <div class="form-text">Listez les articles, quantités, spécifications techniques, etc.</div>
           </div>
-          <div class="mb-3">
-            <input type="file" class="form-control shadow-sm" id="fileAppro" name="file_upload" multiple onchange="validateFileCount(this)">
-            <small class="text-muted">Vous pouvez télécharger jusqu'à 10 fichiers.</small>
+
+                    <!-- Upload de fichiers -->
+                    <div class="mb-4">
+                        <label class="form-label">
+                            <i class="fas fa-paperclip"></i>
+                            Fichiers joints (optionnel)
+                        </label>
+                        <div class="file-upload-wrapper">
+                            <input type="file" class="file-upload-input" id="fileAppro" name="file_upload" multiple onchange="validateFileCount(this)" accept="image/*,.pdf,.doc,.docx,.txt,.xlsx,.xls">
+                            <label for="fileAppro" class="file-upload-label">
+                                <div class="file-upload-icon">
+                                    <i class="fas fa-cloud-upload-alt"></i>
           </div>
-          <div class="mb-3">
-            <label class="form-label">Enregistrement vocal</label>
-            <button type="button" class="btn btn-secondary shadow-sm" id="recordAudio3">🎤 Enregistrer</button>
-            <audio controls id="audioPlayback3" style="display:none;" class="mt-2 w-100"></audio>
+                                <div>
+                                    <strong>Cliquez pour sélectionner des fichiers</strong><br>
+                                    <small class="text-muted">Jusqu'à 10 fichiers (devis, spécifications, catalogues)</small>
+                                </div>
+                            </label>
+                        </div>
+                        <div id="fileListAppro" class="mt-2"></div>
+                    </div>
+
+                    <!-- Enregistrement vocal -->
+                    <div class="mb-4">
+                        <label class="form-label">
+                            <i class="fas fa-microphone"></i>
+                            Enregistrement vocal (optionnel)
+                        </label>
+                        <div class="d-flex gap-2 align-items-center">
+                            <button type="button" class="record-btn" id="recordAudio3">
+                                <i class="fas fa-microphone"></i>
+                                <span>Enregistrer</span>
+                            </button>
+                            <div id="recordingStatus3" class="text-muted"></div>
+                        </div>
+                        <audio controls id="audioPlayback3" style="display:none;" class="mt-3 w-100"></audio>
             <input type="hidden" id="audioData3" name="audioData">
           </div>
-          <div>
-            <button class="btn btn-primary d-block w-100" type="submit">📨 Soumettre</button>
+
+                    <!-- Bouton de soumission -->
+                    <div class="text-center">
+                        <button class="submit-btn" type="submit">
+                            <i class="fas fa-paper-plane"></i>
+                            <span>Envoyer la demande</span>
+                        </button>
           </div>
         </form>
       </div>
@@ -149,12 +728,361 @@
 </div>
 
 <script>
-  // Fonction de validation du nombre de fichiers
-  function validateFileCount(input) {
-    if (input.files.length > 10) {
-      alert("Vous pouvez télécharger jusqu'à 10 fichiers maximum.");
+document.addEventListener('DOMContentLoaded', function() {
+    // Validation du nombre de fichiers avec affichage de la liste
+    window.validateFileCount = function(input) {
+        const maxFiles = 10;
+        const fileListId = 'fileList' + input.id.replace('file', '');
+        const fileList = document.getElementById(fileListId);
+
+        if (input.files.length > maxFiles) {
+            // Animation d'erreur
+            input.classList.add('is-invalid');
+            setTimeout(() => input.classList.remove('is-invalid'), 3000);
+
+            // Toast notification
+            showToast(`Vous pouvez télécharger jusqu'à ${maxFiles} fichiers maximum.`, 'error');
       input.value = "";
+            if (fileList) fileList.innerHTML = '';
+            return;
+        }
+
+        // Afficher la liste des fichiers sélectionnés
+        if (fileList) {
+            fileList.innerHTML = '';
+            if (input.files.length > 0) {
+                const listContainer = document.createElement('div');
+                listContainer.className = 'selected-files';
+
+                Array.from(input.files).forEach((file, index) => {
+                    const fileItem = document.createElement('div');
+                    fileItem.className = 'd-flex align-items-center justify-content-between p-2 mb-2 bg-light rounded';
+                    fileItem.innerHTML = `
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-file me-2 text-primary"></i>
+                            <span class="small">${file.name}</span>
+                            <span class="badge bg-secondary ms-2">${formatFileSize(file.size)}</span>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeFile(this, '${input.id}', ${index})">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    `;
+                    listContainer.appendChild(fileItem);
+                });
+
+                fileList.appendChild(listContainer);
+            }
+        }
+    };
+
+    // Fonction pour formater la taille des fichiers
+    window.formatFileSize = function(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    };
+
+    // Fonction pour supprimer un fichier de la liste
+    window.removeFile = function(button, inputId, fileIndex) {
+        const input = document.getElementById(inputId);
+        const dt = new DataTransfer();
+
+        Array.from(input.files).forEach((file, index) => {
+            if (index !== fileIndex) {
+                dt.items.add(file);
+            }
+        });
+
+        input.files = dt.files;
+        validateFileCount(input);
+    };
+
+    // Fonction pour afficher les notifications toast
+    window.showToast = function(message, type = 'info') {
+        if (typeof Toastify !== 'undefined') {
+            const colors = {
+                success: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                error: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                warning: 'linear-gradient(135deg, #ffd89b 0%, #19547b 100%)',
+                info: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+            };
+
+            Toastify({
+                text: message,
+                duration: 4000,
+                gravity: 'top',
+                position: 'right',
+                style: {
+                    background: colors[type] || colors.info,
+                    borderRadius: '12px',
+                    fontWeight: '500'
+                },
+                stopOnFocus: true
+            }).showToast();
+        } else {
+            alert(message);
+        }
+    };
+
+    // Gestion de l'enregistrement audio
+    let mediaRecorders = {};
+    let audioChunks = {};
+
+    function setupAudioRecording(buttonId, audioPlaybackId, audioDataId, statusId) {
+        const recordButton = document.getElementById(buttonId);
+        const audioPlayback = document.getElementById(audioPlaybackId);
+        const audioDataInput = document.getElementById(audioDataId);
+        const statusDiv = document.getElementById(statusId);
+
+        if (!recordButton) return;
+
+        let isRecording = false;
+
+        recordButton.addEventListener('click', async function() {
+            if (!isRecording) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    const mediaRecorder = new MediaRecorder(stream);
+                    mediaRecorders[buttonId] = mediaRecorder;
+                    audioChunks[buttonId] = [];
+
+                    mediaRecorder.ondataavailable = function(event) {
+                        audioChunks[buttonId].push(event.data);
+                    };
+
+                    mediaRecorder.onstop = function() {
+                        const audioBlob = new Blob(audioChunks[buttonId], { type: 'audio/wav' });
+                        const audioUrl = URL.createObjectURL(audioBlob);
+
+                        if (audioPlayback) {
+                            audioPlayback.src = audioUrl;
+                            audioPlayback.style.display = 'block';
+                        }
+
+                        // Convertir en base64 pour l'envoi
+                        const reader = new FileReader();
+                        reader.onloadend = function() {
+                            if (audioDataInput) {
+                                audioDataInput.value = reader.result;
+                            }
+                        };
+                        reader.readAsDataURL(audioBlob);
+
+                        // Arrêter tous les tracks du stream
+                        stream.getTracks().forEach(track => track.stop());
+                    };
+
+                    mediaRecorder.start();
+                    isRecording = true;
+
+                    // Mise à jour de l'interface
+                    recordButton.classList.add('recording');
+                    recordButton.innerHTML = '<i class="fas fa-stop"></i><span>Arrêter</span>';
+                    if (statusDiv) {
+                        statusDiv.innerHTML = '<i class="fas fa-circle text-danger me-1"></i>Enregistrement en cours...';
+                    }
+
+                    showToast('Enregistrement audio démarré', 'info');
+
+                } catch (error) {
+                    console.error('Erreur d\'accès au microphone:', error);
+                    showToast('Impossible d\'accéder au microphone. Vérifiez vos permissions.', 'error');
+                }
+            } else {
+                // Arrêter l'enregistrement
+                if (mediaRecorders[buttonId]) {
+                    mediaRecorders[buttonId].stop();
+                }
+
+                isRecording = false;
+                recordButton.classList.remove('recording');
+                recordButton.innerHTML = '<i class="fas fa-microphone"></i><span>Enregistrer</span>';
+                if (statusDiv) {
+                    statusDiv.innerHTML = '<i class="fas fa-check text-success me-1"></i>Enregistrement terminé';
+                }
+
+                showToast('Enregistrement audio terminé', 'success');
+            }
+        });
     }
+
+    // Initialiser l'enregistrement audio pour chaque modal
+    setupAudioRecording('recordAudio1', 'audioPlayback1', 'audioData1', 'recordingStatus1');
+    setupAudioRecording('recordAudio2', 'audioPlayback2', 'audioData2', 'recordingStatus2');
+    setupAudioRecording('recordAudio3', 'audioPlayback3', 'audioData3', 'recordingStatus3');
+
+    // Gestion de la soumission des formulaires avec animation de chargement
+    function setupFormSubmission(formId) {
+        const form = document.getElementById(formId);
+        if (!form) return;
+
+        form.addEventListener('submit', function(e) {
+            const submitButton = form.querySelector('.submit-btn');
+            const originalContent = submitButton.innerHTML;
+
+            // Animation de chargement
+            submitButton.disabled = true;
+            submitButton.classList.add('loading');
+            submitButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i><span>Envoi en cours...</span>';
+
+            // Validation côté client
+            const requiredFields = form.querySelectorAll('[required]');
+            let isValid = true;
+
+            requiredFields.forEach(field => {
+                if (!field.value.trim()) {
+                    field.classList.add('is-invalid');
+                    isValid = false;
+                } else {
+                    field.classList.remove('is-invalid');
+                }
+            });
+
+            if (!isValid) {
+                e.preventDefault();
+                submitButton.disabled = false;
+                submitButton.classList.remove('loading');
+                submitButton.innerHTML = originalContent;
+                showToast('Veuillez remplir tous les champs obligatoires', 'error');
+                return;
+            }
+
+            showToast('Demande en cours d\'envoi...', 'info');
+
+            // Restaurer le bouton après délai (au cas où il y aurait une erreur serveur)
+            setTimeout(() => {
+                if (submitButton.disabled) {
+                    submitButton.disabled = false;
+                    submitButton.classList.remove('loading');
+                    submitButton.innerHTML = originalContent;
+                }
+            }, 15000);
+        });
+    }
+
+    // Initialiser la gestion des formulaires
+    setupFormSubmission('formIT');
+    setupFormSubmission('formTech');
+    setupFormSubmission('formAppro');
+
+    // Animation des cartes de service au scroll
+    const observerOptions = {
+        threshold: 0.1,
+        rootMargin: '0px 0px -50px 0px'
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.style.opacity = '1';
+                entry.target.style.transform = 'translateY(0)';
+            }
+        });
+    }, observerOptions);
+
+    // Observer les cartes de service
+    document.querySelectorAll('.service-card').forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(30px)';
+        card.style.transition = `opacity 0.6s ease ${index * 0.1}s, transform 0.6s ease ${index * 0.1}s`;
+        observer.observe(card);
+    });
+
+    // Amélioration de l'accessibilité
+    document.addEventListener('keydown', function(e) {
+        // Fermer les modals avec Escape
+        if (e.key === 'Escape') {
+            const openModals = document.querySelectorAll('.modal.show');
+            openModals.forEach(modal => {
+                const bsModal = bootstrap.Modal.getInstance(modal);
+                if (bsModal) bsModal.hide();
+            });
+        }
+    });
+
+    // Gestion des drag & drop pour les fichiers
+    document.querySelectorAll('.file-upload-label').forEach(label => {
+        const input = label.querySelector('.file-upload-input') ||
+                     document.getElementById(label.getAttribute('for'));
+
+        if (!input) return;
+
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            label.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            label.addEventListener(eventName, () => {
+                label.classList.add('drag-over');
+            });
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            label.addEventListener(eventName, () => {
+                label.classList.remove('drag-over');
+            });
+        });
+
+        label.addEventListener('drop', function(e) {
+            const files = e.dataTransfer.files;
+            input.files = files;
+            validateFileCount(input);
+        });
+    });
+
+    // Feedback visuel pour les interactions
+    document.querySelectorAll('.service-card').forEach(card => {
+        card.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-10px) scale(1.02)';
+        });
+
+        card.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0) scale(1)';
+        });
+    });
+});
+
+// Styles CSS additionnels pour les interactions drag & drop
+const additionalStyles = `
+    .file-upload-label.drag-over {
+        border-color: #667eea !important;
+        background: rgba(102, 126, 234, 0.1) !important;
+        transform: scale(1.02);
+    }
+
+    .selected-files {
+        max-height: 200px;
+        overflow-y: auto;
+    }
+
+    .is-invalid {
+        border-color: #dc3545 !important;
+        box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25) !important;
+    }
+
+    .service-card {
+        will-change: transform;
   }
+
+    @media (prefers-reduced-motion: reduce) {
+        * {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
+        }
+    }
+`;
+
+// Ajouter les styles supplémentaires
+const styleSheet = document.createElement('style');
+styleSheet.textContent = additionalStyles;
+document.head.appendChild(styleSheet);
 </script>
 {% endblock content %}

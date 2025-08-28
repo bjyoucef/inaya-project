@@ -25,7 +25,7 @@ class ProduitForm(forms.ModelForm):
             "prix_achat",
             "prix_vente",
             # "description",
-            # "est_actif",
+            # "est_active",
         ]
         widgets = {
             "nom": forms.TextInput(
@@ -71,7 +71,7 @@ class ProduitForm(forms.ModelForm):
         self.fields["prix_achat"].label = "Prix d'achat (€) *"
         self.fields["prix_vente"].label = "Prix de vente (€) *"
         # self.fields["description"].label = "Description"
-        # self.fields["est_actif"].label = "Produit actif"
+        # self.fields["est_active"].label = "Produit actif"
 
         # Marquer les champs requis
         for field_name, field in self.fields.items():

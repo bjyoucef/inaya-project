@@ -23,7 +23,7 @@ class Bloc(models.Model):
         default=Decimal("5000.00"),
         verbose_name="Prix par tranche de 30 min supplémentaire",
     )
-    est_actif = models.BooleanField(default=True, verbose_name="Bloc actif")
+    est_active = models.BooleanField(default=True, verbose_name="Bloc actif")
     description = models.TextField(blank=True, verbose_name="Description")
 
     class Meta:
@@ -85,7 +85,7 @@ class Forfait(models.Model):
         verbose_name="Durée du forfait (en minutes)",
         help_text="Durée totale couverte par le forfait",
     )
-    est_actif = models.BooleanField(default=True, verbose_name="Forfait actif")
+    est_active = models.BooleanField(default=True, verbose_name="Forfait actif")
 
     date_creation = models.DateTimeField(auto_now_add=True)
     date_modification = models.DateTimeField(auto_now=True)
@@ -122,8 +122,6 @@ class ForfaitProduitInclus(models.Model):
 
     def __str__(self):
         return f"{self.forfait.nom} - {self.produit.nom} ({self.quantite})"
-
-# Ajouter ce nouveau modèle après ForfaitProduitInclus
 
 
 class ForfaitActeInclus(models.Model):
@@ -195,7 +193,7 @@ class ActeLocation(models.Model):
         blank=True,
         null=True,
     )
-    est_actif = models.BooleanField(default=True, verbose_name="Acte actif")
+    est_active = models.BooleanField(default=True, verbose_name="Acte actif")
     description = models.TextField(blank=True, verbose_name="Description de l'acte")
 
     date_creation = models.DateTimeField(auto_now_add=True)
@@ -381,7 +379,8 @@ class LocationBloc(models.Model):
         related_name="locations_bloc_creees",
         verbose_name="Créé par",
     )
-    # NOUVEAUX CHAMPS POUR LA GESTION DES PAIEMENTS
+
+    # CHAMPS POUR LA GESTION DES PAIEMENTS (sans économies)
     montant_paye_caisse = models.DecimalField(
         max_digits=10,
         decimal_places=2,
@@ -458,6 +457,8 @@ class LocationBloc(models.Model):
     def __str__(self):
         return f"{self.bloc.nom_bloc} - {self.patient} - {self.date_operation}"
 
+
+
     def calculer_paiements(self, montant_paye=None):
         """
         Calcule les surplus/compléments basés sur le montant payé
@@ -465,7 +466,12 @@ class LocationBloc(models.Model):
         if montant_paye is None:
             montant_paye = self.montant_paye_caisse
 
-        montant_total = self.montant_total_facture
+        # Si l'objet n'a pas de PK, on ne peut pas calculer le montant total
+        if not self.pk:
+            montant_total = self.prix_final or Decimal("0.00")
+        else:
+            montant_total = self.montant_total_facture
+
         difference = montant_paye - montant_total
 
         # Réinitialiser les valeurs
@@ -489,7 +495,13 @@ class LocationBloc(models.Model):
 
     def save(self, *args, **kwargs):
         """Override save pour calculer automatiquement le prix final et les paiements"""
-        # Calcul du prix (code existant)
+
+        # Si l'objet n'a pas encore de PK, faire un premier save pour l'obtenir
+        if not self.pk:
+            # Save initial sans calculs pour obtenir la PK
+            super().save(*args, **kwargs)
+
+        # Maintenant on peut faire les calculs qui nécessitent la PK
         if self.duree_reelle:
             self.prix_final = self.calculer_prix_automatique(self.duree_reelle)
             if self.type_tarification == "FORFAIT":
@@ -499,9 +511,11 @@ class LocationBloc(models.Model):
             else:
                 self.prix_supplement_duree = Decimal("0.00")
 
-        # Nouveau : Calcul automatique des paiements
-        self.calculer_paiements()
+        # Calcul automatique des paiements (seulement si on a une PK)
+        if self.pk:
+            self.calculer_paiements()
 
+        # Save final avec tous les calculs
         super().save(*args, **kwargs)
 
     @property
@@ -558,26 +572,27 @@ class LocationBloc(models.Model):
     @property
     def montant_total_actes(self):
         """Calcule le montant total des actes supplémentaires"""
+        if not self.pk:
+            return Decimal("0")
         return sum(acte.prix_total for acte in self.actes_location.all())
 
     @property
     def montant_total_produits_inclus(self):
         """Montant total des produits inclus (partie incluse seulement)"""
-        return sum(c.prix_inclus for c in self.consommations_produits.all())  # Fixed: was consommations
+        return sum(c.prix_inclus for c in self.consommations_produits.all())
 
     @property
-    def montant_ecarts_produits(self):
-        """Montant total des écarts de produits (positifs seulement)"""
+    def montant_supplements_produits(self):
+        """Montant total des suppléments de produits (uniquement les surplus)"""
+        if not self.pk:
+            return Decimal("0")
         return sum(c.prix_facturable for c in self.consommations_produits.all())
-
-    @property
-    def economies_produits(self):
-        """Économies réalisées sur les produits (écarts négatifs)"""
-        return sum(c.economie for c in self.consommations_produits.all())
 
     @property
     def montant_total_produits_supplementaires(self):
         """Montant des produits supplémentaires uniquement"""
+        if not self.pk:
+            return Decimal("0")
         return sum(
             c.prix_total
             for c in self.consommations_produits.filter(source_inclusion="SUPPLEMENTAIRE")
@@ -585,25 +600,29 @@ class LocationBloc(models.Model):
 
     @property
     def montant_total_facture(self):
-        """Calcule le montant total de la facture"""
+        """Calcule le montant total de la facture (SANS déduction d'économies)"""
         total = self.prix_final or Decimal("0.00")
+
+        # Vérifier que l'objet a une PK avant d'accéder aux relations
+        if not self.pk:
+            return total
 
         # Ajouter les actes supplémentaires (hors forfait ou en tarification à la durée)
         if self.type_tarification == "DUREE":
             # En tarification à la durée, tous les actes sont facturables
             total += self.montant_total_actes
         else:
-            # En tarification forfaitaire, seuls les écarts d'actes sont facturables
-            total += self.montant_ecarts_actes_forfait
+            # En tarification forfaitaire, seuls les surplus d'actes sont facturables
+            total += self.montant_supplements_actes_forfait
 
-        # Ajouter les écarts de produits et produits supplémentaires
-        total += self.montant_ecarts_produits
+        # Ajouter les suppléments de produits et produits supplémentaires
+        total += self.montant_supplements_produits
         total += self.montant_total_produits_supplementaires
 
         return total
 
     def get_resume_consommation(self):
-        """Retourne un résumé détaillé de la consommation"""
+        """Retourne un résumé détaillé de la consommation (sans économies)"""
         consommations = self.consommations_produits.select_related("produit", "acte_associe")
 
         resume = {
@@ -614,9 +633,8 @@ class LocationBloc(models.Model):
             "totaux": {
                 "prix_bloc": self.prix_final,
                 "prix_actes": self.montant_total_actes,
-                "ecarts_produits": self.montant_ecarts_produits,
+                "supplements_produits": self.montant_supplements_produits,
                 "produits_supplementaires": self.montant_total_produits_supplementaires,
-                "economies": self.economies_produits,
                 "total_general": self.montant_total_facture,
             },
         }
@@ -628,8 +646,8 @@ class LocationBloc(models.Model):
                 "quantite_consommee": c.quantite,
                 "ecart": c.ecart_quantite,
                 "prix_unitaire": c.prix_unitaire,
-                "prix_ecart": c.prix_ecart,
-                "est_economie": c.ecart_quantite < 0,
+                "prix_supplement": c.prix_supplement if c.ecart_quantite > 0 else Decimal("0"),
+                "est_supplement": c.ecart_quantite > 0,
             }
 
             if c.source_inclusion == "BLOC":
@@ -698,20 +716,6 @@ class LocationBloc(models.Model):
         minutes_supplementaires = duree - self.forfait.duree
         tranches_supplementaires = (minutes_supplementaires + 29) // 30
         return tranches_supplementaires * self.bloc.prix_supplement_30min
-
-    def save(self, *args, **kwargs):
-        """Override save pour calculer automatiquement le prix final"""
-        # Pour une opération utiliser duree_reelle
-        if self.duree_reelle:
-            self.prix_final = self.calculer_prix_automatique(self.duree_reelle)
-            if self.type_tarification == "FORFAIT":
-                self.prix_supplement_duree = self.calculer_supplement_forfait(
-                    self.duree_reelle
-                )
-            else:
-                self.prix_supplement_duree = Decimal("0.00")
-
-        super().save(*args, **kwargs)
 
     def clean(self):
         """Validation des données"""
@@ -842,15 +846,9 @@ class LocationBloc(models.Model):
                     "prix_unitaire_inclus": acte_inclus.prix_unitaire_inclus,
                     "prix_unitaire_utilise": utilise["prix_unitaire"],
                     "est_supplement": ecart_quantite > 0,
-                    "est_economie": ecart_quantite < 0,
                     "prix_ecart": (
                         ecart_quantite * utilise["prix_unitaire"]
                         if ecart_quantite > 0
-                        else Decimal("0")
-                    ),
-                    "economie": (
-                        abs(ecart_quantite * acte_inclus.prix_unitaire_inclus)
-                        if ecart_quantite < 0
                         else Decimal("0")
                     ),
                 }
@@ -868,42 +866,22 @@ class LocationBloc(models.Model):
                         "prix_unitaire_inclus": Decimal("0"),
                         "prix_unitaire_utilise": utilise["prix_unitaire"],
                         "est_supplement": True,
-                        "est_economie": False,
                         "prix_ecart": utilise["prix_total"],
-                        "economie": Decimal("0"),
                     }
                 )
 
         return ecarts
 
     @property
-    def montant_ecarts_actes_forfait(self):
-        """Montant total des écarts d'actes par rapport au forfait"""
-        if self.type_tarification != "FORFAIT":
+    def montant_supplements_actes_forfait(self):
+        """Montant total des suppléments d'actes par rapport au forfait"""
+        if self.type_tarification != "FORFAIT" or not self.pk:
             return Decimal("0")
 
         total = Decimal("0")
         for ecart in self.get_ecarts_actes_forfait():
-            # Fixed: Use 'type_ecart' instead of 'est_supplement'
-            if ecart["type_ecart"] == "supplement":
-                total += ecart["impact_financier"]
-
-        return total
-
-
-    @property
-    def economies_actes_forfait(self):
-        """Économies réalisées sur les actes par rapport au forfait"""
-        if self.type_tarification != "FORFAIT":
-            return Decimal("0")
-
-        total = Decimal("0")
-        for ecart in self.get_ecarts_actes_forfait():
-            # Fixed: Use 'type_ecart' instead of 'est_economie'
-            if ecart["type_ecart"] == "economie":
-                total += abs(
-                    ecart["impact_financier"]
-                )  # Use abs() since impact is negative for economies
+            if ecart["est_supplement"]:
+                total += ecart["prix_ecart"]
 
         return total
 
@@ -947,7 +925,7 @@ class ConsommationProduitBloc(models.Model):
         help_text="Acte associé si le produit provient d'un acte"
     )
 
-    # Quantités et prix
+    # CORRECTION: Tous les champs de quantité en DecimalField
     quantite = models.DecimalField(
         max_digits=10,
         decimal_places=2,
@@ -1019,6 +997,12 @@ class ConsommationProduitBloc(models.Model):
         """
         Calcule automatiquement l'écart et le statut d'inclusion lors de la sauvegarde.
         """
+        # S'assurer que les quantités sont en Decimal
+        if not isinstance(self.quantite, Decimal):
+            self.quantite = Decimal(str(self.quantite))
+        if not isinstance(self.quantite_incluse, Decimal):
+            self.quantite_incluse = Decimal(str(self.quantite_incluse))
+
         # Calcul de l'écart
         self.ecart_quantite = self.quantite - self.quantite_incluse
 
@@ -1033,71 +1017,23 @@ class ConsommationProduitBloc(models.Model):
         """Alias pour prix_total_utilise - compatible avec l'admin"""
         return self.prix_total_utilise
 
-
     @property
-    def prix_inclus(self):
-        """Alias pour prix_total_inclus - compatible avec l'admin"""
-        return self.prix_total_inclus
-
-
-    @property
-    def prix_ecart(self):
-        """Prix de l'écart (supplément ou économie selon le signe)"""
+    def prix_supplement(self):
+        """Prix du supplément (si écart positif)"""
         if self.ecart_quantite > 0:
-            return self.montant_supplement
-        elif self.ecart_quantite < 0:
-            return -self.montant_economie  # Négatif pour les économies
+            return self.ecart_quantite * self.prix_unitaire
         return Decimal("0")
 
 
     @property
     def prix_facturable(self):
         """Montant facturable (uniquement les suppléments positifs)"""
-        return self.montant_supplement
+        return self.prix_supplement
 
-
-    @property
-    def economie(self):
-        """Alias pour montant_economie - compatible avec l'admin"""
-        return self.montant_economie
     @property
     def prix_total_utilise(self):
         """Prix total pour la quantité utilisée."""
         return self.quantite * self.prix_unitaire
-
-    @property
-    def prix_total_inclus(self):
-        """Prix total pour la quantité incluse."""
-        return self.quantite_incluse * self.prix_unitaire
-
-    @property
-    def montant_supplement(self):
-        """Montant du supplément à facturer (si écart positif)."""
-        if self.ecart_quantite > 0:
-            return self.ecart_quantite * self.prix_unitaire
-        return Decimal('0')
-
-    @property
-    def montant_economie(self):
-        """Montant de l'économie réalisée (si écart négatif)."""
-        if self.ecart_quantite < 0:
-            return abs(self.ecart_quantite) * self.prix_unitaire
-        return Decimal('0')
-
-    @property
-    def source_inclusion_display_detailed(self):
-        """Affichage détaillé de la source d'inclusion."""
-        source_details = {
-            'BLOC': '📦 Inclus dans le bloc opératoire',
-            'FORFAIT': '💰 Inclus dans le forfait',
-            'FORFAIT_ACTE': '🔧 Inclus via acte forfaitaire',
-            'FORFAIT_MIXTE': '🔄 Forfait + acte forfaitaire',
-            'ACTE': '⚕️ Inclus dans un acte médical',
-            'ACTE_SUPPLEMENTAIRE': '➕ Acte supplémentaire',
-            'SUPPLEMENTAIRE': '🛒 Produit supplémentaire',
-            'MIXTE': '🔀 Sources multiples',
-        }
-        return source_details.get(self.source_inclusion, self.get_source_inclusion_display())
 
     def get_impact_financier(self):
         """
@@ -1109,9 +1045,7 @@ class ConsommationProduitBloc(models.Model):
             'ecart_quantite': float(self.ecart_quantite),
             'prix_unitaire': float(self.prix_unitaire),
             'prix_total_utilise': float(self.prix_total_utilise),
-            'prix_total_inclus': float(self.prix_total_inclus),
-            'montant_supplement': float(self.montant_supplement),
-            'montant_economie': float(self.montant_economie),
+            'montant_supplement': float(self.prix_supplement),
             'est_inclus': self.est_inclus,
             'source_inclusion': self.source_inclusion,
             'source_inclusion_display': self.get_source_inclusion_display(),
@@ -1150,8 +1084,7 @@ class ConsommationProduitBloc(models.Model):
 
         grouped = {}
         for source, _ in cls.SOURCE_INCLUSION_CHOICES:
-            grouped[source] = consommations_produits.filter(source_inclusion=source)
-
+            grouped[source] = consommations.filter(source_inclusion=source)
         return grouped
 
     @classmethod
@@ -1163,36 +1096,26 @@ class ConsommationProduitBloc(models.Model):
 
         totaux = {
             'total_utilise': Decimal('0'),
-            'total_inclus': Decimal('0'),
             'total_supplements': Decimal('0'),
-            'total_economies': Decimal('0'),
-            'nombre_produits': consommations_produits.count(),
+            'nombre_produits': consommations.count(),
             'par_source': {}
         }
 
         for consommation in consommations:
             totaux['total_utilise'] += consommation.prix_total_utilise
-            totaux['total_inclus'] += consommation.prix_total_inclus
-            totaux['total_supplements'] += consommation.montant_supplement
-            totaux['total_economies'] += consommation.montant_economie
-
+            totaux['total_supplements'] += consommation.prix_supplement
             # Totaux par source
             source = consommation.source_inclusion
             if source not in totaux['par_source']:
                 totaux['par_source'][source] = {
                     'count': 0,
                     'total_utilise': Decimal('0'),
-                    'total_inclus': Decimal('0'),
-                    'supplements': Decimal('0'),
-                    'economies': Decimal('0')
+                    'supplements': Decimal('0')
                 }
 
             totaux['par_source'][source]['count'] += 1
             totaux['par_source'][source]['total_utilise'] += consommation.prix_total_utilise
-            totaux['par_source'][source]['total_inclus'] += consommation.prix_total_inclus
-            totaux['par_source'][source]['supplements'] += consommation.montant_supplement
-            totaux['par_source'][source]['economies'] += consommation.montant_economie
-
+            totaux['par_source'][source]['supplements'] += consommation.prix_supplement
         return totaux
 
 
@@ -1206,7 +1129,7 @@ class LocationBlocManager(models.Manager):
         return self.select_related(
             'bloc', 'patient', 'medecin', 'forfait', 'cree_par'
         ).prefetch_related(
-            'actes__acte',
+            'actes_location__acte',
             'consommations_produits__produit',
             'consommations_produits__acte_associe__acte'
         )
@@ -1233,14 +1156,12 @@ def get_detail_consommations_par_source(self):
     consommations = ConsommationProduitBloc.get_consommations_par_source(self)
 
     detail = {}
-    for source, queryset in consommations_produits.items():
+    for source, queryset in consommations.items():
         if queryset.exists():
             detail[source] = {
                 'consommations': list(queryset),
                 'total_utilise': sum(c.prix_total_utilise for c in queryset),
-                'total_inclus': sum(c.prix_total_inclus for c in queryset),
-                'total_supplements': sum(c.montant_supplement for c in queryset),
-                'total_economies': sum(c.montant_economie for c in queryset),
+                'total_supplements': sum(c.prix_supplement for c in queryset),
                 'count': queryset.count()
             }
 
@@ -1369,7 +1290,6 @@ def get_resume_financier_detaille(self):
         + self.prix_supplement_duree,
         "total_actes_supplementaires": total_actes,
         "supplements_actes_forfait": supplements_actes,
-        "economies_actes_forfait": economies_actes,
         "total_produits_utilises": totaux_consommations["total_utilise"],
         "total_produits_inclus": totaux_consommations["total_inclus"],
         "supplements_produits": totaux_consommations["total_supplements"],
@@ -1397,31 +1317,3 @@ LocationBloc.add_to_class('get_resume_financier_detaille', get_resume_financier_
 
 # Assignation du manager personnalisé
 LocationBloc.add_to_class('objects', LocationBlocManager())
-# medical/models/bloc_location.py
-class LocationBlocAudit(models.Model):
-    location = models.ForeignKey(
-        LocationBloc,
-        on_delete=models.CASCADE,
-        related_name="audits",
-        verbose_name="Location de bloc",
-    )
-    user = models.ForeignKey(
-        "auth.User",
-        on_delete=models.SET_NULL,
-        null=True,
-        verbose_name="Utilisateur",
-    )
-    champ = models.CharField(max_length=100, verbose_name="Champ modifié")
-    ancienne_valeur = models.TextField(blank=True, verbose_name="Ancienne valeur")
-    nouvelle_valeur = models.TextField(blank=True, verbose_name="Nouvelle valeur")
-    date_modification = models.DateTimeField(
-        auto_now_add=True, verbose_name="Date de modification"
-    )
-
-    class Meta:
-        verbose_name = "Audit de location de bloc"
-        verbose_name_plural = "Audits de locations de bloc"
-        ordering = ["-date_modification"]
-
-    def __str__(self):
-        return f"{self.location} - {self.champ} - {self.date_modification}"

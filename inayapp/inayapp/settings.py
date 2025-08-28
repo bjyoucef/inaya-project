@@ -30,17 +30,13 @@ LOGGING = {
 ALLOWED_HOSTS = [
     "127.0.0.1",
     "localhost",
-    "192.168.10.254",
-    "192.168.0.102",
     "192.168.10.0/24",  # autoriser tout le réseau (moins sécurisé) :
     "192.168.0.0/24",  # autoriser tout le réseau (moins sécurisé) :
 ]
-INTERNAL_IPS = ["127.0.0.1"]
 # Application definition
 
 INSTALLED_APPS = [
     "jazzmin",
-    "debug_toolbar",
     "fontawesomefree",
     "nested_admin",
     "widget_tweaks",
@@ -51,7 +47,6 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.humanize",
-    "maintenance_mode",
     "filer",
     "easy_thumbnails",
     "mptt",
@@ -98,8 +93,6 @@ ANVIZ_CONFIG = {
 }
 
 MIDDLEWARE = [
-    "debug_toolbar.middleware.DebugToolbarMiddleware",
-    "maintenance_mode.middleware.MaintenanceModeMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -143,12 +136,6 @@ MEDIA_ROOT = os.path.join(BASE_DIR, "files")
 FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10 Mo
 
 
-# Maintenance mode settings
-MAINTENANCE_MODE = False
-# MAINTENANCE_MODE_IGNORE_SUPERUSER = True  # Les superusers peuvent accéder au site
-# MAINTENANCE_MODE_IGNORE_STAFF = True  # Les utilisateurs avec is_staff=True sont autorisés
-# MAINTENANCE_MODE_IGNORE_IP_ADDRESSES = ['127.0.0.1', '192.168.1.100']  # Liste des IPs autorisées
-
 X_FRAME_OPTIONS = 'ALLOWALL'
 
 # Database
@@ -158,7 +145,7 @@ X_FRAME_OPTIONS = 'ALLOWALL'
 DATABASES = {
     "default": {
         'ENGINE': 'django.db.backends.mysql',  # Django utilise mysqlclient pour MariaDB
-        'NAME': 'inaya',
+        'NAME': 'inaya08',
         'USER': 'root',
         'PASSWORD': '@Dmin1548@',
         'HOST': '127.0.0.1',
@@ -241,21 +228,28 @@ JAZZMIN_SETTINGS = {
     # Liens affichés dans le menu supérieur (top menu)
     "topmenu_links": [
         {"name": "App Home", "url": "home"},
-        {"model": "auth.user"},
         {"app": "auth"},
+        {"app": "accueil"},
+        {
+            "name": "Permissions",
+            "url": "permissions_dashboard",
+            "permissions": ["auth.view_user"],
+        },
     ],
     # Liens dans le menu utilisateur (menu déroulant en haut à droite)
-    "usermenu_links": [{"name": "Home", "url": "home"}, {"model": "auth.user"}],
+    "usermenu_links": [
+        {"name": "Home", "url": "home"},
+        {"model": "auth.user"},
+    ],
     # Afficher ou non la barre latérale
     "show_sidebar": True,
     # Déployer ou réduire la navigation par défaut
     "navigation_expanded": True,
     # Liste des applications à masquer dans la navigation
-    "hide_apps": [],
+    "hide_apps": ["auth", "accueil"],
     # Liste des modèles à masquer dans la navigation
     "hide_models": [],
     # Ordre des applications (les applications non listées seront affichées en dernier)
-    "order_with_respect_to": ["auth", "sites"],
     # Icône par défaut pour les parents de la navigation (utilise FontAwesome)
     "default_icon_parents": "fas fa-chevron-circle-right",
     # Icône par défaut pour les enfants de la navigation
@@ -274,6 +268,48 @@ JAZZMIN_SETTINGS = {
     "changeform_format_overrides": {
         "auth.user": "horizontal_tabs",
     },
+    # Configuration spécifique pour les permissions
+    "custom_links": {
+        "auth": [
+            {
+                "name": "Gestion des Utilisateurs",
+                "url": "user_permissions_list",
+                "icon": "fas fa-users-cog",
+                "permissions": ["auth.view_user"],
+            },
+            {
+                "name": "Gestion des Groupes",
+                "url": "group_permissions_list",
+                "icon": "fas fa-layer-group",
+                "permissions": ["auth.view_group"],
+            },
+            {
+                "name": "Permissions Détaillées",
+                "url": "admin:auth_permission_changelist",
+                "icon": "fas fa-shield-alt",
+                "permissions": ["auth.view_permission"],
+            },
+        ]
+    },  # Icônes personnalisées pour les modèles d'authentification
+    "icons": {
+        "auth": "fas fa-users-cog",
+        "auth.User": "fas fa-user",
+        "auth.Group": "fas fa-users",
+        "auth.Permission": "fas fa-key",
+    },
+    # Ordre d'affichage des applications
+    "order_with_respect_to": [
+        "medical",
+        "patients",
+        "medecin",
+        # ... autres apps
+    ],
+    # Configuration avancée pour les permissions
+    "changeform_format_overrides": {
+        "auth.user": "horizontal_tabs",
+        "auth.group": "horizontal_tabs",
+        "auth.permission": "single",
+    },
 }
 JAZZMIN_UI_TWEAKS = {
     "navbar_small_text": True,
@@ -288,7 +324,6 @@ JAZZMIN_UI_TWEAKS = {
     "layout_boxed": False,
     "footer_fixed": True,
     "sidebar_fixed": True,
-    "sidebar": "sidebar-dark-indigo",
     "sidebar_nav_small_text": True,
     "sidebar_disable_expand": False,
     "sidebar_nav_child_indent": True,
@@ -297,13 +332,18 @@ JAZZMIN_UI_TWEAKS = {
     "sidebar_nav_flat_style": True,
     "theme": "default",
     "dark_mode_theme": None,
+    # Couleurs pour les permissions
+    "accent": "accent-primary",
+    "navbar": "navbar-dark navbar-primary",
+    "sidebar": "sidebar-dark-primary",
+    # Boutons personnalisés
     "button_classes": {
-        "primary": "btn-outline-primary",
-        "secondary": "btn-outline-secondary",
-        "info": "btn-outline-info",
-        "warning": "btn-outline-warning",
-        "danger": "btn-outline-danger",
-        "success": "btn-outline-success",
+        "primary": "btn-primary",
+        "secondary": "btn-secondary",
+        "info": "btn-info",
+        "warning": "btn-warning",
+        "danger": "btn-danger",
+        "success": "btn-success",
     },
     "actions_sticky_top": True,
 }

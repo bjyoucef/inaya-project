@@ -2,40 +2,44 @@
 import copy
 import json
 import logging
-from datetime import date, datetime
+import math
+from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 
 from accueil.models import ConfigDate
 from audit.decorators import audit_view
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
+from django.core.exceptions import ValidationError
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.db import models, transaction
-from django.db.models import (Count, DecimalField, ExpressionWrapper, F,
-                              OuterRef, Prefetch, Q, Subquery, Sum, Value)
-from django.db.models.functions import Coalesce, TruncDate
+from django.db.models import (Avg, CharField, Count, DecimalField,
+                              ExpressionWrapper, F, OuterRef, Prefetch, Q,
+                              Subquery, Sum, Value)
+from django.db.models.functions import Coalesce, Concat, TruncDate
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render, reverse
 from django.utils import timezone
 from django.utils.dateparse import parse_date
+from django.utils.decorators import method_decorator
 from django.utils.safestring import mark_safe
 from django.views import View
-from finance.models import (Convention, Decharges, Payments,
-                            PrixSupplementaireConfig, TarifActe,
-                            TarifActeConvention)
+from django.views.decorators.csrf import csrf_exempt
+from finance.models import Decharges, Payments
 from medecin.models import Medecin
-from medical.models import (ActeKt, ActeProduit, PrestationActe,
-                            PrestationAudit, PrestationKt)
-from medical.models.prestation_Kt import ActeProduit
+from medical.models import ActeKt, ActeProduit, PrestationActe, PrestationKt
+from medical.models.prestation_Kt import (ActeKt, ActeProduit, Convention,
+                                          PrestationActe, PrestationKt)
 from num2words import num2words
 from patients.models import Patient
 from pharmacies.models import ConsommationProduit, Produit
 from rh.models import Personnel, Planning
 from utils.pdf import render_to_pdf
 from utils.utils import services_autorises
-
-from .forms import BonDePaiementForm, DechargeForm, PaymentForm
-from .models import BonDePaiement, Decharges, Payments
+from django.contrib.auth.decorators import permission_required
+from django.utils.decorators import method_decorator
+from .forms import DechargeForm, PaymentForm
+from .models import Decharges, PaiementEspecesKt, Payments, TranchePaiementKt
 
 
 @permission_required("accueil.view_menu_items_plannings", raise_exception=True)
@@ -497,8 +501,9 @@ def print_decharge_view(request, decharge_id):
 
 
 @audit_view
+@permission_required("finance.view_situation_medecins", raise_exception=True)
 def situation_medecins_list(request):
-    # 1. Honoraires (incluant prix supplémentaire médecin)
+    # 1. Sous-requête pour les honoraires
     honoraire_sq = (
         PrestationActe.objects.filter(prestation__medecin=OuterRef("pk"))
         .exclude(prestation__statut="planifie")
@@ -513,104 +518,87 @@ def situation_medecins_list(request):
 
     # 2. Paiements
     paiement_sq = (
-        Payments.objects
-        .filter(id_decharge__medecin=OuterRef('pk'))
-        .values('id_decharge__medecin')
-        .annotate(total=Sum('payment'))
-        .values('total')
+        Payments.objects.filter(id_decharge__medecin=OuterRef("pk"))
+        .values("id_decharge__medecin")
+        .annotate(total=Sum("payment"))
+        .values("total")
     )
 
     # 3. Décharge totales
     decharge_sq = (
-        Decharges.objects
-        .filter(medecin=OuterRef('pk'))
-        .values('medecin')
-        .annotate(total=Sum('amount'))
-        .values('total')
+        Decharges.objects.filter(medecin=OuterRef("pk"))
+        .values("medecin")
+        .annotate(total=Sum("amount"))
+        .values("total")
     )
 
-    # 4. Préfetch des décharge + sommes de paiements par décharge
-    decharges_non_reglees_qs = (
-        Decharges.objects
-        # On exclut d’abord toute décharge qui contient au moins un acte rattaché à une prestation planifiée
-        .exclude(prestation_actes__prestation__statut='planifie')
-        .annotate(
-            total_paie=Coalesce(Sum('payments__payment'), Value(0), output_field=DecimalField())
-        )
-        .annotate(
-            solde=ExpressionWrapper(F('amount') - F('total_paie'), output_field=DecimalField())
-        )
-        # Puis on ne garde que celles dont le solde reste positif
-        .filter(solde__gt=0)
-    )
-
-
-    # 5. Query principal
+    # 4. Query principal - simplifié sans le prefetch
     medecins = (
-        Medecin.objects
-        .prefetch_related(
-            Prefetch(
-                'decharges',
-                queryset=decharges_non_reglees_qs,
-                to_attr='decharges_non_reglees'
-            )
-        )
-        .annotate(
+        Medecin.objects.annotate(
             total_honoraires=Coalesce(
-                Subquery(honoraire_sq), Value(Decimal('0.00')), output_field=DecimalField()
+                Subquery(honoraire_sq),
+                Value(Decimal("0.00")),
+                output_field=DecimalField(),
             ),
             total_paiements=Coalesce(
-                Subquery(paiement_sq), Value(Decimal('0.00')), output_field=DecimalField()
+                Subquery(paiement_sq),
+                Value(Decimal("0.00")),
+                output_field=DecimalField(),
             ),
             total_decharges=Coalesce(
-                Subquery(decharge_sq), Value(Decimal('0.00')), output_field=DecimalField()
+                Subquery(decharge_sq),
+                Value(Decimal("0.00")),
+                output_field=DecimalField(),
             ),
         )
         .annotate(
             reste_avec_decharge=ExpressionWrapper(
-                F('total_honoraires') - F('total_paiements'),
-                output_field=DecimalField()
+                F("total_honoraires") - F("total_paiements"),
+                output_field=DecimalField(),
             ),
             reste_sans_decharge=ExpressionWrapper(
-                F('total_honoraires') - F('total_decharges'),
-                output_field=DecimalField()
+                F("total_honoraires") - F("total_decharges"),
+                output_field=DecimalField(),
             ),
         )
-        .order_by('-total_honoraires')
+        .order_by("-total_honoraires")
     )
 
-    # 6. Calcul des montants et comptes non réglés en Python
+    # 5. Calcul simple du count des décharges non réglées (optionnel pour le badge)
     for med in medecins:
-        # total et count des décharges non réglées
-        total_non_regle = sum(d.solde for d in med.decharges_non_reglees)
-        count_non_regle = len(med.decharges_non_reglees)
-        med.total_non_regle = total_non_regle
-        med.count_non_regle = count_non_regle
+        # Compter les décharges non réglées pour l'affichage du badge
+        decharges_non_reglees = (
+            Decharges.objects.filter(medecin=med)
+            .annotate(
+                total_paie=Coalesce(
+                    Sum("payments__payment"), Value(0), output_field=DecimalField()
+                ),
+                solde=F("amount") - F("total_paie"),
+            )
+            .filter(solde__gt=0)
+            .exclude(prestation_actes__prestation__statut="planifie")
+            .distinct()
+        )
 
-    # 7. Totaux globaux
+        med.count_non_regle = decharges_non_reglees.count()
+
+    # 6. Totaux globaux simplifiés
     totals = {
-        'global_honoraires': sum(m.total_honoraires for m in medecins),
-        'global_paiements': sum(m.total_paiements for m in medecins),
-        'global_decharges': sum(m.total_decharges for m in medecins),
-        'global_reste_avec': sum(m.reste_avec_decharge for m in medecins),
-        'global_reste_sans': sum(m.reste_sans_decharge for m in medecins),
-        'global_non_regle': sum(m.total_non_regle for m in medecins),
+        "global_reste_avec": sum(m.reste_avec_decharge for m in medecins),
+        "global_reste_sans": sum(m.reste_sans_decharge for m in medecins),
     }
 
     return render(
-        request,
-        'situation_medecins_list.html',
-        {
-            'medecins': medecins,
-            **totals
-        }
+        request, "situation_medecins_list.html", {"medecins": medecins, **totals}
     )
 
 
 @audit_view
+@permission_required("finance.view_situation_medecins", raise_exception=True)
 def situation_medecin(request, medecin_id):
     medecin = get_object_or_404(Medecin, pk=medecin_id)
-
+    
+    
     # Gestion des filtres
     date_debut = request.GET.get("date_debut")
     date_fin = request.GET.get("date_fin")
@@ -821,17 +809,17 @@ def situation_medecin(request, medecin_id):
         "date_fin": date_fin,
     }
 
-    return render(request, "situation.html", context)
+    return render(request, "situation_medecins_kt.html", context)
 
 
 @audit_view
+@permission_required("finance.create_decharge_multiple", raise_exception=True)
 def create_decharge_medecin(request, medecin_id):
     medecin = get_object_or_404(Medecin, pk=medecin_id)
 
     prestations_non_dechargees = (
         PrestationActe.objects.filter(prestation__medecin=medecin)
-        .exclude(prestation__statut="planifie")
-        .exclude(decharges__isnull=False)
+        .exclude(prestation__statut="planifie",decharges__isnull=False)
         .select_related("prestation", "acte", "convention", "prestation__patient")
     )
 
@@ -907,88 +895,84 @@ def create_decharge_medecin(request, medecin_id):
 
 @audit_view
 @login_required
-def gestion_convention_accorde(request):
-    # --- Récupération / mise à jour de la config date
-    config, _ = ConfigDate.objects.get_or_create(
-        user=request.user,
-        page="convention_accorde",
-        defaults={"start_date": date.today(), "end_date": date.today()},
+@permission_required("medical.manage_conventions", raise_exception=True)
+def gestion_convention_accorde_dossier(request):
+    """Page de gestion des conventions - exclut urgence"""
+    
+
+    # Afficher seulement les actes qui nécessitent une action :
+    # - Convention non accordée (None ou False) OU
+    # - Dossier incomplet (False)
+    # Exclure urgence
+    prestation_actes = (
+        PrestationActe.objects.filter(convention__isnull=False)
+        .exclude(convention__nom__iexact="urgence")  # Exclure urgence
+        .filter(
+            Q(convention_accordee__in=[None, False])  # En attente ou refusé
+            | Q(dossier_convention_complet=False)  # Dossier incomplet
+        )
+        .select_related(
+            "prestation__patient", "prestation__medecin", "acte", "convention"
+        )
     )
 
-    # Mise à jour de la config si des paramètres sont fournis
-    for param in ("start_date", "end_date"):
-        val = request.GET.get(param)
-        if val:
-            try:
-                setattr(config, param, datetime.strptime(val, "%Y-%m-%d").date())
-            except ValueError:
-                pass
-    config.save()
+    # Filtres
+    search = request.GET.get("search", "")
+    if search:
+        prestation_actes = prestation_actes.filter(
+            Q(prestation__patient__first_name__icontains=search)
+            | Q(prestation__patient__last_name__icontains=search)
+            | Q(acte__code__icontains=search)
+            | Q(acte__libelle__icontains=search)
+        )
 
-    # Utilisation des dates de la config
-    start_date, end_date = (config.start_date, config.end_date)
-
-    # Base queryset
-    prestation_actes = PrestationActe.objects.filter(
-        convention__isnull=False
-    ).select_related("prestation", "acte", "convention")
-
-    # Filters
-    status = request.GET.get("status")
-    medecin_id = request.GET.get("medecin")
-    patient_id = request.GET.get("patient")
-
-    # Apply filters
-    if status == "en_attente":
+    current_status = request.GET.get("status", "")
+    if current_status == "en_attente":
         prestation_actes = prestation_actes.filter(convention_accordee__isnull=True)
-    elif status == "accorde":
+    elif current_status == "accorde":
         prestation_actes = prestation_actes.filter(convention_accordee=True)
-    elif status == "non_accorde":
+    elif current_status == "non_accorde":
         prestation_actes = prestation_actes.filter(convention_accordee=False)
 
-    # Filtrage par date (utilise les dates de la config)
-    if start_date and end_date:
-        prestation_actes = prestation_actes.filter(
-            prestation__date_prestation__range=[start_date, end_date]
-        )
-    elif start_date:
-        prestation_actes = prestation_actes.filter(
-            prestation__date_prestation__gte=start_date
-        )
-    elif end_date:
-        prestation_actes = prestation_actes.filter(
-            prestation__date_prestation__lte=end_date
-        )
+    dossier_filter = request.GET.get("dossier", "")
+    if dossier_filter == "complet":
+        prestation_actes = prestation_actes.filter(dossier_convention_complet=True)
+    elif dossier_filter == "incomplet":
+        prestation_actes = prestation_actes.filter(dossier_convention_complet=False)
 
-    if medecin_id:
-        prestation_actes = prestation_actes.filter(prestation__medecin_id=medecin_id)
-    if patient_id:
-        prestation_actes = prestation_actes.filter(prestation__patient_id=patient_id)
+    current_medecin = request.GET.get("medecin", "")
+    if current_medecin:
+        prestation_actes = prestation_actes.filter(prestation__medecin_id=current_medecin)
 
-    # Get distinct medecins and patients for filters
-    medecins = Medecin.objects.filter(
-        prestations__actes_details__convention__isnull=False
-    ).distinct()
-    patients = Patient.objects.filter(
-        prestations__actes_details__convention__isnull=False
-    ).distinct()
+    date_debut = request.GET.get("date_debut")
+    if date_debut:
+        prestation_actes = prestation_actes.filter(prestation__date_prestation__gte=date_debut)
+
+    # Pagination
+
+    paginator = Paginator(prestation_actes, 20)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+
+    # Médecins pour le filtre
+
+    medecins = Medecin.objects.all().order_by("last_name", "first_name")
 
     context = {
-        "prestation_actes": prestation_actes,
+        "prestation_actes": page_obj,
+        "page_obj": page_obj,
+        "search": search,
+        "current_status": current_status,
+        "current_medecin": current_medecin,
         "medecins": medecins,
-        "patients": patients,
-        "current_status": status,
-        "start_date": start_date,  # Utilise les dates de la config
-        "end_date": end_date,  # Utilise les dates de la config
-        "current_medecin": medecin_id,
-        "current_patient": patient_id,
     }
 
-    return render(request, "gestion_convention_accorde.html", context)
+    return render(request, "facturation_KT/accord_dossier.html", context)
 
 
 @audit_view
 @login_required
+@permission_required('medical.manage_conventions', raise_exception=True)
 def update_convention_status(request, pk):
     if not request.user.has_perm("medical.change_prestationacte"):
         return JsonResponse({"error": "Permission refusée"}, status=403)
@@ -998,116 +982,1465 @@ def update_convention_status(request, pk):
 
     response_data = {
         "status": "success",
-        "new_status": None,
+        "new_status": prestation_acte.convention_accordee,  # Valeur actuelle par défaut
+        "dossier_status": prestation_acte.dossier_convention_complet,  # Valeur actuelle par défaut
         "message": "",
         "stats": {},
     }
 
     try:
+        # Traiter uniquement l'action demandée
         if action == "approve":
             prestation_acte.convention_accordee = True
+            response_data["new_status"] = True
             response_data["message"] = (
                 f"Convention {prestation_acte.convention} approuvée"
             )
-        elif action == "reject":
-            prestation_acte.convention_accordee = False
-            response_data["message"] = (
-                f"Convention {prestation_acte.convention} refusée"
-            )
-        elif action == "reset":
-            prestation_acte.convention_accordee = None
-            response_data["message"] = "Statut convention réinitialisé"
+
+        elif action == "dossier_complet":
+            prestation_acte.dossier_convention_complet = True
+            response_data["dossier_status"] = True
+            response_data["message"] = "Dossier de convention marqué comme complet"
+
         else:
             raise ValueError("Action invalide")
 
+        # Valider et sauvegarder
+        prestation_acte.full_clean()
         prestation_acte.save()
-        response_data["new_status"] = prestation_acte.convention_accordee
 
-        # Mise à jour des stats
-        qs = PrestationActe.objects.filter(convention__isnull=False)
+        # Stats — appliquer la même exclusion pour que les compteurs reflètent la table affichée
+        qs = PrestationActe.objects.filter(convention__isnull=False).exclude(
+            convention_accordee=True, dossier_convention_complet=True
+        )
+        total = qs.count()
+        en_attente = qs.filter(convention_accordee__isnull=True).count()
+        accorde = qs.filter(convention_accordee=True).count()
+        refuse = qs.filter(convention_accordee=False).count()
+        dossier_complet = qs.filter(dossier_convention_complet=True).count()
+        dossier_incomplet = qs.filter(dossier_convention_complet=False).count()
+
         response_data["stats"] = {
             "total": qs.count(),
             "en_attente": qs.filter(convention_accordee__isnull=True).count(),
             "accorde": qs.filter(convention_accordee=True).count(),
             "refuse": qs.filter(convention_accordee=False).count(),
+            "dossier_complet": qs.filter(dossier_convention_complet=True).count(),
+            "dossier_incomplet": qs.filter(dossier_convention_complet=False).count(),
         }
 
+        # Mettre à jour seulement les valeurs qui ont changé
+        if action in ["approve", "reject", "reset"]:
+            # Seul le statut d'accord a changé, garder le statut dossier actuel
+            response_data["dossier_status"] = prestation_acte.dossier_convention_complet
+        elif action in ["dossier_complet", "dossier_incomplet"]:
+            # Seul le statut dossier a changé, garder le statut d'accord actuel
+            response_data["new_status"] = prestation_acte.convention_accordee
+
+    except ValidationError as e:
+        response_data = {
+            "status": "error",
+            "message": f"Erreur de validation : {e.message_dict if hasattr(e, 'message_dict') else str(e)}",
+        }
     except Exception as e:
         response_data = {"status": "error", "message": str(e)}
 
-    return (
-        JsonResponse(response_data)
-        if request.headers.get("X-Requested-With") == "XMLHttpRequest"
-        else redirect("gestion_convention_accorde")
-    )
+    # Retourner JSON pour les requêtes AJAX, redirection sinon
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return JsonResponse(response_data)
+    else:
+        if response_data["status"] == "success":
+            messages.success(request, response_data["message"])
+        else:
+            messages.error(request, response_data["message"])
+        return redirect("gestion_convention_accorde_dossier")
 
 
-@login_required
-def paiements_especes(request):
-    # Filtrer les prestations éligibles
-    prestations = (
-        PrestationKt.objects.filter(
-            Q(statut="REALISE")
-            & (
-                Q(prix_supplementaire__gt=0)
-                | Q(actes_details__convention__isnull=True)
-                | Q(actes_details__convention_accordee=False)
-                | Q(
-                    actes_details__consommations__quantite_reelle__gt=F(
-                        "actes_details__consommations__quantite_defaut"
-                    )
-                )
-            )
+@permission_required("medical.facturer_prestationacte", raise_exception=True)
+def actes_a_facturer(request):
+    """Page listant les actes prêts à être facturés"""
+
+    # Filtrer les actes qui peuvent être facturés (exclure urgence)
+    actes = (
+        PrestationActe.objects.filter(
+            statut_facturation="A_FACTURER",
+            convention__isnull=False,
+            convention_accordee=True,
+            dossier_convention_complet=True,
         )
-        .distinct()
-        .prefetch_related("patient", "actes_details")
+        .exclude(convention__nom__iexact="urgence")  # Exclure urgence
+        .select_related(
+            "prestation__patient", "prestation__medecin", "acte", "convention"
+        )
+        .order_by("-prestation__date_prestation")
     )
 
-    # Calcul du reste à payer pour chaque prestation
-    for p in prestations:
-        p.total_paiements = p.bons_de_paiement.aggregate(total=Sum("montant"))[
-            "total"
-        ] or Decimal("0.00")
-        p.reste_a_payer = p.prix_total - p.total_paiements
+    # Recherche simple "last_name", "first_name"
+    search = request.GET.get("search", "")
+    if search:
+        actes = actes.filter(
+            Q(prestation__patient__last_name__icontains=search)
+            | Q(prestation__patient__first_name__icontains=search)
+            | Q(acte__code__icontains=search)
+            | Q(acte__libelle__icontains=search)
+        )
 
-    return render(request, "BonPaiement/liste.html", {"prestations": prestations})
+    # Filtres
+    convention_id = request.GET.get("convention")
+    if convention_id:
+        actes = actes.filter(convention_id=convention_id)
 
+    medecin_id = request.GET.get("medecin")
+    if medecin_id:
+        actes = actes.filter(prestation__medecin_id=medecin_id)
 
-@login_required
-@transaction.atomic
-def creer_bon_paiement(request, prestation_id):
-    prestation = get_object_or_404(PrestationKt, id=prestation_id)
+    # Pagination
+    paginator = Paginator(actes, 20)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
 
-    # Calcul du reste à payer
-    total_paiements = prestation.bons_de_paiement.aggregate(total=Sum("montant"))[
+    # Statistiques
+    total_actes = actes.count()
+    montant_total = actes.aggregate(total=Sum("tarif_conventionne"))[
         "total"
     ] or Decimal("0.00")
-    reste = prestation.prix_total - total_paiements
 
+    # Données pour les filtres
+
+    conventions = Convention.objects.filter(active=True)
+    medecins = Medecin.objects.all().order_by("last_name", "first_name")
+
+    context = {
+        "page_obj": page_obj,
+        "total_actes": total_actes,
+        "montant_total": montant_total,
+        "search": search,
+        "conventions": conventions,
+        "medecins": medecins,
+        "selected_convention": convention_id,
+        "selected_medecin": medecin_id,
+    }
+
+    return render(request, "facturation_KT/actes_a_facturer.html", context)
+
+
+@permission_required("medical.facturer_prestationacte", raise_exception=True)
+def facturer_acte(request, acte_id):
+    """Marquer un acte comme facturé"""
     if request.method == "POST":
-        form = BonDePaiementForm(request.POST)
-        if form.is_valid():
-            bon = form.save(commit=False)
-            bon.prestation = prestation
-            bon.encaisse_par = request.user
+        acte = get_object_or_404(PrestationActe, id=acte_id)
 
-            # Validation du montant
-            if bon.montant > reste:
-                form.add_error("montant", f"Le montant ne peut excéder {reste}€")
-            else:
-                bon.save()
+        try:
+            # Vérifier que l'acte peut être facturé
+            if not acte.peut_facturer_convention:
+                messages.error(
+                    request, "Cet acte ne peut pas être facturé en convention."
+                )
+                return redirect("actes_a_facturer")
 
-                # Mettre à jour le statut de la prestation si complètement payée
-                if bon.montant >= reste:
-                    prestation.statut = "PAYE"
-                    prestation.save()
+            # Facturer l'acte
+            result = acte.facturer()
+            messages.success(request, f"Acte facturé avec succès. {result}")
 
-                return redirect("paiements_especes")
-    else:
-        form = BonDePaiementForm(initial={"montant": reste})
+        except Exception as e:
+            messages.error(request, f"Erreur lors de la facturation: {str(e)}")
 
-    return render(
-        request,
-        "BonPaiement/creer_bon.html",
-        {"form": form, "prestation": prestation, "reste": reste},
+    return redirect("actes_a_facturer")
+
+
+@permission_required("medical.view_facturation_details", raise_exception=True)
+def actes_factures(request):
+    """Page listant les actes facturés en attente de règlement"""
+
+    # Filtrer les actes facturés (en attente de paiement) - exclure urgence
+    actes = (
+        PrestationActe.objects.filter(
+            statut_facturation="FACTURE"
+        )
+        .exclude(convention__nom__iexact="urgence")  # Exclure urgence
+        .select_related(
+            "prestation__patient", "prestation__medecin", "acte", "convention"
+        )
+        .order_by("-date_facturation")
     )
+
+    # Recherche
+    search = request.GET.get("search", "")
+    if search:
+        actes = actes.filter(
+            Q(prestation__patient__last_name__icontains=search)
+            | Q(prestation__patient__first_name__icontains=search)
+            | Q(acte__code__icontains=search)
+            | Q(acte__libelle__icontains=search)
+        )
+
+    # Filtres
+    convention_id = request.GET.get("convention")
+    if convention_id:
+        actes = actes.filter(convention_id=convention_id)
+
+    medecin_id = request.GET.get("medecin")
+    if medecin_id:
+        actes = actes.filter(prestation__medecin_id=medecin_id)
+
+    # Filtre par retard de paiement
+    en_retard = request.GET.get("en_retard")
+    if en_retard == "1":
+
+        date_limite = timezone.now().date() - timezone.timedelta(days=30)
+        actes = actes.filter(date_facturation__lt=date_limite)
+
+    # Pagination
+    paginator = Paginator(actes, 20)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+
+    # Statistiques
+    total_actes = actes.count()
+    montant_total = actes.aggregate(total=Sum("tarif_conventionne"))[
+        "total"
+    ] or Decimal("0.00")
+
+    # Actes en retard de paiement
+
+    date_limite = timezone.now().date() - timezone.timedelta(days=30)
+    actes_en_retard = PrestationActe.objects.filter(
+        statut_facturation="FACTURE", date_facturation__lt=date_limite
+    ).count()
+
+    # Données pour les filtres
+
+    conventions = Convention.objects.filter(active=True)
+    medecins = Medecin.objects.all().order_by("last_name", "first_name")
+
+    context = {
+        "page_obj": page_obj,
+        "total_actes": total_actes,
+        "montant_total": montant_total,
+        "actes_en_retard": actes_en_retard,
+        "search": search,
+        "conventions": conventions,
+        "medecins": medecins,
+        "selected_convention": convention_id,
+        "selected_medecin": medecin_id,
+        "en_retard_filter": en_retard,
+    }
+
+    return render(request, "facturation_KT/actes_factures.html", context)
+
+
+@permission_required("medical.payer_prestationacte", raise_exception=True)
+def marquer_paye_acte(request, acte_id):
+    """Marquer un acte comme payé (paiement complet)"""
+    if request.method == "POST":
+        acte = get_object_or_404(PrestationActe, id=acte_id)
+
+        try:
+            # Marquer comme payé
+            result = acte.marquer_paye()
+            messages.success(request, f"Acte marqué comme payé avec succès. {result}")
+
+        except Exception as e:
+            messages.error(request, f"Erreur lors du marquage de paiement: {str(e)}")
+
+    return redirect("actes_factures")
+
+
+@permission_required("medical.rejeter_prestationacte", raise_exception=True)
+def rejeter_acte(request, acte_id):
+    """Marquer un acte comme rejeté"""
+    if request.method == "POST":
+        acte = get_object_or_404(PrestationActe, id=acte_id)
+
+        motif = request.POST.get("motif", "").strip()
+        if not motif:
+            messages.error(request, "Le motif de rejet est requis.")
+            return redirect("actes_factures")
+
+        try:
+            result = acte.marquer_rejete(motif)
+            messages.success(request, f"Acte marqué comme rejeté. {result}")
+        except Exception as e:
+            messages.error(request, f"Erreur: {str(e)}")
+
+    return redirect("actes_factures")
+
+
+@permission_required("medical.view_facturation_details", raise_exception=True)
+def actes_payes(request):
+    """Page listant les actes payés"""
+
+    # Filtrer les actes payés - exclure urgence
+    actes = (
+        PrestationActe.objects.filter(
+            statut_facturation="PAYE"
+        )
+        .exclude(convention__nom__iexact="urgence")  # Exclure urgence
+        .select_related(
+            "prestation__patient", "prestation__medecin", "acte", "convention"
+        )
+        .order_by("-date_paiement")
+    )
+
+    # Recherche
+    search = request.GET.get("search", "")
+    if search:
+        actes = actes.filter(
+            Q(prestation__patient__last_name__icontains=search)
+            | Q(prestation__patient__first_name__icontains=search)
+            | Q(acte__code__icontains=search)
+            | Q(acte__libelle__icontains=search)
+        )
+
+    # Filtres
+    convention_id = request.GET.get("convention")
+    if convention_id:
+        actes = actes.filter(convention_id=convention_id)
+
+    medecin_id = request.GET.get("medecin")
+    if medecin_id:
+        actes = actes.filter(prestation__medecin_id=medecin_id)
+
+    # Filtre par période
+    date_debut = request.GET.get("date_debut")
+    date_fin = request.GET.get("date_fin")
+    if date_debut:
+        actes = actes.filter(date_paiement__gte=date_debut)
+    if date_fin:
+        actes = actes.filter(date_paiement__lte=date_fin)
+
+    # Pagination
+    paginator = Paginator(actes, 20)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+
+    # Statistiques
+    total_actes = actes.count()
+    montant_total = actes.aggregate(total=Sum("tarif_conventionne"))[
+        "total"
+    ] or Decimal("0.00")
+
+    # Données pour les filtres
+
+    conventions = Convention.objects.filter(active=True)
+    medecins = Medecin.objects.all().order_by("last_name", "first_name")
+
+    context = {
+        "page_obj": page_obj,
+        "total_actes": total_actes,
+        "montant_total": montant_total,
+        "search": search,
+        "conventions": conventions,
+        "medecins": medecins,
+        "selected_convention": convention_id,
+        "selected_medecin": medecin_id,
+        "date_debut": date_debut,
+        "date_fin": date_fin,
+    }
+
+    return render(request, "facturation_KT/actes_payes.html", context)
+
+
+@permission_required("medical.view_facturation_details", raise_exception=True)
+def actes_rejetes(request):
+    """Page listant les actes rejetés"""
+
+    # Filtrer les actes rejetés - exclure urgence
+    actes = (
+        PrestationActe.objects.filter(
+            statut_facturation="REJETE"
+        )
+        .exclude(convention__nom__iexact="urgence")  # Exclure urgence
+        .select_related(
+            "prestation__patient", "prestation__medecin", "acte", "convention"
+        )
+        .order_by("-date_rejet")
+    )
+
+    # Recherche
+    search = request.GET.get("search", "")
+    if search:
+        actes = actes.filter(
+            Q(prestation__patient__last_name__icontains=search)
+            | Q(prestation__patient__first_name__icontains=search)
+            | Q(acte__code__icontains=search)
+            | Q(acte__libelle__icontains=search)
+            | Q(motif_rejet__icontains=search)
+        )
+
+    # Filtres
+    convention_id = request.GET.get("convention")
+    if convention_id:
+        actes = actes.filter(convention_id=convention_id)
+
+    medecin_id = request.GET.get("medecin")
+    if medecin_id:
+        actes = actes.filter(prestation__medecin_id=medecin_id)
+
+    # Pagination
+    paginator = Paginator(actes, 20)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+
+    # Statistiques
+    total_actes = actes.count()
+    montant_total = actes.aggregate(total=Sum("tarif_conventionne"))[
+        "total"
+    ] or Decimal("0.00")
+
+    # Données pour les filtres
+
+    conventions = Convention.objects.filter(active=True)
+    medecins = Medecin.objects.all().order_by("last_name", "first_name")
+
+    context = {
+        "page_obj": page_obj,
+        "total_actes": total_actes,
+        "montant_total": montant_total,
+        "search": search,
+        "conventions": conventions,
+        "medecins": medecins,
+        "selected_convention": convention_id,
+        "selected_medecin": medecin_id,
+    }
+
+    return render(request, "facturation_KT/actes_rejetes.html", context)
+
+
+@permission_required("medical.view_facturation_details", raise_exception=True)
+def tableau_bord_facturation(request):
+    """Tableau de bord avec statistiques générales"""
+
+    # Statistiques générales - exclure urgence
+    base_qs = PrestationActe.objects.exclude(convention__nom__iexact="urgence")
+
+    stats = {
+        'a_facturer': base_qs.filter(statut_facturation="A_FACTURER").count(),
+        'factures': base_qs.filter(statut_facturation="FACTURE").count(),
+        'payes': base_qs.filter(statut_facturation="PAYE").count(),
+        'rejetes': base_qs.filter(statut_facturation="REJETE").count(),
+    }
+
+    # Montants - exclure urgence
+    montants = {
+        'a_facturer': base_qs.filter(
+            statut_facturation="A_FACTURER"
+        ).aggregate(total=Sum("tarif_conventionne"))["total"]
+        or Decimal("0.00"),
+        'factures': base_qs.filter(
+            statut_facturation="FACTURE"
+        ).aggregate(total=Sum("tarif_conventionne"))["total"]
+        or Decimal("0.00"),
+        'payes': base_qs.filter(
+            statut_facturation="PAYE"
+        ).aggregate(total=Sum("tarif_conventionne"))["total"] or Decimal("0.00"),
+        'rejetes': base_qs.filter(
+            statut_facturation="REJETE"
+        ).aggregate(total=Sum("tarif_conventionne"))["total"] or Decimal("0.00"),
+    }
+
+    # Actes en retard - exclure urgence
+
+    date_limite = timezone.now().date() - timezone.timedelta(days=30)
+    actes_en_retard = base_qs.filter(
+        statut_facturation="FACTURE", date_facturation__lt=date_limite
+    ).count()
+
+    # Répartition par convention - exclure urgence
+    conventions_stats = base_qs.filter(
+        statut_facturation__in=["FACTURE", "PAYE"]
+    ).values(
+        "convention__nom"
+    ).annotate(
+        count=Count("id"),
+        montant=Sum("tarif_conventionne")
+    ).order_by("-montant")[:10]
+
+    context = {
+        "stats": stats,
+        "montants": montants,
+        "actes_en_retard": actes_en_retard,
+        "conventions_stats": conventions_stats,
+    }
+
+    return render(request, "facturation_KT/tableau_bord.html", context)
+
+
+@method_decorator(
+    permission_required("medical.manage_paiements_especes", raise_exception=True),
+    name="dispatch",
+)
+class PrestationsEspecesEnAttenteView(View):
+    """Vue pour afficher les prestations avec paiements espèces en attente"""
+    
+    def get(self, request):
+        
+        # Vérifier si c'est une requête AJAX pour le badge
+        if request.GET.get("ajax") == "1":
+            return self._get_ajax_count(request)
+
+        # Configuration des dates
+        config, _ = ConfigDate.objects.get_or_create(
+            user=request.user,
+            page="prestations_especes_attente",
+            defaults={
+                "start_date": date.today() - timedelta(days=30),
+                "end_date": date.today(),
+            },
+        )
+
+        for param in ("start_date", "end_date"):
+            val = request.GET.get(param)
+            if val:
+                try:
+                    setattr(config, param, datetime.strptime(val, "%Y-%m-%d").date())
+                except ValueError:
+                    pass
+        config.save()
+
+        start_date, end_date = config.start_date, config.end_date
+
+        # CORRECTION: Récupérer TOUTES les prestations réalisées puis filtrer celles qui ont des éléments espèces
+        prestations_candidates = (
+            PrestationKt.objects.filter(
+                statut__in=["REALISE"],
+            )
+            .select_related("patient", "medecin")
+            .prefetch_related(
+                Prefetch(
+                    "actes_details",
+                    queryset=PrestationActe.objects.select_related(
+                        "acte", "convention"
+                    ).prefetch_related(
+                        Prefetch(
+                            "consommations",
+                            queryset=ConsommationProduit.objects.select_related(
+                                "produit"
+                            ),
+                        )
+                    ),
+                ),
+                "paiement_especes__tranches",
+            )
+            .order_by("-date_prestation")
+        )
+
+        # Application des filtres de date
+        if start_date:
+            prestations_candidates = prestations_candidates.filter(
+                date_prestation__gte=start_date
+            )
+        if end_date:
+            prestations_candidates = prestations_candidates.filter(
+                date_prestation__lte=end_date
+            )
+
+        # Filtres supplémentaires
+        filtres = {
+            "medecin": ("medecin_id", int),
+            "patient": ("patient_id", int),
+        }
+
+        for param, (field, caster) in filtres.items():
+            val = request.GET.get(param)
+            if not val:
+                continue
+
+            try:
+                val = caster(val) if caster else val
+                prestations_candidates = prestations_candidates.filter(**{field: val})
+            except (ValueError, TypeError):
+                continue
+
+        # CORRECTION: Filtrer pour ne garder que les prestations avec éléments espèces non payés
+        prestations_with_totals = []
+        total_general_attente = Decimal("0.00")
+
+        for prestation in prestations_candidates:
+            # Vérifier s'il y a des éléments à payer en espèces
+            has_elements_especes = self._has_especes_elements(prestation)
+
+            if not has_elements_especes:
+                continue
+
+            # Vérifier le statut de paiement espèces
+            try:
+                paiement_especes = prestation.paiement_especes
+                # Si paiement complet, ignorer cette prestation
+                if paiement_especes.statut == "COMPLET":
+                    continue
+            except PaiementEspecesKt.DoesNotExist:
+                # Pas de paiement espèces = en attente
+                pass
+
+            # Calculer le total espèces pour cette prestation
+            total_especes = self._calculate_total_especes(prestation)
+            paiement_info = self._get_paiement_info(prestation)
+
+            # Récupérer les actes espèces pour affichage
+            actes_especes = prestation.actes_details.filter(
+                Q(convention__isnull=True) | Q(convention__nom__iexact="urgence")
+            )
+
+            prestations_with_totals.append(
+                {
+                    "prestation": prestation,
+                    "total_especes": total_especes,
+                    "actes_especes": actes_especes,
+                    "paiement_info": paiement_info,
+                    "has_frais_supplementaires": prestation.prix_supplementaire > 0,
+                    "has_consommations_supplementaires": self._has_consommations_supplementaires(
+                        prestation
+                    ),
+                }
+            )
+
+            # Ne compter dans le total que ce qui reste à payer
+            total_general_attente += paiement_info["montant_restant"]
+
+        # Pagination
+        items_per_page = min(max(int(request.GET.get("per_page", 25)), 10), 100)
+        paginator = Paginator(prestations_with_totals, items_per_page)
+        page_obj = paginator.get_page(request.GET.get("page", 1))
+
+        context = {
+            "paginator": paginator,
+            "page_obj": page_obj,
+            "is_paginated": page_obj.has_other_pages(),
+            "items_per_page": items_per_page,
+            "total_count": paginator.count,
+            "total_general_attente": total_general_attente,
+            "medecins": Medecin.objects.filter(prestations__isnull=False).distinct(),
+            "patients": Patient.objects.filter(prestations__isnull=False).distinct(),
+            "start_date": start_date,
+            "end_date": end_date,
+            "page_title": "Prestations Espèces - En Attente de Paiement",
+        }
+
+        return render(request, "facturation_KT/especes_en_attente.html", context)
+
+    def _has_especes_elements(self, prestation):
+        """Vérifie si une prestation a des éléments à payer en espèces"""
+        
+
+        # 1. Actes sans convention ou urgence
+        actes_especes = prestation.actes_details.filter(
+            Q(convention__isnull=True) | Q(convention__nom__iexact="urgence")
+        )
+        if actes_especes.exists():
+            return True
+
+        # 2. Frais supplémentaires
+        if prestation.prix_supplementaire > 0:
+            return True
+
+        # 3. Consommations supplémentaires (sur n'importe quel acte)
+        if self._has_consommations_supplementaires(prestation):
+            return True
+
+        return False
+
+    def _has_consommations_supplementaires(self, prestation):
+        """Vérifie s'il y a des consommations supplémentaires"""
+        for acte_detail in prestation.actes_details.all():
+            for conso in acte_detail.consommations.all():
+                if conso.quantite_reelle > conso.quantite_defaut:
+                    return True
+        return False
+
+    def _calculate_total_especes(self, prestation):
+        """Calcule le total espèces pour une prestation"""
+        total_especes = Decimal("0.00")
+        
+
+        # 1. Actes espèces (sans convention ou urgence)
+        actes_especes = prestation.actes_details.filter(
+            Q(convention__isnull=True) | Q(convention__nom__iexact="urgence")
+        )
+
+        for pa in actes_especes:
+            total_especes += pa.tarif_conventionne
+
+        # 2. Consommations supplémentaires (sur TOUS les actes, même conventionnés)
+        for pa in prestation.actes_details.all():
+            for conso in pa.consommations.all():
+                if conso.quantite_reelle > conso.quantite_defaut:
+                    quantite_supp = conso.quantite_reelle - conso.quantite_defaut
+                    total_especes += quantite_supp * conso.prix_unitaire
+
+        # 3. Frais supplémentaires
+        total_especes += prestation.prix_supplementaire
+
+        return total_especes
+
+    def _get_paiement_info(self, prestation):
+        """Récupère les informations de paiement pour une prestation"""
+        total_especes = self._calculate_total_especes(prestation)
+
+        try:
+            paiement_especes = prestation.paiement_especes
+            montant_paye = paiement_especes.montant_paye
+            montant_restant = paiement_especes.montant_restant
+            statut = paiement_especes.statut
+        except PaiementEspecesKt.DoesNotExist:
+            montant_paye = Decimal("0.00")
+            montant_restant = total_especes
+            statut = "EN_COURS"
+
+        return {
+            "total_especes": total_especes,
+            "montant_paye": montant_paye,
+            "montant_restant": montant_restant,
+            "statut": statut,
+            "pourcentage_paye": (
+                (montant_paye / total_especes * 100) if total_especes > 0 else 0
+            ),
+        }
+
+    def _get_ajax_count(self, request):
+        """Retourne le nombre de prestations en attente en JSON pour le badge"""
+        # Compter les prestations en attente (derniers 30 jours)
+        date_limite = date.today() - timedelta(days=30)
+
+        prestations_candidates = PrestationKt.objects.filter(
+            statut__in=["REALISE"],
+            date_prestation__gte=date_limite,
+        ).prefetch_related("actes_details__consommations", "paiement_especes")
+
+        count = 0
+        for prestation in prestations_candidates:
+            # Vérifier s'il y a des éléments espèces
+            if not self._has_especes_elements(prestation):
+                continue
+
+            # Vérifier le statut de paiement
+            try:
+                paiement_especes = prestation.paiement_especes
+                if paiement_especes.statut == "COMPLET":
+                    continue
+            except PaiementEspecesKt.DoesNotExist:
+                pass
+
+            count += 1
+
+        return JsonResponse({"count": count, "success": True})
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+@method_decorator(
+    permission_required("medical.manage_paiements_especes", raise_exception=True),
+    name="dispatch",
+)
+class GestionPaiementEspecesView(View):
+    """Vue pour gérer les paiements espèces via Ajax"""
+
+    def get(self, request, prestation_id):
+        """Retourne les détails de paiement pour une prestation"""
+        try:
+            
+
+            prestation = get_object_or_404(PrestationKt, id=prestation_id)
+
+            # CORRECTION: Vérifier que la prestation a des éléments espèces (pas seulement des actes)
+            if not self._has_especes_elements(prestation):
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "message": "Cette prestation ne contient aucun élément payable en espèces",
+                    }
+                )
+
+            # Calculer le total espèces (actes + consommations + frais)
+            total_especes = self._calculate_total_especes(prestation)
+
+            # Récupérer ou créer le paiement espèces
+            paiement_especes, created = PaiementEspecesKt.objects.get_or_create(
+                prestation=prestation,
+                defaults={"montant_total_du": total_especes, "cree_par": request.user},
+            )
+
+            # Récupérer les tranches de paiement
+            tranches = paiement_especes.tranches.all().order_by("-date_paiement")
+
+            # Récupérer les actes espèces pour affichage
+            actes_especes = prestation.actes_details.filter(
+                Q(convention__isnull=True) | Q(convention__nom__iexact="urgence")
+            )
+
+            data = {
+                "success": True,
+                "prestation": {
+                    "id": prestation.id,
+                    "patient": prestation.patient.nom_complet,
+                    "date": prestation.date_prestation.strftime("%d/%m/%Y %H:%M"),
+                    "medecin": f"Dr. {prestation.medecin.nom_complet}",
+                },
+                "paiement": {
+                    "id": paiement_especes.id,
+                    "montant_total_du": float(paiement_especes.montant_total_du),
+                    "montant_paye": float(paiement_especes.montant_paye),
+                    "montant_restant": float(paiement_especes.montant_restant),
+                    "statut": paiement_especes.statut,
+                    "pourcentage_paye": (
+                        float(
+                            paiement_especes.montant_paye
+                            / paiement_especes.montant_total_du
+                            * 100
+                        )
+                        if paiement_especes.montant_total_du > 0
+                        else 0
+                    ),
+                },
+                "tranches": [
+                    {
+                        "id": tranche.id,
+                        "montant": float(tranche.montant),
+                        "date_paiement": tranche.date_paiement.strftime(
+                            "%d/%m/%Y %H:%M"
+                        ),
+                        "encaisse_par": tranche.encaisse_par.get_full_name()
+                        or tranche.encaisse_par.username,
+                        "notes": tranche.notes,
+                    }
+                    for tranche in tranches
+                ],
+                # CORRECTION: Inclure tous les éléments espèces, pas seulement les actes
+                "elements_especes": self._get_elements_especes_detail(
+                    prestation, actes_especes
+                ),
+            }
+
+            return JsonResponse(data)
+
+        except Exception as e:
+            return JsonResponse({"success": False, "message": str(e)})
+
+    def post(self, request, prestation_id):
+        """Enregistre un nouveau paiement"""
+        try:
+            with transaction.atomic():
+                prestation = get_object_or_404(PrestationKt, id=prestation_id)
+
+                # Récupérer les données du paiement
+                data = json.loads(request.body)
+                montant = Decimal(str(data.get("montant", 0)))
+                notes = data.get("notes", "")
+
+                if montant <= 0:
+                    return JsonResponse(
+                        {
+                            "success": False,
+                            "message": "Le montant doit être supérieur à 0",
+                        }
+                    )
+
+                # CORRECTION: Vérifier qu'il y a des éléments espèces (pas seulement des actes)
+                if not self._has_especes_elements(prestation):
+                    return JsonResponse(
+                        {
+                            "success": False,
+                            "message": "Cette prestation ne contient aucun élément payable en espèces",
+                        }
+                    )
+
+                # Calculer le total espèces
+                total_especes = self._calculate_total_especes(prestation)
+
+                paiement_especes, created = PaiementEspecesKt.objects.get_or_create(
+                    prestation=prestation,
+                    defaults={
+                        "montant_total_du": total_especes,
+                        "cree_par": request.user,
+                    },
+                )
+
+                # Vérifier si le montant ne dépasse pas ce qui reste à payer
+                if not paiement_especes.peut_recevoir_paiement(montant):
+                    return JsonResponse(
+                        {
+                            "success": False,
+                            "message": f"Le montant dépasse ce qui reste à payer ({paiement_especes.montant_restant} DA)",
+                        }
+                    )
+
+                # Créer la tranche de paiement
+                tranche = TranchePaiementKt.objects.create(
+                    paiement_especes=paiement_especes,
+                    montant=montant,
+                    encaisse_par=request.user,
+                    notes=notes,
+                )
+
+                # Actualiser l'objet paiement_especes depuis la DB
+                paiement_especes.refresh_from_db()
+
+                # Actualiser l'objet prestation depuis la DB
+                prestation.refresh_from_db()
+
+                return JsonResponse(
+                    {
+                        "success": True,
+                        "message": f"Paiement de {montant} DA enregistré avec succès",
+                        "tranche_id": tranche.id,
+                        "nouveau_montant_paye": float(paiement_especes.montant_paye),
+                        "nouveau_montant_restant": float(
+                            paiement_especes.montant_restant
+                        ),
+                        "statut": paiement_especes.statut,
+                        "prestation_payee": paiement_especes.est_complet,
+                        "statut_prestation": prestation.statut,
+                    }
+                )
+
+        except ValueError:
+            return JsonResponse({"success": False, "message": "Montant invalide"})
+        except ValidationError as e:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "message": f"Erreur de validation: {'; '.join(e.messages)}",
+                }
+            )
+        except Exception as e:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "message": f"Erreur lors de l'enregistrement: {str(e)}",
+                }
+            )
+
+    def _has_especes_elements(self, prestation):
+        """Vérifie si une prestation a des éléments à payer en espèces"""
+          # Import local
+        
+        # 1. Actes sans convention ou urgence
+        actes_especes = prestation.actes_details.filter(
+            Q(convention__isnull=True) | Q(convention__nom__iexact="urgence")
+        )
+        if actes_especes.exists():
+            return True
+
+        # 2. Frais supplémentaires
+        if prestation.prix_supplementaire > 0:
+            return True
+
+        # 3. Consommations supplémentaires (sur n'importe quel acte)
+        for acte_detail in prestation.actes_details.all():
+            for conso in acte_detail.consommations.all():
+                if conso.quantite_reelle > conso.quantite_defaut:
+                    return True
+
+        return False
+
+    def _calculate_total_especes(self, prestation):
+        """Calcule le total espèces pour une prestation"""
+          # Import local
+        
+        total_especes = Decimal("0.00")
+
+        # 1. Actes espèces (sans convention ou urgence)
+        actes_especes = prestation.actes_details.filter(
+            Q(convention__isnull=True) | Q(convention__nom__iexact="urgence")
+        )
+
+        for pa in actes_especes:
+            total_especes += pa.tarif_conventionne
+
+        # 2. Consommations supplémentaires (sur TOUS les actes, même conventionnés)
+        for pa in prestation.actes_details.all():
+            for conso in pa.consommations.all():
+                if conso.quantite_reelle > conso.quantite_defaut:
+                    quantite_supp = conso.quantite_reelle - conso.quantite_defaut
+                    total_especes += quantite_supp * conso.prix_unitaire
+
+        # 3. Frais supplémentaires
+        total_especes += prestation.prix_supplementaire
+
+        return total_especes
+
+    def _get_elements_especes_detail(self, prestation, actes_especes):
+        """Retourne le détail de tous les éléments espèces"""
+        elements = []
+
+        # 1. Actes espèces
+        for acte in actes_especes:
+            elements.append(
+                {
+                    "type": "acte",
+                    "code": acte.acte.code,
+                    "libelle": acte.acte.libelle,
+                    "tarif": float(acte.tarif_conventionne),
+                    "convention": (
+                        acte.convention.nom if acte.convention else "Sans convention"
+                    ),
+                }
+            )
+
+        # 2. Consommations supplémentaires (sur tous les actes)
+        for acte_detail in prestation.actes_details.all():
+            for conso in acte_detail.consommations.all():
+                if conso.quantite_reelle > conso.quantite_defaut:
+                    quantite_supp = conso.quantite_reelle - conso.quantite_defaut
+                    montant_conso = quantite_supp * conso.prix_unitaire
+                    elements.append(
+                        {
+                            "type": "consommation",
+                            "code": f"+ {conso.produit.code_produit}",
+                            "libelle": f"{conso.produit.nom} (qté supp: {quantite_supp})",
+                            "tarif": float(montant_conso),
+                            "convention": "Consommation supplémentaire",
+                        }
+                    )
+
+        # 3. Frais supplémentaires
+        if prestation.prix_supplementaire > 0:
+            elements.append(
+                {
+                    "type": "frais",
+                    "code": "SUPP",
+                    "libelle": "Frais supplémentaires",
+                    "tarif": float(prestation.prix_supplementaire),
+                    "convention": "Frais supplémentaires",
+                }
+            )
+
+        return elements
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+@method_decorator(
+    permission_required("medical.manage_paiements_especes", raise_exception=True),
+    name="dispatch",
+)
+class SupprimerTranchePaiementView(View):
+    """Vue pour supprimer une tranche de paiement"""
+
+    def delete(self, request, tranche_id):
+        try:
+            with transaction.atomic():
+                tranche = get_object_or_404(TranchePaiementKt, id=tranche_id)
+                paiement_especes = tranche.paiement_especes
+                prestation = paiement_especes.prestation
+
+                # Supprimer la tranche (cela va déclencher la mise à jour via delete())
+                tranche.delete()
+
+                # CORRECTION: Actualiser les objets depuis la DB
+                paiement_especes.refresh_from_db()
+                prestation.refresh_from_db()
+
+                return JsonResponse(
+                    {
+                        "success": True,
+                        "message": "Tranche de paiement supprimée",
+                        "nouveau_montant_paye": float(paiement_especes.montant_paye),
+                        "nouveau_montant_restant": float(
+                            paiement_especes.montant_restant
+                        ),
+                        "statut": paiement_especes.statut,
+                        "statut_prestation": prestation.statut,  # AJOUT: Retourner le statut de la prestation
+                    }
+                )
+
+        except Exception as e:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "message": f"Erreur lors de la suppression: {str(e)}",
+                }
+            )
+
+
+@method_decorator(
+    permission_required("medical.view_paiements_especes", raise_exception=True),
+    name="dispatch",
+)
+class PrestationsEspecesPayeesView(View):
+    """Vue pour afficher les prestations avec paiements espèces complètement réglés"""
+
+    def get(self, request):
+        # Configuration des dates
+
+        config, _ = ConfigDate.objects.get_or_create(
+            user=request.user,
+            page="prestations_especes_payees",
+            defaults={
+                "start_date": date.today() - timedelta(days=30),
+                "end_date": date.today(),
+            },
+        )
+
+        for param in ("start_date", "end_date"):
+            val = request.GET.get(param)
+            if val:
+                try:
+                    setattr(config, param, datetime.strptime(val, "%Y-%m-%d").date())
+                except ValueError:
+                    pass
+        config.save()
+
+        start_date, end_date = config.start_date, config.end_date
+
+        # CORRECTION: Récupérer les prestations avec paiements espèces complets
+        prestations = (
+            PrestationKt.objects.filter(
+                paiement_especes__statut="COMPLET",
+            )
+            .select_related("patient", "medecin")
+            .prefetch_related(
+                "paiement_especes__tranches",
+                Prefetch(
+                    "actes_details",
+                    queryset=PrestationActe.objects.select_related(
+                        "acte", "convention"
+                    ).prefetch_related(
+                        Prefetch(
+                            "consommations",
+                            queryset=ConsommationProduit.objects.select_related(
+                                "produit"
+                            ),
+                        )
+                    ),
+                ),
+            )
+            .distinct()
+            .order_by("-date_prestation")
+        )
+
+        # Application des filtres de date
+        if start_date:
+            prestations = prestations.filter(date_prestation__gte=start_date)
+        if end_date:
+            prestations = prestations.filter(date_prestation__lte=end_date)
+
+        # Filtres supplémentaires
+        filtres = {
+            "medecin": ("medecin_id", int),
+            "patient": ("patient_id", int),
+        }
+
+        for param, (field, caster) in filtres.items():
+            val = request.GET.get(param)
+            if not val:
+                continue
+
+            try:
+                val = caster(val) if caster else val
+                prestations = prestations.filter(**{field: val})
+            except (ValueError, TypeError):
+                continue
+
+        # CORRECTION: Filtrer pour ne garder que les prestations qui avaient vraiment des éléments espèces
+        prestations_with_totals = []
+        total_general_paye = Decimal("0.00")
+
+        for prestation in prestations:
+            # Vérifier que cette prestation avait des éléments espèces
+            if not self._has_especes_elements(prestation):
+                continue
+
+            paiement_info = {
+                "total_especes": prestation.paiement_especes.montant_total_du,
+                "montant_paye": prestation.paiement_especes.montant_paye,
+                "date_completion": prestation.paiement_especes.date_completion,
+                "tranches_count": prestation.paiement_especes.tranches.count(),
+            }
+
+            # Récupérer les actes espèces pour affichage (même logique que dans "en attente")
+            actes_especes = prestation.actes_details.filter(
+                Q(convention__isnull=True) | Q(convention__nom__iexact="urgence")
+            )
+
+            prestations_with_totals.append(
+                {
+                    "prestation": prestation,
+                    "total_especes": paiement_info["total_especes"],
+                    "actes_especes": actes_especes,
+                    "paiement_info": paiement_info,
+                    "has_frais_supplementaires": prestation.prix_supplementaire > 0,
+                    "has_consommations_supplementaires": self._has_consommations_supplementaires(
+                        prestation
+                    ),
+                }
+            )
+
+            total_general_paye += paiement_info["total_especes"]
+
+        # Pagination
+        items_per_page = min(max(int(request.GET.get("per_page", 25)), 10), 100)
+        paginator = Paginator(prestations_with_totals, items_per_page)
+        page_obj = paginator.get_page(request.GET.get("page", 1))
+
+        context = {
+            "paginator": paginator,
+            "page_obj": page_obj,
+            "is_paginated": page_obj.has_other_pages(),
+            "items_per_page": items_per_page,
+            "total_count": paginator.count,
+            "total_general_paye": total_general_paye,
+            "medecins": Medecin.objects.filter(prestations__isnull=False).distinct(),
+            "patients": Patient.objects.filter(prestations__isnull=False).distinct(),
+            "start_date": start_date,
+            "end_date": end_date,
+            "page_title": "Prestations Espèces - Complètement Réglées",
+        }
+
+        return render(request, "facturation_KT/especes_payees.html", context)
+
+    def _has_especes_elements(self, prestation):
+        """Vérifie si une prestation a des éléments à payer en espèces"""
+
+        # 1. Actes sans convention ou urgence
+        actes_especes = prestation.actes_details.filter(
+            Q(convention__isnull=True) | Q(convention__nom__iexact="urgence")
+        )
+        if actes_especes.exists():
+            return True
+
+        # 2. Frais supplémentaires
+        if prestation.prix_supplementaire > 0:
+            return True
+
+        # 3. Consommations supplémentaires
+        if self._has_consommations_supplementaires(prestation):
+            return True
+
+        return False
+
+    def _has_consommations_supplementaires(self, prestation):
+        """Vérifie s'il y a des consommations supplémentaires"""
+        for acte_detail in prestation.actes_details.all():
+            for conso in acte_detail.consommations.all():
+                if conso.quantite_reelle > conso.quantite_defaut:
+                    return True
+        return False
+
+
+@method_decorator(
+    permission_required("medical.view_paiements_especes", raise_exception=True),
+    name="dispatch",
+)
+class DashboardPaiementsEspecesView(View):
+    """Vue dashboard pour un aperçu rapide des paiements espèces - Version adaptée"""
+
+    def get(self, request):
+        # Configuration des dates avec ConfigDate
+        config, _ = ConfigDate.objects.get_or_create(
+            user=request.user,
+            page="dashboard_paiements_especes",
+            defaults={
+                "start_date": date.today() - timedelta(days=30),
+                "end_date": date.today(),
+            },
+        )
+         
+        # Mise à jour des dates selon les paramètres de la requête
+        for param in ("start_date", "end_date"):
+            val = request.GET.get(param)
+            if val:
+                try:
+                    setattr(config, param, datetime.strptime(val, "%Y-%m-%d").date())
+                except ValueError:
+                    pass
+        config.save()
+
+        start_date, end_date = config.start_date, config.end_date
+
+        # Récupérer toutes les prestations réalisées dans la période
+        prestations_candidates = PrestationKt.objects.filter(
+            date_prestation__gte=start_date,
+            date_prestation__lte=end_date,
+            statut__in=["REALISE", "PAYE"],
+        ).prefetch_related("actes_details__consommations", "paiement_especes")
+
+        prestations_attente = []
+        prestations_payees = []
+
+        # Classifier les prestations
+        for prestation in prestations_candidates:
+            if not self._has_especes_elements(prestation):
+                continue
+
+            try:
+                paiement_especes = prestation.paiement_especes
+                if paiement_especes.statut == "COMPLET":
+                    prestations_payees.append(prestation)
+                else:
+                    prestations_attente.append(prestation)
+            except PaiementEspecesKt.DoesNotExist:
+                prestations_attente.append(prestation)
+
+        # Calculs des totaux
+        total_attente = Decimal("0.00")
+        total_paye = Decimal("0.00")
+
+        # Pour les prestations en attente
+        for prestation in prestations_attente:
+            try:
+                paiement_especes = prestation.paiement_especes
+                total_attente += paiement_especes.montant_restant
+            except PaiementEspecesKt.DoesNotExist:
+                # Si pas de paiement espèces créé, calculer le total
+                total_especes = self._calculate_total_especes_for_dashboard(prestation)
+                total_attente += total_especes
+
+        # Pour les prestations payées
+        for prestation in prestations_payees:
+            if hasattr(prestation, "paiement_especes"):
+                total_paye += prestation.paiement_especes.montant_total_du
+
+        # Statistiques supplémentaires avec la plage de dates sélectionnée
+        stats_complementaires = self._get_stats_complementaires(start_date, end_date)
+
+        # Calcul du nombre de jours dans la période
+        nombre_jours = (end_date - start_date).days + 1
+
+        context = {
+            "count_prestations_attente": len(prestations_attente),
+            "count_prestations_payees": len(prestations_payees),
+            "total_attente": total_attente,
+            "total_paye": total_paye,
+            "pourcentage_paye": (
+                (total_paye / (total_attente + total_paye) * 100)
+                if (total_attente + total_paye) > 0
+                else 0
+            ),
+            "prestations_attente_recentes": prestations_attente[:5],
+            "prestations_payees_recentes": prestations_payees[:5],
+            "start_date": start_date,
+            "end_date": end_date,
+            "nombre_jours": nombre_jours,
+            **stats_complementaires,
+        }
+
+        return render(
+            request, "facturation_KT/dashboard_paiements_especes.html", context
+        )
+
+    def _has_especes_elements(self, prestation):
+        """Vérifie si une prestation a des éléments à payer en espèces"""
+        
+
+        # 1. Actes sans convention ou urgence
+        actes_especes = prestation.actes_details.filter(
+            Q(convention__isnull=True) | Q(convention__nom__iexact="urgence")
+        )
+        if actes_especes.exists():
+            return True
+
+        # 2. Frais supplémentaires
+        if prestation.prix_supplementaire > 0:
+            return True
+
+        # 3. Consommations supplémentaires
+        for acte_detail in prestation.actes_details.all():
+            for conso in acte_detail.consommations.all():
+                if conso.quantite_reelle > conso.quantite_defaut:
+                    return True
+
+        return False
+
+    def _calculate_total_especes_for_dashboard(self, prestation):
+        """Calcule le total espèces pour une prestation (version optimisée dashboard)"""
+        total_especes = Decimal("0.00")
+        
+
+        # Actes espèces
+        actes_especes = prestation.actes_details.filter(
+            Q(convention__isnull=True) | Q(convention__nom__iexact="urgence")
+        )
+
+        for pa in actes_especes:
+            total_especes += pa.tarif_conventionne
+
+        # Consommations supplémentaires (tous actes)
+        for pa in prestation.actes_details.all():
+            for conso in pa.consommations.all():
+                if conso.quantite_reelle > conso.quantite_defaut:
+                    quantite_supp = conso.quantite_reelle - conso.quantite_defaut
+                    total_especes += quantite_supp * conso.prix_unitaire
+
+        # Frais supplémentaires
+        total_especes += prestation.prix_supplementaire
+        return total_especes
+
+    def _get_stats_complementaires(self, start_date, end_date):
+        """Récupère des statistiques complémentaires pour le dashboard avec plage de dates"""
+
+        # Statistiques sur les paiements partiels dans la période
+        paiements_partiels = PaiementEspecesKt.objects.filter(
+            prestation__date_prestation__gte=start_date,
+            prestation__date_prestation__lte=end_date,
+            statut="EN_COURS",
+            montant_paye__gt=0,
+        ).distinct()
+
+        # Top 5 des médecins avec le plus de paiements en attente dans la période
+        top_medecins_attente = (
+            PrestationKt.objects.filter(
+                date_prestation__gte=start_date,
+                date_prestation__lte=end_date,
+            )
+            .filter(
+                Q(actes_details__convention__isnull=True)
+                | Q(actes_details__convention__nom__iexact="urgence")
+            )
+            .filter(
+                Q(paiement_especes__isnull=True)
+                | Q(paiement_especes__statut__in=["EN_COURS"])
+            )
+            .values("medecin__first_name", "medecin__last_name")
+            .annotate(count=Count("id"))
+            .order_by("-count")[:5]
+        )
+
+        # Paiements par jour dans la période (limité aux 7 derniers jours de la période)
+        paiements_par_jour = []
+        jours_a_afficher = min(7, (end_date - start_date).days + 1)
+
+        for i in range(jours_a_afficher):
+            jour = end_date - timedelta(days=i)
+            if jour >= start_date:
+                count_jour = TranchePaiementKt.objects.filter(
+                    date_paiement__date=jour,
+                    paiement_especes__prestation__date_prestation__gte=start_date,
+                    paiement_especes__prestation__date_prestation__lte=end_date,
+                ).count()
+                paiements_par_jour.append(
+                    {"jour": jour.strftime("%d/%m"), "count": count_jour}
+                )
+
+        # Moyenne des paiements dans la période
+        moyenne_paiement = TranchePaiementKt.objects.filter(
+            date_paiement__gte=start_date,
+            date_paiement__lte=end_date,
+            paiement_especes__prestation__date_prestation__gte=start_date,
+            paiement_especes__prestation__date_prestation__lte=end_date,
+        ).aggregate(avg=Avg("montant"))["avg"] or Decimal("0.00")
+
+        # Évolution quotidienne des montants encaissés
+        evolution_quotidienne = []
+        for i in range(jours_a_afficher):
+            jour = end_date - timedelta(days=i)
+            if jour >= start_date:
+                montant_jour = TranchePaiementKt.objects.filter(
+                    date_paiement__date=jour,
+                    paiement_especes__prestation__date_prestation__gte=start_date,
+                    paiement_especes__prestation__date_prestation__lte=end_date,
+                ).aggregate(total=Sum("montant"))["total"] or Decimal("0.00")
+
+                evolution_quotidienne.append({
+                    "jour": jour.strftime("%d/%m"),
+                    "montant": float(montant_jour)
+                })
+
+        return {
+            "count_paiements_partiels": paiements_partiels.count(),
+            "montant_paiements_partiels": sum(
+                p.montant_paye for p in paiements_partiels
+            ),
+            "top_medecins_attente": top_medecins_attente,
+            "paiements_par_jour": paiements_par_jour,
+            "evolution_quotidienne": evolution_quotidienne,
+            "moyenne_paiement": moyenne_paiement,
+        }

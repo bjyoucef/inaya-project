@@ -55,7 +55,7 @@ class ExpressionBesoinListView(LoginRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["services"] = Service.objects.filter(est_actif=True)
+        context["services"] = Service.objects.filter(est_active=True)
         context["statuts"] = ExpressionBesoin.STATUT_CHOICES
         return context
 
@@ -74,9 +74,9 @@ class ExpressionBesoinDetailView(LoginRequiredMixin, DetailView):
 class ExpressionBesoinCreateView(LoginRequiredMixin, View):
     def get(self, request):
         context = {
-            "services": Service.objects.filter(est_actif=True, est_stockeur=True),
+            "services": Service.objects.filter(est_active=True, est_stockeur=True),
             "services_pharmacie": Service.objects.filter(est_pharmacies=True),
-            "produits": Produit.objects.filter(est_actif=True).order_by("nom"),
+            "produits": Produit.objects.filter(est_active=True).order_by("nom"),
         }
 
         return render(request, "approvisionnement/expression_besoin_form.html", context)
@@ -205,7 +205,7 @@ class CommandeFournisseurCreateView(LoginRequiredMixin, View):
         context = {
             "fournisseurs": Fournisseur.objects.filter(statut="ACTIF"),
             "besoins": ExpressionBesoin.objects.filter(statut="VALIDE"),
-            "produits": Produit.objects.filter(est_actif=True).order_by("nom"),
+            "produits": Produit.objects.filter(est_active=True).order_by("nom"),
         }
         return render(
             request,
@@ -553,7 +553,7 @@ class GetProduitsAPIView(LoginRequiredMixin, View):
     def get(self, request):
         produits = []
 
-        for produit in Produit.objects.filter(est_actif=True).order_by("nom"):
+        for produit in Produit.objects.filter(est_active=True).order_by("nom"):
             produits.append(
                 {
                     "id": produit.id,

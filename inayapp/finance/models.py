@@ -2,12 +2,14 @@
 
 from decimal import Decimal
 
+from django.contrib.auth import get_user_model
 from django.contrib.auth.models import User
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.forms import ValidationError
 from django.utils import timezone
 
+User = get_user_model()
 
 class Decharges(models.Model):
     id_decharge = models.AutoField(primary_key=True)
@@ -44,6 +46,12 @@ class Decharges(models.Model):
 
     class Meta:
         managed = True
+        permissions = (
+            ("create_decharge_multiple", "Peut créer plusieurs décharges à la fois"),
+            ("export_decharge_pdf", "Peut exporter les décharges en PDF"),
+            ("view_situation_medecins", "Peut voir la situation des médecins"),
+            ("settle_decharge", "Peut régler une décharge"),
+        )
 
 
 class Payments(models.Model):
@@ -70,207 +78,216 @@ class Payments(models.Model):
 
     class Meta:
         managed = True
-
-
-
-
-class TarifActe(models.Model):
-    acte = models.ForeignKey(
-        "medical.ActeKt", on_delete=models.CASCADE, related_name="tarifs"
-    )
-    montant = models.DecimalField(max_digits=10, decimal_places=2)
-    montant_honoraire_base = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        default=Decimal("0.00"),
-        help_text="Montant d’honoraire de base applicable hors convention",
-    )
-    date_effective = models.DateField(default=timezone.now)
-    is_default = models.BooleanField(
-        default=False,
-        help_text="Cocher pour ce tarif soit celui par défaut pour l’acte",
-    )
-
-    def __str__(self):
-        return str(self.montant)
-
-    class Meta:
-        verbose_name = "Tarif de base"
-        verbose_name_plural = "Tarifs de base"
-        ordering = ["-is_default", "-date_effective"]
-
-
-class Convention(models.Model):
-    code = models.CharField(max_length=20, unique=True)
-    nom = models.CharField(max_length=255)
-    description = models.TextField(blank=True, null=True)
-    active = models.BooleanField(default=True)
-    actes = models.ManyToManyField(
-        "medical.ActeKt", through="TarifActeConvention", related_name="conventions"
-    )
-
-    def __str__(self):
-        return self.nom
-
-    class Meta:
-        verbose_name = "Convention"
-        verbose_name_plural = "Conventions"
-
-
-class TarifActeConvention(models.Model):
-    convention = models.ForeignKey(
-        "Convention", on_delete=models.CASCADE, related_name="tarifs"
-    )
-    acte = models.ForeignKey(
-        "medical.ActeKt", on_delete=models.CASCADE, related_name="tarifs_convention"
-    )
-    tarif_acte = models.ForeignKey(
-        "TarifActe",
-        on_delete=models.CASCADE,
-        related_name="tarifs_par_convention",
-    )
-    date_effective = models.DateField(default=timezone.now)
-    montant_honoraire_base = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        default=Decimal("0.00"),
-        help_text="Montant de l'honoraire de base pour cet acte et cette convention",
-    )
-
-    class Meta:
-        unique_together = ("convention", "acte", "date_effective")
-        verbose_name = "Tarif par convention"
-        verbose_name_plural = "Tarifs par convention"
-        ordering = ["-date_effective"]
-
-    def __str__(self):
-        return (
-            f"{self.convention.nom} - {self.acte.code} : {self.montant_honoraire_base}€"
+        permissions = (
+            ("validate_payment", "Peut valider un paiement"),
+            ("cancel_payment", "Peut annuler un paiement"),
+            ("view_payment_history", "Peut voir l'historique des paiements"),
         )
 
 
-class PrixSupplementaireConfig(models.Model):
-    """
-    Configuration du pourcentage de prix supplémentaire par médecin.
-    Par exemple, si pourcentage = 10.5, on ajoutera 10.5% au tarif de base.
-    """
+class PaiementEspecesKt(models.Model):
+    """Modèle pour gérer les paiements espèces avec traçabilité complète"""
 
-    medecin = models.OneToOneField(
-        "medecin.Medecin",
+    STATUT_CHOICES = [
+        ("EN_COURS", "En cours de paiement"),
+        ("COMPLET", "Paiement complet"),
+        ("ANNULE", "Annulé"),
+    ]
+
+    # Relation avec la prestation
+    prestation = models.OneToOneField(
+        "medical.PrestationKt",
         on_delete=models.CASCADE,
-        related_name="prix_supplementaire_config",
-        verbose_name="Médecin",
+        related_name="paiement_especes",
+        verbose_name="Prestation concernée",
     )
-    pourcentage = models.DecimalField(
-        max_digits=5,
+
+    # Montants
+    montant_total_du = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        verbose_name="Montant total dû",
+        help_text="Montant total à payer en espèces",
+    )
+
+    montant_paye = models.DecimalField(
+        max_digits=10,
         decimal_places=2,
         default=Decimal("0.00"),
-        validators=[
-            MinValueValidator(Decimal("0.00")),
-            MaxValueValidator(Decimal("100.00")),
-        ],
-        verbose_name="Pourcentage supplémentaire (%)",
-        help_text="Pourcentage à appliquer sur le prix supplémentaire par médecin.",
+        verbose_name="Montant déjà payé",
+        help_text="Somme de tous les paiements effectués",
     )
+
+    montant_restant = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        verbose_name="Montant restant",
+        help_text="Montant encore à payer",
+    )
+
+    # Statut et dates
+    statut = models.CharField(
+        max_length=20,
+        choices=STATUT_CHOICES,
+        default="EN_COURS",
+        verbose_name="Statut du paiement",
+    )
+
+    date_creation = models.DateTimeField(
+        default=timezone.now, verbose_name="Date de création"
+    )
+
+    date_completion = models.DateTimeField(
+        null=True, blank=True, verbose_name="Date de finalisation"
+    )
+
+    # Traçabilité
+    cree_par = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name="paiements_especes_crees",
+        verbose_name="Créé par",
+    )
+
+    # Notes et observations
+    notes = models.TextField(blank=True, verbose_name="Notes et observations")
 
     class Meta:
-        verbose_name = "Configuration Prix Supplémentaire"
-        verbose_name_plural = "Configurations Prix Supplémentaires"
-
-
-class HonorairesMedecinManager(models.Manager):
-    def get_tarif_effectif(self, medecin, acte, convention, date_reference):
-        """Retourne la configuration valide à une date donnée"""
-        return (
-            self.filter(
-                medecin=medecin,
-                acte=acte,
-                convention=convention,
-                date_effective__lte=date_reference,
-            )
-            .order_by("-date_effective")
-            .first()
+        verbose_name = "Paiement espèces"
+        verbose_name_plural = "Paiements espèces"
+        ordering = ["-date_creation"]
+        indexes = [
+            models.Index(fields=["statut"]),
+            models.Index(fields=["date_creation"]),
+            models.Index(fields=["prestation"]),
+        ]
+        permissions = (
+            ("view_paiements_especes_dashboard", "Peut voir le dashboard des paiements espèces"),
+            ("export_paiements_especes", "Peut exporter les paiements espèces"),
+            ("view_historique_paiements", "Peut voir l'historique des paiements"),
+            ("manage_tranches_paiement", "Peut gérer les tranches de paiement"),
         )
+    def __str__(self):
+        return f"Paiement #{self.id} - Prestation #{self.prestation.id} - {self.montant_paye}/{self.montant_total_du} DA"
+
+    def save(self, *args, **kwargs):
+        # Calculer le montant restant
+        self.montant_restant = self.montant_total_du - self.montant_paye
+
+        # Mettre à jour le statut automatiquement
+        ancien_statut = self.statut
+        if self.montant_restant <= 0:
+            self.statut = "COMPLET"
+            if not self.date_completion:
+                self.date_completion = timezone.now()
+        elif self.montant_paye > 0:
+            self.statut = "EN_COURS"
+
+        super().save(*args, **kwargs)
+
+        # CORRECTION: Mettre à jour le statut de la prestation si le paiement devient complet
+        if ancien_statut != "COMPLET" and self.statut == "COMPLET":
+            self.prestation.marquer_comme_payee_si_possible()
+
+    def _recalculate_and_update(self):
+        """Recalcule et met à jour le paiement avec gestion du statut de prestation"""
+        # Recalculer le montant total payé
+        montant_total_tranches = self.tranches.aggregate(total=models.Sum("montant"))[
+            "total"
+        ] or Decimal("0.00")
+
+        ancien_statut = self.statut
+        self.montant_paye = montant_total_tranches
+
+        # Sauvegarder (cela va déclencher la logique de statut via save())
+        self.save()
+
+        # CORRECTION: Si le statut change de COMPLET vers EN_COURS,
+        # vérifier si la prestation doit être remise en REALISE
+        if ancien_statut == "COMPLET" and self.statut != "COMPLET":
+            prestation = self.prestation
+            if prestation.statut == "PAYE":
+                # Vérifier s'il y a d'autres raisons de garder le statut PAYE
+                if not prestation.peut_etre_marquee_payee():
+                    prestation.statut = "REALISE"
+                    prestation.save(update_fields=["statut"])
+
+    @property
+    def est_complet(self):
+        """Vérifie si le paiement est complet"""
+        return self.montant_restant <= 0
+
+    def peut_recevoir_paiement(self, montant):
+        """Vérifie si on peut accepter un paiement de ce montant"""
+        return montant <= self.montant_restant and montant > 0
 
 
-class HonorairesMedecin(models.Model):
-    """Configuration des honoraires par médecin, acte et convention"""
+class TranchePaiementKt(models.Model):
+    """Modèle pour chaque tranche de paiement individuelle"""
 
-    medecin = models.ForeignKey(
-        "medecin.Medecin",
+    # Relation avec le paiement principal
+    paiement_especes = models.ForeignKey(
+        PaiementEspecesKt,
         on_delete=models.CASCADE,
-        related_name="honoraires_configures",
-        verbose_name="Médecin",
-    )
-    acte = models.ForeignKey(
-        "medical.ActeKt",
-        on_delete=models.CASCADE,
-        related_name="honoraires_medecins",
-        verbose_name="ActeKt médical",
-    )
-    convention = models.ForeignKey(
-        "Convention",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="honoraires_medecins",
-        verbose_name="Convention appliquée",
+        related_name="tranches",
+        verbose_name="Paiement principal",
     )
 
+    # Détails du paiement
     montant = models.DecimalField(
         max_digits=10,
         decimal_places=2,
-        verbose_name="Tarif appliqué",
-        validators=[MinValueValidator(Decimal("0.00"))],
+        validators=[MinValueValidator(Decimal("0.01"))],
+        verbose_name="Montant de cette tranche",
     )
-    date_effective = models.DateField(default=timezone.now, verbose_name="Date d'effet")
 
-    objects = HonorairesMedecinManager()
+    # Dates
+    date_paiement = models.DateTimeField(
+        default=timezone.now, verbose_name="Date du paiement"
+    )
+
+    # Traçabilité
+    encaisse_par = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name="tranches_encaissees",
+        verbose_name="Encaissé par",
+    )
+
+    notes = models.TextField(blank=True, verbose_name="Notes sur cette tranche")
 
     class Meta:
-        verbose_name = "Config honoraire médecin"
-        verbose_name_plural = "Config honoraires médecins"
-        unique_together = ("medecin", "acte", "convention", "date_effective")
-        ordering = ["-date_effective"]
+        verbose_name = "Tranche de paiement"
+        verbose_name_plural = "Tranches de paiement"
+        ordering = ["-date_paiement"]
+        indexes = [
+            models.Index(fields=["paiement_especes"]),
+            models.Index(fields=["date_paiement"]),
+            models.Index(fields=["encaisse_par"]),
+        ]
+        permissions = (
+            ("annuler_tranche_paiement", "Peut annuler une tranche de paiement"),
+            ("modifier_tranche_paiement", "Peut modifier une tranche de paiement"),
+            ("view_details_tranche", "Peut voir les détails d'une tranche"),
+        )
 
     def __str__(self):
-        convention = f" - {self.convention.nom}" if self.convention else ""
-        return f"{self.medecin} - {self.acte.code}{convention} | {self.montant}DA ({self.date_effective})"
-
-    def clean(self):
-        """Validation supplémentaire"""
-        if self.montant < Decimal("0"):
-            raise ValidationError("Le montant ne peut pas être négatif")
-
-
-# finance/models.py
-class BonDePaiement(models.Model):
-    METHODE_CHOICES = [
-        ("ESP", "Espèces"),
-        ("CHQ", "Chèque"),
-        ("CB", "Carte Bancaire"),
-    ]
-
-    prestation = models.ForeignKey(
-        "medical.PrestationKt", on_delete=models.PROTECT, related_name="bons_de_paiement"
-    )
-    montant = models.DecimalField(max_digits=10, decimal_places=2)
-    date_paiement = models.DateTimeField(default=timezone.now)
-    encaisse_par = models.ForeignKey(User, on_delete=models.PROTECT)
-    methode = models.CharField(max_length=10, choices=METHODE_CHOICES, default="ESP")
-    reference = models.CharField(max_length=50, unique=True, blank=True)
-
-    def __str__(self):
-        return f"Bon #{self.reference} - {self.montant}€"
+        return f"Tranche #{self.id} - {self.montant} DA {self.date_paiement.strftime('%d/%m/%Y %H:%M')}"
 
     def save(self, *args, **kwargs):
-        if not self.reference:
-            # Génération automatique de la référence
-            date_part = timezone.now().strftime("%Y%m%d")
-            last_id = BonDePaiement.objects.count() + 1
-            self.reference = f"BON-{date_part}-{last_id:05d}"
+
         super().save(*args, **kwargs)
 
-    class Meta:
-        verbose_name = "Bon de paiement"
-        verbose_name_plural = "Bons de paiement"
+        # Mettre à jour le paiement principal
+        self._update_paiement_principal()
+
+    def delete(self, *args, **kwargs):
+        paiement_especes = self.paiement_especes
+        super().delete(*args, **kwargs)
+        # Mettre à jour le paiement principal après suppression
+        paiement_especes._recalculate_and_update()
+
+    def _update_paiement_principal(self):
+        """Met à jour les montants du paiement principal"""
+        paiement = self.paiement_especes
+        paiement._recalculate_and_update()

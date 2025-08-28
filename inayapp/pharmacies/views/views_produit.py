@@ -38,7 +38,7 @@ class ProduitListView(LoginRequiredMixin, ListView):
             nom = form.cleaned_data.get("nom")
             code_produit = form.cleaned_data.get("code_produit")
             type_produit = form.cleaned_data.get("type_produit")
-            # est_actif = form.cleaned_data.get("est_actif")
+            # est_active = form.cleaned_data.get("est_active")
             prix_min = form.cleaned_data.get("prix_min")
             prix_max = form.cleaned_data.get("prix_max")
 
@@ -57,10 +57,10 @@ class ProduitListView(LoginRequiredMixin, ListView):
                 queryset = queryset.filter(type_produit=type_produit)
 
             # # Filtrage par statut actif
-            # if est_actif == "true":
-            #     queryset = queryset.filter(est_actif=True)
-            # elif est_actif == "false":
-            #     queryset = queryset.filter(est_actif=False)
+            # if est_active == "true":
+            #     queryset = queryset.filter(est_active=True)
+            # elif est_active == "false":
+            #     queryset = queryset.filter(est_active=False)
 
             # Filtrage par prix
             if prix_min:

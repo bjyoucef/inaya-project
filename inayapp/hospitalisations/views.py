@@ -1,6 +1,6 @@
-# hospitalisation/views.py
 import json
 from datetime import datetime, timedelta
+from decimal import Decimal
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -14,9 +14,16 @@ from medecin.models import Medecin
 from medical.models import Service
 from patients.models import Patient
 from rh.models import Personnel
-
-from .models import (Admission, AdmissionRequest, Bed, Room, StayHistory,
-                     TransferHistory)
+from django.db.models import Prefetch, Q
+from .models import (
+    Admission,
+    DemandeAdmission,
+    Lit,
+    Chambre,
+    StayHistory,
+    AttributionLit,
+    Transfert
+)
 
 
 @login_required
@@ -26,69 +33,105 @@ def floor_plan_centralized(request, service_id):
 
     # Récupérer toutes les chambres du service avec leurs lits
     rooms = (
-        Room.objects.filter(service=service, is_active=True)
-        .prefetch_related("beds__admissions__patient")
-        .order_by("floor", "room_number")
+        Chambre.objects.filter(service=service, est_active=True)
+        .prefetch_related(
+            Prefetch(
+                'lits',
+                queryset=Lit.objects.filter(est_active=True).prefetch_related(
+                    Prefetch(
+                        'attributions_lits',
+                        queryset=AttributionLit.objects.filter(est_courante=True)
+                        .select_related('admission__patient'),
+                        to_attr='current_attributions'
+                    )
+                )
+            )
+        )
+        .order_by("numero_chambre")
     )
 
-
+    # Enrichir les lits avec les informations nécessaires
+    for room in rooms:
+        for bed in room.lits.all():
+            if hasattr(bed, 'current_attributions') and bed.current_attributions:
+                # Il y a une attribution courante
+                attribution = bed.current_attributions[0]
+                bed.current_admission_id = attribution.admission.id
+                bed.current_patient = attribution.admission.patient
+            else:
+                bed.current_admission_id = None
+                bed.current_patient = None
 
     # Récupérer les demandes d'admission en attente pour ce service
     waiting_requests = (
-        AdmissionRequest.objects.filter(service=service, status="waiting")
-        .select_related("patient", "referring_doctor")
-        .order_by("request_date")
+        DemandeAdmission.objects.filter(service=service, statut="waiting")
+        .select_related("patient", "medecin_referent")
+        .order_by("date_demande")
     )
 
     # Récupérer toutes les demandes d'admission pour le modal
     all_admission_requests = (
-        AdmissionRequest.objects.filter(service=service)
-        .select_related("patient", "referring_doctor", "created_by")
-        .order_by("-request_date")[:100]  # Limiter pour les performances
+        DemandeAdmission.objects.filter(service=service)
+        .select_related("patient", "medecin_referent", "cree_par")
+        .order_by("-date_demande")[:100]
     )
 
-    # Récupérer les admissions actuelles
+    # Récupérer les admissions actuelles du service
     current_admissions = (
         Admission.objects.filter(
-            bed__room__service=service, is_active=True, discharge_date__isnull=True
+            attributions_lits__lit__chambre__service=service,
+            est_active=True,
+            date_sortie__isnull=True,
+            attributions_lits__est_courante=True
         )
-        .select_related("patient", "bed__room", "attending_doctor")
-        .order_by("admission_date")
+        .select_related("patient", "medecin_traitant")
+        .prefetch_related(
+            Prefetch(
+                'attributions_lits',
+                queryset=AttributionLit.objects.filter(est_courante=True)
+                .select_related('lit__chambre')
+            )
+        )
+        .distinct()
+        .order_by("date_admission")
     )
 
-    # Calculer la durée de séjour pour chaque admission
+    # Calculer la durée de séjour et le coût avec la nouvelle logique
     for admission in current_admissions:
-        admission.length_of_stay_days = admission.length_of_stay
-        admission.estimated_cost = admission.calculate_total_cost()
+        admission.length_of_stay_days = admission.duree_sejour
+        # CORRECTION: Utiliser la méthode corrigée
+        admission.estimated_cost = admission.calculer_cout_total()
 
-    # Récupérer l'historique des admissions (3 derniers mois)
-    three_months_ago = timezone.now() - timedelta(days=90)
+    # CORRECTION: Historique avec calculs précis
     admission_history = (
         Admission.objects.filter(
-            bed__room__service=service, admission_date__gte=three_months_ago
+            Q(attributions_lits__lit__chambre__service=service) |
+            Q(transferts__from_service=service) |
+            Q(transferts__to_service=service)
         )
-        .select_related("patient", "bed__room", "attending_doctor")
-        .order_by("-admission_date")[:50]  # Limiter pour les performances
+        .select_related("patient", "medecin_traitant")
+        .distinct()
+        .order_by("-date_admission")[:50]
     )
 
-    # Calculer les coûts pour l'historique
-    total_revenue = 0
+    # Calculer les coûts pour l'historique avec la nouvelle méthode
+    total_revenue = Decimal('0.00')
     total_stays_days = 0
     for admission in admission_history:
-        admission.length_of_stay_days = admission.length_of_stay
-        admission.calculated_total_cost = admission.calculate_total_cost()
+        admission.length_of_stay_days = admission.duree_sejour
+        # CORRECTION: Utiliser la méthode corrigée
+        admission.calculated_total_cost = admission.calculer_cout_total()
         total_revenue += admission.calculated_total_cost
-        total_stays_days += admission.length_of_stay
+        total_stays_days += admission.duree_sejour
 
     # Calculer la durée moyenne de séjour
     average_stay = total_stays_days / len(admission_history) if admission_history else 0
 
     # Calculer les statistiques globales
-    all_beds = Bed.objects.filter(room__service=service, is_active=True)
+    all_beds = Lit.objects.filter(chambre__service=service, est_active=True)
     total_beds = all_beds.count()
-    occupied_beds = all_beds.filter(is_occupied=True).count()
-    maintenance_beds = all_beds.filter(maintenance_required=True).count()
-    available_beds = total_beds - occupied_beds - maintenance_beds
+    occupied_beds = all_beds.filter(est_occupe=True).count()
+    available_beds = total_beds - occupied_beds
 
     occupancy_rate = (
         round((occupied_beds / total_beds) * 100, 1) if total_beds > 0 else 0
@@ -98,18 +141,15 @@ def floor_plan_centralized(request, service_id):
         "total_beds": total_beds,
         "occupied_beds": occupied_beds,
         "available_beds": available_beds,
-        "maintenance_beds": maintenance_beds,
         "occupancy_rate": occupancy_rate,
     }
 
     # Récupérer les données pour les formulaires
-    patients = Patient.objects.filter(is_active=True).order_by(
+    patients = Patient.objects.filter(est_active=True).order_by(
         "last_name", "first_name"
-    )[
-        :100
-    ]  # Limiter pour les performances
+    )[:100]
     services = Service.objects.filter(est_hospitalier=True).order_by("name")
-    doctors = Medecin.objects.select_related("personnel__user").all()[:50]
+    doctors = Medecin.objects.all()[:50]
 
     context = {
         "service": service,
@@ -126,7 +166,7 @@ def floor_plan_centralized(request, service_id):
         "doctors": doctors,
     }
 
-    return render(request, "floor_plan_centralized.html", context)
+    return render(request, "hospitalisation/floor_plan.html", context)
 
 
 @login_required
@@ -136,14 +176,13 @@ def add_admission_request(request):
         try:
             patient_id = request.POST.get("patient_id")
             service_id = request.POST.get("service_id")
-            referring_doctor_id = request.POST.get("referring_doctor_id")
-            reason = request.POST.get("reason")
-            diagnosis = request.POST.get("diagnosis", "")
+            medecin_referent_id = request.POST.get("medecin_referent_id")
+            motif = request.POST.get("motif")
+            duree_estimee = request.POST.get("duree_estimee")
             notes = request.POST.get("notes", "")
-            estimated_duration = request.POST.get("estimated_duration")
 
             # Validation des champs obligatoires
-            if not all([patient_id, service_id, reason]):
+            if not all([patient_id, service_id, motif]):
                 return JsonResponse(
                     {
                         "success": False,
@@ -154,28 +193,40 @@ def add_admission_request(request):
             patient = get_object_or_404(Patient, id=patient_id)
             service = get_object_or_404(Service, id=service_id)
 
-            referring_doctor = None
-            if referring_doctor_id:
-                referring_doctor = get_object_or_404(Medecin, id=referring_doctor_id)
+            # Vérifier qu'il n'y a pas déjà une demande en attente pour ce patient
+            existing_request = DemandeAdmission.objects.filter(
+                patient=patient,
+                service=service,
+                statut="waiting"
+            ).exists()
+
+            if existing_request:
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "error": "Une demande en attente existe déjà pour ce patient dans ce service",
+                    }
+                )
+
+            medecin_referent = None
+            if medecin_referent_id:
+                medecin_referent = get_object_or_404(Medecin, id=medecin_referent_id)
 
             # Récupérer le personnel connecté
             try:
-                created_by = Personnel.objects.get(user=request.user)
+                cree_par = Personnel.objects.get(user=request.user)
             except Personnel.DoesNotExist:
-                created_by = None
+                cree_par = None
 
             # Créer la demande d'admission
-            admission_request = AdmissionRequest.objects.create(
+            admission_request = DemandeAdmission.objects.create(
                 patient=patient,
                 service=service,
-                referring_doctor=referring_doctor,
-                reason=reason,
-                diagnosis=diagnosis,
+                medecin_referent=medecin_referent,
+                motif=motif,
                 notes=notes,
-                estimated_duration=(
-                    int(estimated_duration) if estimated_duration else None
-                ),
-                created_by=created_by,
+                duree_estimee=int(duree_estimee) if duree_estimee else None,
+                cree_par=cree_par,
             )
 
             return JsonResponse(
@@ -203,31 +254,37 @@ def admit_patient(request):
         data = json.loads(request.body)
         request_id = data.get("request_id")
         bed_id = data.get("bed_id")
+        continue_admission_id = data.get("continue_admission_id")
 
         if not request_id or not bed_id:
             return JsonResponse({"success": False, "error": "Données manquantes"})
 
         with transaction.atomic():
             # Récupérer la demande d'admission
-            admission_request = get_object_or_404(AdmissionRequest, id=request_id)
+            admission_request = get_object_or_404(DemandeAdmission, id=request_id)
 
             # Vérifier que la demande est en attente
-            if admission_request.status != "waiting":
+            if admission_request.statut != "waiting":
                 return JsonResponse(
                     {"success": False, "error": "Cette demande n'est plus en attente"}
                 )
 
             # Récupérer le lit
-            bed = get_object_or_404(Bed, id=bed_id)
+            bed = get_object_or_404(Lit, id=bed_id)
 
-            # Vérifier que le lit est disponible
-            if bed.is_occupied or bed.maintenance_required:
+            # Vérifier que le lit est disponible et actif
+            if not bed.est_active:
+                return JsonResponse(
+                    {"success": False, "error": "Ce lit n'est pas actif"}
+                )
+
+            if bed.est_occupe:
                 return JsonResponse(
                     {"success": False, "error": "Ce lit n'est pas disponible"}
                 )
 
             # Vérifier que le lit est dans le bon service
-            if bed.room.service != admission_request.service:
+            if bed.chambre.service != admission_request.service:
                 return JsonResponse(
                     {"success": False, "error": "Ce lit n'est pas dans le bon service"}
                 )
@@ -238,35 +295,149 @@ def admit_patient(request):
             except Personnel.DoesNotExist:
                 created_by = None
 
-            # Créer l'admission
-            admission = Admission.objects.create(
-                patient=admission_request.patient,
-                bed=bed,
-                admission_request=admission_request,
-                attending_doctor=admission_request.referring_doctor,
-                diagnosis=admission_request.diagnosis or admission_request.reason,
-                treatment_plan=admission_request.notes or "",
-                created_by=created_by,
-            )
+            # MODIFICATION PRINCIPALE : Vérifier d'abord s'il s'agit d'un transfert
+            # Chercher une admission source dans la demande ou via continue_admission_id
+            existing_admission = None
 
-            return JsonResponse(
-                {
-                    "success": True,
-                    "patient_name": f"{admission_request.patient.last_name} {admission_request.patient.first_name}",
-                    "admission_id": admission.id,
-                }
-            )
+            # Cas 1: ID d'admission fourni explicitement
+            if continue_admission_id:
+                try:
+                    existing_admission = Admission.objects.get(
+                        id=continue_admission_id,
+                        patient=admission_request.patient,
+                        est_active=True,
+                        date_sortie__isnull=True,
+                    )
+                except Admission.DoesNotExist:
+                    pass
+
+            # Cas 2: Demande d'admission liée à une admission source (transfert)
+            elif admission_request.admission_source:
+                try:
+                    existing_admission = Admission.objects.get(
+                        id=admission_request.admission_source.id,
+                        patient=admission_request.patient,
+                        est_active=True,
+                        date_sortie__isnull=True,
+                    )
+                except Admission.DoesNotExist:
+                    pass
+
+            # Cas 3: Recherche d'admission active pour ce patient (pour les transferts sans lien explicite)
+            else:
+                existing_admission = Admission.objects.filter(
+                    patient=admission_request.patient,
+                    est_active=True,
+                    date_sortie__isnull=True,
+                    statut="active",
+                ).first()
+
+            # Si on trouve une admission existante, c'est une continuation (transfert)
+            if existing_admission:
+                # Utiliser l'admission existante
+                admission = existing_admission
+
+                # Assigner le nouveau lit à l'admission continue
+                admission.admit_to_lit(
+                    bed,
+                    cree_par=created_by,
+                    note=f"Transfert vers {bed.chambre.service.name} depuis demande #{admission_request.id}",
+                )
+
+                # Marquer la demande comme traitée
+                admission_request.statut = "admitted"
+                if created_by:
+                    admission_request.mark_updated_by(created_by)
+                else:
+                    admission_request.save(update_fields=["statut"])
+
+                # Créer un transfert pour traçabilité
+                # Récupérer la dernière attribution qui vient d'être créée
+                new_attribution = admission.attributions_lits.filter(
+                    est_courante=True
+                ).first()
+
+                # Récupérer le service précédent depuis le dernier transfert ou l'historique
+                last_transfer = admission.transferts.order_by("-date_transfert").first()
+                from_service = last_transfer.to_service if last_transfer else None
+
+                Transfert.objects.create(
+                    admission=admission,
+                    from_assignment=None,  # Pas d'attribution source car patient était en attente
+                    to_assignment=new_attribution,
+                    from_service=from_service,
+                    to_service=bed.chambre.service,
+                    date_transfert=timezone.now(),
+                    transfere_par=created_by,
+                    motif=f"Assignation dans le service {bed.chambre.service.name} (continuation de transfert)",
+                    notes=f"Continuation de l'admission #{admission.id} - Patient assigné au lit {bed.numero_lit} depuis la liste d'attente",
+                    cree_par=created_by,
+                )
+
+                return JsonResponse(
+                    {
+                        "success": True,
+                        "message": "Patient assigné au nouveau service (admission continue)",
+                        "patient_name": f"{admission_request.patient.last_name} {admission_request.patient.first_name}",
+                        "admission_id": admission.id,
+                        "bed_number": bed.numero_lit,
+                        "room_number": bed.chambre.numero_chambre,
+                        "continuation": True,
+                    }
+                )
+
+            else:
+                # Vérification supplémentaire pour éviter les doublons (nouvelle admission)
+                existing_active = Admission.objects.filter(
+                    patient=admission_request.patient,
+                    est_active=True,
+                    date_sortie__isnull=True,
+                    statut="active",
+                ).exists()
+
+                if existing_active:
+                    return JsonResponse(
+                        {
+                            "success": False,
+                            "error": "Ce patient a déjà une admission active. Utilisez la fonction de transfert.",
+                        }
+                    )
+
+                # Créer une nouvelle admission (première admission du patient)
+                admission = Admission.objects.create(
+                    patient=admission_request.patient,
+                    demande_admission=admission_request,
+                    medecin_traitant=admission_request.medecin_referent,
+                    cree_par=created_by,
+                )
+
+                # Utiliser la méthode du modèle pour assigner le lit
+                admission.admit_to_lit(
+                    bed, cree_par=created_by, note="Admission initiale"
+                )
+
+                return JsonResponse(
+                    {
+                        "success": True,
+                        "patient_name": f"{admission_request.patient.last_name} {admission_request.patient.first_name}",
+                        "admission_id": admission.id,
+                        "bed_number": bed.numero_lit,
+                        "room_number": bed.chambre.numero_chambre,
+                        "continuation": False,
+                    }
+                )
 
     except Exception as e:
-        return JsonResponse({"success": False, "error": str(e)})
+        import traceback
 
-# Modification de la fonction transfer_patient dans hospitalisation/views.py
+        print(f"Erreur admission: {traceback.format_exc()}")
+        return JsonResponse({"success": False, "error": str(e)})
 
 
 @login_required
 @csrf_exempt
 def transfer_patient(request):
-    """API pour transférer un patient d'un lit à un autre avec gestion des coûts par séjour"""
+    """API pour transférer un patient - intra-service avec lit spécifié, inter-services vers liste d'attente"""
     if request.method != "POST":
         return JsonResponse({"success": False, "error": "Méthode non autorisée"})
 
@@ -274,72 +445,36 @@ def transfer_patient(request):
         data = json.loads(request.body)
         admission_id = data.get("admission_id")
         new_bed_id = data.get("new_bed_id")
+        new_service_id = data.get("new_service_id")
         reason = data.get("reason", "Transfert initié par l'administration")
 
-        if not admission_id or not new_bed_id:
-            return JsonResponse({"success": False, "error": "Données manquantes"})
+        if not admission_id:
+            return JsonResponse({"success": False, "error": "ID d'admission manquant"})
+
+        if not new_bed_id and not new_service_id:
+            return JsonResponse(
+                {"success": False, "error": "Destination de transfert manquante"}
+            )
 
         with transaction.atomic():
-            # Récupérer l'admission actuelle avec des critères plus flexibles
+            # Récupérer l'admission actuelle
             try:
-                current_admission = Admission.objects.get(id=admission_id)
-
-                # Vérifications supplémentaires
-                if not current_admission.is_active:
-                    return JsonResponse(
-                        {"success": False, "error": "Cette admission n'est plus active"}
-                    )
-
-                if current_admission.discharge_date:
-                    return JsonResponse(
-                        {"success": False, "error": "Ce patient est déjà sorti"}
-                    )
-
-                # Si ce n'est pas le lit actuel, chercher l'admission avec le lit actuel
-                if not current_admission.is_current_bed:
-                    # Chercher l'admission actuelle pour ce patient
-                    patient = current_admission.patient
-                    actual_current_admission = Admission.objects.filter(
-                        patient=patient,
-                        is_active=True,
-                        is_current_bed=True,
-                        discharge_date__isnull=True,
-                    ).first()
-
-                    if actual_current_admission:
-                        current_admission = actual_current_admission
-                    else:
-                        return JsonResponse(
-                            {
-                                "success": False,
-                                "error": "Aucune admission active trouvée pour ce patient",
-                            }
-                        )
-
+                admission = Admission.objects.select_related("patient").get(
+                    id=admission_id, est_active=True, date_sortie__isnull=True
+                )
             except Admission.DoesNotExist:
                 return JsonResponse(
-                    {"success": False, "error": "Admission non trouvée"}
+                    {"success": False, "error": "Admission non trouvée ou inactive"}
                 )
 
-            # Trouver l'admission principale (parent)
-            main_admission = current_admission.parent_admission or current_admission
-
-            old_bed = current_admission.bed
-            patient = current_admission.patient
-
-            # Vérifier le nouveau lit
-            new_bed = get_object_or_404(Bed, id=new_bed_id)
-            if new_bed.is_occupied or new_bed.maintenance_required:
+            # Récupérer le lit actuel
+            old_bed = admission.lit_actuel
+            if not old_bed:
                 return JsonResponse(
                     {
                         "success": False,
-                        "error": "Le lit de destination n'est pas disponible",
+                        "error": "Aucun lit actuel trouvé pour cette admission",
                     }
-                )
-
-            if new_bed.room.service != old_bed.room.service:
-                return JsonResponse(
-                    {"success": False, "error": "Le lit doit être dans le même service"}
                 )
 
             # Récupérer le personnel connecté
@@ -348,80 +483,161 @@ def transfer_patient(request):
             except Personnel.DoesNotExist:
                 transferred_by = None
 
-            # Date/heure du transfert
-            transfer_time = timezone.now()
+            # Cas 1: Transfert intra-service (avec nouveau lit spécifié)
+            if new_bed_id:
+                new_bed = get_object_or_404(
+                    Lit.objects.select_related("chambre__service"), id=new_bed_id
+                )
 
-            # 1. Finaliser le séjour actuel
-            current_admission.bed_end_date = transfer_time
-            current_admission.is_current_bed = False
-            current_admission.bed_stay_cost = (
-                current_admission.calculate_bed_stay_cost()
-            )
-            current_admission.save()
+                if not new_bed.est_active:
+                    return JsonResponse(
+                        {
+                            "success": False,
+                            "error": "Le lit de destination n'est pas actif",
+                        }
+                    )
 
-            # 2. Créer l'historique de séjour pour la traçabilité
-            StayHistory.objects.create(
-                patient=current_admission.patient,
-                admission=main_admission,
-                bed=current_admission.bed,
-                start_date=current_admission.bed_start_date,
-                end_date=transfer_time,
-                cost=current_admission.bed_stay_cost,
-                notes=f"Séjour dans chambre {old_bed.room.room_number}, lit {old_bed.bed_number}",
-            )
+                if new_bed.est_occupe:
+                    return JsonResponse(
+                        {
+                            "success": False,
+                            "error": "Le lit de destination n'est pas disponible",
+                        }
+                    )
 
-            # 3. CORRECTION: Créer une nouvelle entrée d'admission pour le nouveau lit
-            # SANS référencer l'admission_request pour éviter la contrainte d'unicité
-            new_bed_admission = Admission.objects.create(
-                patient=patient,
-                bed=new_bed,
-                parent_admission=main_admission,
-                admission_request=None,  # CORRECTION: Ne pas dupliquer la référence
-                attending_doctor=current_admission.attending_doctor,
-                admission_date=main_admission.admission_date,
-                bed_start_date=transfer_time,
-                diagnosis=current_admission.diagnosis,
-                treatment_plan=current_admission.treatment_plan,
-                is_current_bed=True,
-                created_by=transferred_by,
-            )
+                if old_bed.id == new_bed.id:
+                    return JsonResponse(
+                        {"success": False, "error": "Le patient est déjà dans ce lit"}
+                    )
 
-            # 4. Créer l'historique du transfert
-            TransferHistory.objects.create(
-                admission=main_admission,
-                from_bed=current_admission.bed,
-                to_bed=new_bed,
-                transferred_by=transferred_by,
-                reason=reason,
-                transfer_date=transfer_time,
-            )
+                # Vérifier si c'est vraiment intra-service
+                if old_bed.chambre.service != new_bed.chambre.service:
+                    return JsonResponse(
+                        {
+                            "success": False,
+                            "error": "Utilisez le transfert inter-services pour changer de service",
+                        }
+                    )
 
-            # 5. Mettre à jour les lits
-            old_bed.is_occupied = False
-            old_bed.save()
+                # Effectuer le transfert intra-service
+                new_attribution = admission.admit_to_lit(
+                    new_bed, cree_par=transferred_by, note=reason
+                )
 
-            new_bed.is_occupied = True
-            new_bed.save()
+                # Enregistrer le transfert
+                Transfert.objects.create(
+                    admission=admission,
+                    from_assignment=admission.attributions_lits.filter(
+                        lit=old_bed, est_courante=False
+                    )
+                    .order_by("-date_fin")
+                    .first(),
+                    to_assignment=new_attribution,
+                    from_service=old_bed.chambre.service,
+                    to_service=new_bed.chambre.service,
+                    date_transfert=timezone.now(),
+                    transfere_par=transferred_by,
+                    motif=reason,
+                    notes=f"Transfert intra-service: lit {old_bed.numero_lit} vers lit {new_bed.numero_lit}",
+                    cree_par=transferred_by,
+                )
 
-            # 6. Calculer le coût cumulé jusqu'à présent
-            total_cost_so_far = sum(
-                stay.bed_stay_cost or 0
-                for stay in main_admission.get_all_bed_stays()
-                if stay.bed_stay_cost
-            )
+                return JsonResponse(
+                    {
+                        "success": True,
+                        "transfer_type": "intra_service",
+                        "message": "Patient transféré avec succès dans le même service",
+                        "patient_name": f"{admission.patient.last_name} {admission.patient.first_name}",
+                        "old_bed": f"Chambre {old_bed.chambre.numero_chambre} - Lit {old_bed.numero_lit}",
+                        "new_bed": f"Chambre {new_bed.chambre.numero_chambre} - Lit {new_bed.numero_lit}",
+                        "service": new_bed.chambre.service.name,
+                    }
+                )
 
-            return JsonResponse(
-                {
-                    "success": True,
-                    "message": "Patient transféré avec succès",
-                    "patient_name": f"{patient.last_name} {patient.first_name}",
-                    "old_bed": f"Chambre {old_bed.room.room_number} - Lit {old_bed.bed_number}",
-                    "new_bed": f"Chambre {new_bed.room.room_number} - Lit {new_bed.bed_number}",
-                    "old_bed_stay_cost": float(current_admission.bed_stay_cost),
-                    "total_cost_so_far": float(total_cost_so_far),
-                    "new_admission_id": new_bed_admission.id,
-                }
-            )
+            # Cas 2: Transfert inter-services SANS FERMER L'ADMISSION
+            elif new_service_id:
+                new_service = get_object_or_404(Service, id=new_service_id)
+
+                if old_bed.chambre.service.id == new_service.id:
+                    return JsonResponse(
+                        {
+                            "success": False,
+                            "error": "Le patient est déjà dans ce service",
+                        }
+                    )
+
+                # MODIFICATION: Ne pas fermer l'admission, juste l'attribution courante
+                current_attribution = admission.attributions_lits.filter(
+                    est_courante=True
+                ).first()
+                if current_attribution:
+                    # Fermer l'attribution courante sans affecter l'admission
+                    current_attribution.date_fin = timezone.now()
+                    current_attribution.est_courante = False
+                    current_attribution.cout = current_attribution.calculer_cout()
+                    current_attribution.save(
+                        update_fields=["date_fin", "est_courante", "cout"]
+                    )
+
+                    # Libérer le lit
+                    old_bed.est_occupe = False
+                    old_bed.save(update_fields=["est_occupe"])
+
+                    # Historiser le séjour dans ce lit
+                    StayHistory.objects.create(
+                        patient=admission.patient,
+                        admission=admission,
+                        bed=old_bed,
+                        start_date=current_attribution.date_debut,
+                        end_date=current_attribution.date_fin,
+                        cost=current_attribution.cout or Decimal("0.00"),
+                        notes=f"Libération pour transfert vers {new_service.name}",
+                        cree_par=transferred_by,
+                    )
+
+                # L'ADMISSION RESTE ACTIVE - ne pas la fermer
+                # Créer une demande d'admission dans le nouveau service
+                transfer_request = DemandeAdmission.objects.create(
+                    patient=admission.patient,
+                    service=new_service,
+                    medecin_referent=admission.medecin_traitant,
+                    motif=f"Transfert inter-services depuis {old_bed.chambre.service.name}: {reason}",
+                    notes=f"Transfert de l'admission #{admission.id} depuis le service {old_bed.chambre.service.name}. Patient libéré du lit {old_bed.numero_lit} (Chambre {old_bed.chambre.numero_chambre}).",
+                    statut="waiting",
+                    cree_par=transferred_by,
+                    admission_source=admission,  # NOUVEAU: Lier à l'admission source
+                )
+
+                # Enregistrer le transfert inter-services
+                Transfert.objects.create(
+                    admission=admission,
+                    from_assignment=current_attribution,
+                    to_assignment=None,  # Pas encore de nouveau lit
+                    from_service=old_bed.chambre.service,
+                    to_service=new_service,
+                    date_transfert=timezone.now(),
+                    transfere_par=transferred_by,
+                    motif=reason,
+                    notes=f"Transfert inter-services: admission continue #{admission.id}. Patient libéré du lit {old_bed.numero_lit} vers liste d'attente du service {new_service.name}.",
+                    cree_par=transferred_by,
+                )
+
+                # Mettre à jour le coût total de l'admission (sans la fermer)
+                admission.cout_total = admission.calculer_cout_total()
+                admission.save(update_fields=["cout_total"])
+
+                return JsonResponse(
+                    {
+                        "success": True,
+                        "transfer_type": "inter_service_continuous",
+                        "message": f"Patient transféré vers la liste d'attente du service {new_service.name} (admission continue)",
+                        "patient_name": f"{admission.patient.last_name} {admission.patient.first_name}",
+                        "old_service": old_bed.chambre.service.name,
+                        "new_service": new_service.name,
+                        "old_bed": f"Chambre {old_bed.chambre.numero_chambre} - Lit {old_bed.numero_lit}",
+                        "request_id": transfer_request.id,
+                    }
+                )
 
     except Exception as e:
         import traceback
@@ -431,69 +647,233 @@ def transfer_patient(request):
 
 
 @login_required
+def available_beds_by_service_api(request, service_id=None):
+    """API pour récupérer les lits disponibles par service"""
+    try:
+        beds = Lit.objects.filter(
+            est_active=True,
+            est_occupe=False
+        ).select_related("chambre__service")
+
+        if service_id:
+            beds = beds.filter(chambre__service_id=service_id)
+
+        beds_data = []
+        for bed in beds:
+            beds_data.append(
+                {
+                    "id": bed.id,
+                    "bed_number": bed.numero_lit,
+                    "room_number": bed.chambre.numero_chambre,
+                    "service_id": bed.chambre.service.id,
+                    "service_name": bed.chambre.service.name,
+                    "room_type": bed.chambre.get_type_chambre_display(),
+                    "night_price": float(bed.chambre.prix_nuit),
+                }
+            )
+
+        return JsonResponse(
+            {"success": True, "beds": beds_data, "total_count": len(beds_data)}
+        )
+
+    except Exception as e:
+        return JsonResponse({"success": False, "error": str(e)}, status=500)
+
+
+@login_required
 def admission_detail_api(request, admission_id):
-    """API pour récupérer les détails d'une admission"""
+    """API pour récupérer les détails d'une admission avec gestion des séjours courts"""
     try:
         admission = get_object_or_404(
             Admission.objects.select_related(
-                "patient", "bed__room__service", "attending_doctor__personnel__user"
+                "patient", "medecin_traitant"
+            ).prefetch_related(
+                "attributions_lits__lit__chambre__service",
+                "transferts__from_service",
+                "transferts__to_service",
+                "transferts__transfere_par",
+                "historique_sejours__bed__chambre__service",
             ),
             id=admission_id,
         )
 
-        # Calculer la durée de séjour
-        length_of_stay = admission.length_of_stay
+        # Calculer la durée de séjour en heures et jours
+        length_of_stay_hours = admission.duree_sejour_heures
+        length_of_stay_days = admission.duree_sejour
 
-        # Calculer le coût estimé
-        estimated_cost = float(admission.calculate_total_cost())
+        # Utiliser la nouvelle méthode de calcul avec séjours courts
+        estimated_cost = float(admission.calculer_cout_total())
+
+        # Obtenir le résumé de facturation avec détails des séjours courts
+        resume_facturation = admission.get_resume_facturation()
+
+        # Récupérer le lit actuel
+        lit_actuel = admission.lit_actuel
+
+        # Préparer les données du lit si disponible
+        bed_data = None
+        if lit_actuel:
+            bed_data = {
+                "id": lit_actuel.id,
+                "bed_number": lit_actuel.numero_lit,
+                "room": {
+                    "id": lit_actuel.chambre.id,
+                    "room_number": lit_actuel.chambre.numero_chambre,
+                    "service": lit_actuel.chambre.service.name,
+                    "night_price": float(lit_actuel.chambre.prix_nuit),
+                },
+            }
+
+        # Historique détaillé des attributions avec gestion des séjours courts
+        attributions_history = []
+        for attribution in admission.attributions_lits.all().order_by("date_debut"):
+            details_facturation = attribution.get_facturation_details()
+
+            attributions_history.append(
+                {
+                    "id": attribution.id,
+                    "bed_number": attribution.lit.numero_lit,
+                    "room_number": attribution.lit.chambre.numero_chambre,
+                    "service_name": attribution.lit.chambre.service.name,
+                    "start_date": attribution.date_debut.isoformat(),
+                    "end_date": (
+                        attribution.date_fin.isoformat()
+                        if attribution.date_fin
+                        else None
+                    ),
+                    "is_current": attribution.est_courante,
+                    "duration_hours": details_facturation['duree_heures'],
+                    "duration_days": details_facturation['duree_jours'],
+                    "cost": details_facturation['cout_total'],
+                    "night_price_applied": details_facturation['prix_nuit_applique'],
+                    "current_room_price": float(attribution.lit.chambre.prix_nuit),
+                    "price_changed": details_facturation['prix_nuit_applique'] != float(attribution.lit.chambre.prix_nuit),
+                    "is_short_stay": details_facturation['est_sejour_court'],
+                    "billing_mode": details_facturation['mode_facturation'],
+                    "billing_formula": details_facturation['formule'],
+                    "service_fixed_rate": details_facturation.get('tarif_fixe_service'),
+                    "hourly_rate": details_facturation.get('tarif_horaire'),
+                    "notes": attribution.notes or "",
+                }
+            )
+
+        # Historique des transferts (inchangé)
+        transfers_history = []
+        for transfert in admission.transferts.all().order_by("date_transfert"):
+            transfer_data = {
+                "id": transfert.id,
+                "date": transfert.date_transfert.isoformat(),
+                "reason": transfert.motif or "Non spécifié",
+                "notes": transfert.notes or "",
+                "transferred_by": (
+                    transfert.transfere_par.nom_complet
+                    if transfert.transfere_par
+                    else "Non spécifié"
+                ),
+                "from_service": (
+                    transfert.from_service.name if transfert.from_service else None
+                ),
+                "to_service": (
+                    transfert.to_service.name if transfert.to_service else None
+                ),
+                "financial_impact": {
+                    "price_difference": float(transfert.difference_cout_nuitee),
+                    "impact_description": transfert.get_impact_financier_description(),
+                }
+            }
+
+            # Informations sur les lits avec prix
+            if transfert.from_assignment:
+                transfer_data["from_bed"] = {
+                    "bed_number": transfert.from_assignment.lit.numero_lit,
+                    "room_number": transfert.from_assignment.lit.chambre.numero_chambre,
+                    "service": transfert.from_assignment.lit.chambre.service.name,
+                    "night_price": float(transfert.from_assignment.prix_nuit),
+                }
+
+            if transfert.to_assignment:
+                transfer_data["to_bed"] = {
+                    "bed_number": transfert.to_assignment.lit.numero_lit,
+                    "room_number": transfert.to_assignment.lit.chambre.numero_chambre,
+                    "service": transfert.to_assignment.lit.chambre.service.name,
+                    "night_price": float(transfert.to_assignment.prix_nuit),
+                }
+
+            # Type de transfert
+            if transfert.from_service and transfert.to_service:
+                if transfert.from_service.id == transfert.to_service.id:
+                    transfer_data["type"] = "intra_service"
+                    transfer_data["type_display"] = "Transfert intra-service"
+                else:
+                    transfer_data["type"] = "inter_service"
+                    transfer_data["type_display"] = "Transfert inter-services"
+            else:
+                transfer_data["type"] = "unknown"
+                transfer_data["type_display"] = "Type inconnu"
+
+            transfers_history.append(transfer_data)
+
+        # Parcours détaillé avec coûts (adapté pour les séjours courts)
+        parcours_detaille = admission.obtenir_parcours_detaille_avec_couts()
+        detailed_journey = []
+        for etape in parcours_detaille:
+            # Obtenir les détails de facturation pour cette étape
+            attribution_details = etape['attribution'].get_facturation_details()
+
+            detailed_journey.append(
+                {
+                "service": etape['service'].name,
+                "room_number": etape['chambre'].numero_chambre,
+                "bed_number": etape['lit'].numero_lit,
+                "start_date": etape['date_debut'].isoformat(),
+                "end_date": etape['date_fin'].isoformat() if etape['date_fin'] else None,
+                "duration_days": etape['duree_jours'],
+                "duration_hours": attribution_details['duree_heures'],
+                "night_price": float(etape['prix_nuit']),
+                "period_cost": float(etape['cout_periode']),
+                "cumulative_cost": float(etape['total_cumule']),
+                "is_current": etape['est_courante'],
+                "is_short_stay": attribution_details['est_sejour_court'],
+                "billing_mode": attribution_details['mode_facturation'],
+                "billing_details": attribution_details
+            })
 
         response_data = {
             "success": True,
             "admission": {
                 "id": admission.id,
-                "admission_date": admission.admission_date.isoformat(),
+                "admission_date": admission.date_admission.isoformat(),
                 "discharge_date": (
-                    admission.discharge_date.isoformat()
-                    if admission.discharge_date
-                    else None
+                    admission.date_sortie.isoformat() if admission.date_sortie else None
                 ),
-                "length_of_stay": length_of_stay,
-                "diagnosis": admission.diagnosis or "",
-                "treatment_plan": admission.treatment_plan or "",
+                "status": admission.get_statut_display(),
+                "length_of_stay_days": length_of_stay_days,
+                "length_of_stay_hours": round(length_of_stay_hours, 2),
                 "estimated_cost": estimated_cost,
                 "patient": {
                     "id": admission.patient.id,
                     "last_name": admission.patient.last_name,
                     "first_name": admission.patient.first_name,
                     "social_security_number": getattr(
-                        admission.patient, "social_security_number", ""
+                        admission.patient, "numero_securite_sociale", ""
                     )
-                    or "",
-                    "date_of_birth": (
-                        admission.patient.date_of_birth.isoformat()
-                        if hasattr(admission.patient, "date_of_birth")
-                        and admission.patient.date_of_birth
-                        else None
-                    ),
+                    or getattr(admission.patient, "social_security_number", ""),
                 },
-                "bed": {
-                    "id": admission.bed.id,
-                    "bed_number": admission.bed.bed_number,
-                    "room": {
-                        "id": admission.bed.room.id,
-                        "room_number": admission.bed.room.room_number,
-                        "service": admission.bed.room.service.name,
-                        "night_price": float(admission.bed.room.night_price),
-                    },
-                },
+                "bed": bed_data,
                 "attending_doctor": (
                     {
-                        "id": admission.attending_doctor.id,
-                        "nom_complet": admission.attending_doctor.nom_complet,
+                        "id": admission.medecin_traitant.id,
+                        "nom_complet": admission.medecin_traitant.nom_complet,
                     }
-                    if admission.attending_doctor
+                    if admission.medecin_traitant
                     else None
                 ),
+                # CHAMPS AMÉLIORÉS
+                "attributions_history": attributions_history,
+                "transfers_history": transfers_history,
+                "detailed_journey": detailed_journey,
+                # NOUVEAU: Résumé de facturation avec détails des séjours courts
+                "billing_summary": resume_facturation,
             },
         }
 
@@ -504,14 +884,22 @@ def admission_detail_api(request, admission_id):
             {"success": False, "error": "Admission non trouvée"}, status=404
         )
     except Exception as e:
+        import traceback
+
+        print(f"Erreur lors de la récupération des détails: {traceback.format_exc()}")
         return JsonResponse({"success": False, "error": str(e)}, status=500)
 
 
 @login_required
 def discharge_patient(request, admission_id):
-    """Vue pour la sortie d'un patient - Version robuste"""
+    """Vue pour la sortie d'un patient"""
     try:
-        admission = get_object_or_404(Admission, id=admission_id, is_active=True)
+        admission = get_object_or_404(
+            Admission.objects.select_related('patient'),
+            id=admission_id,
+            est_active=True,
+            date_sortie__isnull=True
+        )
     except Exception as e:
         return JsonResponse(
             {"success": False, "error": f"Admission non trouvée: {str(e)}"}, status=404
@@ -520,9 +908,7 @@ def discharge_patient(request, admission_id):
     if request.method == "POST":
         try:
             # Récupérer les données du formulaire
-            discharge_destination = request.POST.get(
-                "discharge_destination", ""
-            ).strip()
+            discharge_destination = request.POST.get("discharge_destination", "").strip()
             discharge_notes = request.POST.get("discharge_notes", "").strip()
 
             # Validation des données
@@ -544,80 +930,29 @@ def discharge_patient(request, admission_id):
                     status=400,
                 )
 
-            # Vérifications de sécurité
-            if admission.discharge_date is not None:
-                return JsonResponse(
-                    {"success": False, "error": "Ce patient a déjà été sorti"},
-                    status=400,
-                )
+            # Récupérer le personnel connecté
+            try:
+                discharged_by = Personnel.objects.get(user=request.user)
+            except Personnel.DoesNotExist:
+                discharged_by = None
 
-            with transaction.atomic():
-                # Sauvegarder les références avant modification
-                bed = admission.bed
-                admission_request = admission.admission_request
+            # Utiliser la méthode du modèle pour la sortie
+            total_cost = admission.discharge(
+                discharged_by=discharged_by,
+                notes=f"Destination: {discharge_destination}\nNotes: {discharge_notes}"
+            )
 
-                # Calculer le coût total avant la sauvegarde
-                try:
-                    calculated_cost = admission.calculate_total_cost()
-                except Exception as cost_error:
-                    # Si le calcul échoue, utiliser une valeur par défaut
-                    calculated_cost = Decimal("0.00")
-                    print(f"Erreur calcul coût: {cost_error}")
-
-                # Mettre à jour l'admission avec une approche différente
-                current_time = timezone.now()
-
-                # Mise à jour directe en base pour éviter les problèmes de propriétés
-                updated_rows = Admission.objects.filter(
-                    id=admission.id, is_active=True, discharge_date__isnull=True
-                ).update(
-                    discharge_date=current_time,
-                    discharge_notes=discharge_notes,
-                    discharge_destination=discharge_destination,
-                    is_active=False,
-                    total_cost=calculated_cost,
-                )
-
-                if updated_rows == 0:
-                    return JsonResponse(
-                        {
-                            "success": False,
-                            "error": "Impossible de mettre à jour l'admission - elle a peut-être déjà été modifiée",
-                        },
-                        status=400,
-                    )
-
-                # Libérer le lit
-                if bed:
-                    try:
-                        bed.is_occupied = False
-                        bed.last_cleaned = None
-                        bed.save()
-                    except Exception as bed_error:
-                        print(f"Erreur mise à jour lit: {bed_error}")
-                        # Ne pas faire échouer toute l'opération pour cela
-
-                # Mettre à jour la demande d'admission si elle existe
-                if admission_request:
-                    try:
-                        admission_request.status = (
-                            "admitted"  # ou "completed" selon votre logique
-                        )
-                        admission_request.save()
-                    except Exception as request_error:
-                        print(f"Erreur mise à jour demande: {request_error}")
-
-                return JsonResponse(
-                    {
-                        "success": True,
-                        "message": "Sortie enregistrée avec succès",
-                        "admission_id": admission.id,
-                        "total_cost": float(calculated_cost),
-                    }
-                )
+            return JsonResponse(
+                {
+                    "success": True,
+                    "message": "Sortie enregistrée avec succès",
+                    "admission_id": admission.id,
+                    "patient_name": f"{admission.patient.last_name} {admission.patient.first_name}",
+                    "total_cost": float(total_cost),
+                }
+            )
 
         except Exception as e:
-            # Log détaillé de l'erreur
             import logging
             import traceback
 
@@ -637,12 +972,8 @@ def discharge_patient(request, admission_id):
 
     # Pour les requêtes GET - retourner les détails de l'admission
     try:
-        context = {
-            "admission": admission,
-            "patient": admission.patient,
-            "bed": admission.bed,
-            "room": admission.bed.room if admission.bed else None,
-        }
+        lit_actuel = admission.lit_actuel
+
         return JsonResponse(
             {
                 "success": True,
@@ -650,17 +981,13 @@ def discharge_patient(request, admission_id):
                     "id": admission.id,
                     "patient_name": f"{admission.patient.last_name} {admission.patient.first_name}",
                     "room_number": (
-                        admission.bed.room.room_number
-                        if admission.bed and admission.bed.room
+                        lit_actuel.chambre.numero_chambre
+                        if lit_actuel and lit_actuel.chambre
                         else "N/A"
                     ),
-                    "bed_number": admission.bed.bed_number if admission.bed else "N/A",
-                    "admission_date": admission.admission_date.strftime(
-                        "%d/%m/%Y %H:%M"
-                    ),
-                    "length_of_stay": admission.length_of_stay,
-                    "diagnosis": admission.diagnosis or "",
-                    "treatment_plan": admission.treatment_plan or "",
+                    "bed_number": lit_actuel.numero_lit if lit_actuel else "N/A",
+                    "admission_date": admission.date_admission.strftime("%d/%m/%Y %H:%M"),
+                    "length_of_stay": admission.duree_sejour,
                 },
             }
         )
@@ -672,60 +999,40 @@ def discharge_patient(request, admission_id):
 
 
 @login_required
-def update_bed_status(request, bed_id):
-    """Mettre à jour le statut d'un lit (maintenance, etc.)"""
-    if request.method == "POST":
-        bed = get_object_or_404(Bed, id=bed_id)
-
-        try:
-            maintenance_required = request.POST.get("maintenance_required") == "on"
-            bed.maintenance_required = maintenance_required
-
-            if maintenance_required and bed.is_occupied:
-                return JsonResponse(
-                    {
-                        "success": False,
-                        "error": "Impossible de mettre un lit occupé en maintenance",
-                    }
-                )
-
-            bed.save()
-
-            return JsonResponse(
-                {"success": True, "message": "Statut du lit mis à jour avec succès"}
-            )
-
-        except Exception as e:
-            return JsonResponse({"success": False, "error": str(e)})
-
-    return JsonResponse({"success": False, "error": "Méthode non autorisée"})
-
-
-@login_required
 def room_detail_api(request, room_id):
     """API pour récupérer les détails d'une chambre"""
     try:
         room = get_object_or_404(
-            Room.objects.prefetch_related("beds__admissions__patient"), id=room_id
+            Chambre.objects.prefetch_related(
+                Prefetch(
+                    'lits',
+                    queryset=Lit.objects.filter(est_active=True).prefetch_related(
+                        Prefetch(
+                            'attributions_lits',
+                            queryset=AttributionLit.objects.filter(est_courante=True)
+                            .select_related('admission__patient')
+                        )
+                    )
+                )
+            ),
+            id=room_id
         )
 
         # Préparer les données des lits
         beds_data = []
-        for bed in room.beds.all():
-            current_patient = None
-            if bed.is_occupied and bed.current_patient:
-                current_patient = (
-                    f"{bed.current_patient.last_name} {bed.current_patient.first_name}"
-                )
+        for bed in room.lits.all():
+            current_patient = bed.patient_actuel
+            current_patient_name = None
+            if current_patient:
+                current_patient_name = f"{current_patient.last_name} {current_patient.first_name}"
 
             beds_data.append(
                 {
                     "id": bed.id,
-                    "bed_number": bed.bed_number,
-                    "is_occupied": bed.is_occupied,
-                    "maintenance_required": bed.maintenance_required,
-                    "current_patient": current_patient,
-                    "bed_type": bed.get_bed_type_display(),
+                    "bed_number": bed.numero_lit,
+                    "is_occupied": bed.est_occupe,
+                    "current_patient": current_patient_name,
+                    "status": bed.statut_affichage,
                 }
             )
 
@@ -733,26 +1040,21 @@ def room_detail_api(request, room_id):
             "success": True,
             "room": {
                 "id": room.id,
-                "room_number": room.room_number,
-                "floor": room.floor,
-                "room_type": room.room_type,
-                "room_type_display": room.get_room_type_display(),
-                "bed_capacity": room.bed_capacity,
-                "night_price": float(room.night_price),
-                "is_active": room.is_active,
-                "maintenance_required": room.maintenance_required,
-                "room_equipment": room.room_equipment or "",
-                "special_requirements": room.special_requirements or "",
-                "occupied_beds_count": room.occupied_beds_count,
-                "available_beds_count": room.available_beds_count,
-                "occupancy_rate": room.occupancy_rate,
+                "room_number": room.numero_chambre,
+                "room_type": room.type_chambre,
+                "room_type_display": room.get_type_chambre_display(),
+                "bed_capacity": room.capacite_lits,
+                "night_price": float(room.prix_nuit),
+                "est_active": room.est_active,
+                "occupied_beds_count": room.nombre_lits_occupes,
+                "available_beds_count": room.nombre_lits_disponibles,
                 "beds": beds_data,
             },
         }
 
         return JsonResponse(response_data)
 
-    except Room.DoesNotExist:
+    except Chambre.DoesNotExist:
         return JsonResponse(
             {"success": False, "error": "Chambre non trouvée"}, status=404
         )
@@ -762,13 +1064,38 @@ def room_detail_api(request, room_id):
 
 @login_required
 @csrf_exempt
+def transfer_patient_to_service(request):
+    """API pour transférer un patient vers un autre service (liste d'attente)"""
+    if request.method != "POST":
+        return JsonResponse({"success": False, "error": "Méthode non autorisée"})
+
+    try:
+        data = json.loads(request.body)
+        admission_id = data.get("admission_id")
+        new_service_id = data.get("new_service_id")
+        reason = data.get("reason", "Transfert entre services")
+
+        if not admission_id or not new_service_id:
+            return JsonResponse({"success": False, "error": "Données manquantes"})
+
+        # Utiliser la même logique que transfer_patient mais en forçant le transfert inter-services
+        data["new_bed_id"] = None  # Pas de lit spécifique
+        request._body = json.dumps(data).encode('utf-8')
+        return transfer_patient(request)
+
+    except Exception as e:
+        return JsonResponse({"success": False, "error": str(e)})
+
+
+@login_required
+@csrf_exempt
 def cancel_admission_request(request, request_id):
     """API pour annuler une demande d'admission"""
     if request.method == "POST":
         try:
-            admission_request = get_object_or_404(AdmissionRequest, id=request_id)
+            admission_request = get_object_or_404(DemandeAdmission, id=request_id)
 
-            if admission_request.status != "waiting":
+            if admission_request.statut != "waiting":
                 return JsonResponse(
                     {
                         "success": False,
@@ -776,8 +1103,17 @@ def cancel_admission_request(request, request_id):
                     }
                 )
 
-            admission_request.status = "cancelled"
-            admission_request.save()
+            # Récupérer le personnel connecté
+            try:
+                cancelled_by = Personnel.objects.get(user=request.user)
+            except Personnel.DoesNotExist:
+                cancelled_by = None
+
+            admission_request.statut = "cancelled"
+            if cancelled_by:
+                admission_request.mark_updated_by(cancelled_by)
+            else:
+                admission_request.save()
 
             return JsonResponse(
                 {"success": True, "message": "Demande d'admission annulée avec succès"}
@@ -787,3 +1123,122 @@ def cancel_admission_request(request, request_id):
             return JsonResponse({"success": False, "error": str(e)})
 
     return JsonResponse({"success": False, "error": "Méthode non autorisée"})
+
+
+@login_required
+@csrf_exempt
+def check_requests_status(request):
+    """API pour vérifier le statut des demandes d'admission"""
+    if request.method != "POST":
+        return JsonResponse({"success": False, "error": "Méthode non autorisée"})
+
+    try:
+        data = json.loads(request.body)
+        request_ids = data.get("request_ids", [])
+
+        if not request_ids:
+            return JsonResponse(
+                {"success": False, "error": "Aucun ID de demande fourni"}
+            )
+
+        # Récupérer les demandes qui ne sont plus en attente
+        processed_requests = list(
+            DemandeAdmission.objects.filter(
+                id__in=request_ids, statut__in=["admitted", "cancelled", "transferred"]
+            ).values_list("id", flat=True)
+        )
+
+        return JsonResponse({"success": True, "processed_requests": processed_requests})
+
+    except Exception as e:
+        return JsonResponse({"success": False, "error": str(e)})
+
+
+@login_required
+def financial_report_api(request, admission_id):
+    """API pour générer un rapport financier détaillé d'une admission"""
+    try:
+        admission = get_object_or_404(Admission, id=admission_id)
+
+        # Récupérer le parcours détaillé avec coûts
+        parcours_detaille = admission.obtenir_parcours_detaille_avec_couts()
+
+        # Statistiques financières
+        total_cost = admission.calculer_cout_total()
+        nombre_transferts = admission.transferts.count()
+        services_visites = list(set([etape['service'].name for etape in parcours_detaille]))
+
+        # Détail par service
+        couts_par_service = {}
+        for etape in parcours_detaille:
+            service_name = etape['service'].name
+            if service_name not in couts_par_service:
+                couts_par_service[service_name] = {
+                    'jours': 0,
+                    'cout_total': Decimal('0.00'),
+                    'prix_moyen': Decimal('0.00'),
+                    'periodes': []
+                }
+
+            couts_par_service[service_name]['jours'] += etape['duree_jours']
+            couts_par_service[service_name]['cout_total'] += etape['cout_periode']
+            couts_par_service[service_name]['periodes'].append({
+                'chambre': etape['chambre'].numero_chambre,
+                'lit': etape['lit'].numero_lit,
+                'jours': etape['duree_jours'],
+                'prix_nuit': etape['prix_nuit'],
+                'cout': etape['cout_periode'],
+            })
+
+        # Calculer prix moyen par service
+        for service_data in couts_par_service.values():
+            if service_data['jours'] > 0:
+                service_data['prix_moyen'] = service_data['cout_total'] / service_data['jours']
+
+        return JsonResponse({
+            "success": True,
+            "financial_report": {
+                "admission_id": admission.id,
+                "patient_name": f"{admission.patient.last_name} {admission.patient.first_name}",
+                "total_cost": float(total_cost),
+                "total_days": admission.duree_sejour,
+                "average_daily_cost": float(total_cost / admission.duree_sejour) if admission.duree_sejour > 0 else 0,
+                "number_of_transfers": nombre_transferts,
+                "services_visited": services_visites,
+                "cost_by_service": {
+                    service: {
+                        "days": data['jours'],
+                        "total_cost": float(data['cout_total']),
+                        "average_price": float(data['prix_moyen']),
+                        "periods": [
+                            {
+                                "room": periode['chambre'],
+                                "bed": periode['lit'],
+                                "days": periode['jours'],
+                                "night_price": float(periode['prix_nuit']),
+                                "period_cost": float(periode['cout']),
+                            }
+                            for periode in data['periodes']
+                        ]
+                    }
+                    for service, data in couts_par_service.items()
+                },
+                "detailed_journey": [
+                    {
+                        "service": etape['service'].name,
+                        "room": etape['chambre'].numero_chambre,
+                        "bed": etape['lit'].numero_lit,
+                        "start_date": etape['date_debut'].isoformat(),
+                        "end_date": etape['date_fin'].isoformat() if etape['date_fin'] else None,
+                        "days": etape['duree_jours'],
+                        "night_price": float(etape['prix_nuit']),
+                        "period_cost": float(etape['cout_periode']),
+                        "cumulative_cost": float(etape['total_cumule']),
+                    }
+                    for etape in parcours_detaille
+                ]
+            }
+        })
+
+    except Exception as e:
+        return JsonResponse({"success": False, "error": str(e)}, status=500)

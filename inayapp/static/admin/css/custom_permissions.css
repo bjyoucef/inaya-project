@@ -1,0 +1,298 @@
+/* static/admin/css/custom_permissions.css */
+
+/* Améliorer l'apparence des fieldsets de permissions */
+.field-auth_permissions,
+.field-content_permissions,
+.field-admin_permissions,
+.field-other_permissions {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.field-auth_permissions label,
+.field-content_permissions label,
+.field-admin_permissions label,
+.field-other_permissions label {
+    font-weight: bold;
+    color: #495057;
+    font-size: 14px;
+    margin-bottom: 10px;
+    display: block;
+    border-bottom: 2px solid #007bff;
+    padding-bottom: 5px;
+}
+
+/* Organiser les checkboxes en colonnes */
+.field-auth_permissions ul,
+.field-content_permissions ul,
+.field-admin_permissions ul,
+.field-other_permissions ul {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 10px;
+    list-style: none;
+    padding: 0;
+    margin: 10px 0;
+}
+
+.field-auth_permissions ul li,
+.field-content_permissions ul li,
+.field-admin_permissions ul li,
+.field-other_permissions ul li {
+    display: flex;
+    align-items: center;
+    background: white;
+    padding: 8px 12px;
+    border-radius: 5px;
+    border: 1px solid #e9ecef;
+    transition: all 0.2s ease;
+}
+
+.field-auth_permissions ul li:hover,
+.field-content_permissions ul li:hover,
+.field-admin_permissions ul li:hover,
+.field-other_permissions ul li:hover {
+    background: #e3f2fd;
+    border-color: #2196f3;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.field-auth_permissions ul li label,
+.field-content_permissions ul li label,
+.field-admin_permissions ul li label,
+.field-other_permissions ul li label {
+    margin: 0;
+    padding-left: 8px;
+    font-weight: normal;
+    border: none;
+    cursor: pointer;
+    flex: 1;
+}
+
+.field-auth_permissions ul li input[type="checkbox"],
+.field-content_permissions ul li input[type="checkbox"],
+.field-admin_permissions ul li input[type="checkbox"],
+.field-other_permissions ul li input[type="checkbox"] {
+    transform: scale(1.2);
+    margin-right: 8px;
+}
+
+/* Coloration des différentes catégories */
+.field-auth_permissions {
+    border-left: 4px solid #28a745;
+}
+
+.field-content_permissions {
+    border-left: 4px solid #ffc107;
+}
+
+.field-admin_permissions {
+    border-left: 4px solid #dc3545;
+}
+
+.field-other_permissions {
+    border-left: 4px solid #6f42c1;
+}
+
+/* Améliorer les tableaux de liste */
+.change-list-results table {
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.change-list-results th {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-size: 12px;
+}
+
+.change-list-results td {
+    padding: 12px 10px;
+    border-bottom: 1px solid #f1f3f4;
+}
+
+.change-list-results tr:hover {
+    background: #f8f9fa;
+}
+
+/* Badges pour les statuts */
+.field-is_active span,
+.field-is_staff span,
+.field-is_superuser span {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+/* Améliorer les filtres */
+#changelist-filter {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+}
+
+#changelist-filter h3 {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    margin: -20px -20px 15px -20px;
+    padding: 15px 20px;
+    border-radius: 8px 8px 0 0;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+#changelist-filter ul {
+    background: white;
+    border-radius: 5px;
+    padding: 10px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+#changelist-filter li {
+    padding: 5px 0;
+    border-bottom: 1px solid #f1f3f4;
+}
+
+#changelist-filter li:last-child {
+    border-bottom: none;
+}
+
+#changelist-filter a {
+    color: #495057;
+    text-decoration: none;
+    display: block;
+    padding: 5px 10px;
+    border-radius: 3px;
+    transition: all 0.2s ease;
+}
+
+#changelist-filter a:hover {
+    background: #e3f2fd;
+    color: #1976d2;
+}
+
+#changelist-filter a.selected {
+    background: #2196f3;
+    color: white;
+    font-weight: bold;
+}
+
+/* Améliorer les breadcrumbs */
+.breadcrumbs {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 15px 20px;
+    border-radius: 0 0 8px 8px;
+    margin-bottom: 20px;
+}
+
+.breadcrumbs a {
+    color: rgba(255, 255, 255, 0.8);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.breadcrumbs a:hover {
+    color: white;
+}
+
+/* Améliorer les boutons d'action */
+.submit-row input[type="submit"] {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    border: none;
+    padding: 12px 25px;
+    border-radius: 25px;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.submit-row input[type="submit"]:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
+}
+
+.deletelink {
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%) !important;
+    border: none !important;
+    padding: 8px 20px !important;
+    border-radius: 20px !important;
+    color: white !important;
+    text-decoration: none !important;
+    transition: all 0.3s ease !important;
+}
+
+.deletelink:hover {
+    transform: translateY(-1px) !important;
+    box-shadow: 0 3px 10px rgba(220, 53, 69, 0.3) !important;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+
+    .field-auth_permissions ul,
+    .field-content_permissions ul,
+    .field-admin_permissions ul,
+    .field-other_permissions ul {
+        grid-template-columns: 1fr;
+    }
+
+    #changelist-filter {
+        margin-top: 20px;
+    }
+}
+
+/* Améliorer l'affichage des groupes inline */
+.inline-group {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.inline-group h2 {
+    background: linear-gradient(135deg, #6f42c1 0%, #007bff 100%);
+    color: white;
+    margin: -15px -15px 15px -15px;
+    padding: 12px 15px;
+    border-radius: 8px 8px 0 0;
+    font-size: 14px;
+}
+
+/* Indicateurs visuels pour les permissions */
+.permission-indicator {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 5px;
+}
+
+.permission-add {
+    background: #28a745;
+}
+
+.permission-change {
+    background: #ffc107;
+}
+
+.permission-delete {
+    background: #dc3545;
+}
+
+.permission-view {
+    background: #17a2b8;
+}
